@@ -43,10 +43,17 @@
 }
 
 /* Títulos em Plus Jakarta Sans com tracking negativo (DS: -0,02 a -0,03em).
-   Seletor de elemento: utilitário `font-*` do Tailwind ainda vence. */
-:where(h1, h2, h3, h4) {
-  font-family: var(--font-display), var(--font-atkinson), ui-sans-serif, system-ui, sans-serif;
-  letter-spacing: -0.02em;
+   Dentro de `@layer base`: o Tailwind 4 põe os utilitários em `@layer utilities`,
+   e CSS SEM layer vence qualquer CSS em layer, qualquer que seja a especificidade
+   — fora do layer, esta regra derrubaria `tracking-wider`, `font-mono` etc. */
+@layer base {
+  h1,
+  h2,
+  h3,
+  h4 {
+    font-family: var(--font-display), var(--font-atkinson), ui-sans-serif, system-ui, sans-serif;
+    letter-spacing: -0.02em;
+  }
 }
 
 /* ── Tema claro ───────────────────────────────────────────────────────────── */
@@ -62,10 +69,12 @@
   /* Texto pela escala de contraste do DS. O CRM tem 3 níveis, o DS tem 5:
      ink → `text`; ink-muted (≥4,5:1) → `text-muted`. `text-subtle` NÃO é o
      ink-subtle do DS (≥3:1, só placeholder e ícone — 4,3:1 sobre branco): o
-     CRM usa `text-subtle` como texto real (hora, meta), então fica em 5:1. */
+     CRM usa `text-subtle` como texto real (hora, meta), então fica ≥4,5:1
+     até sobre `surface-elevated` (#efecf0). `warning` é o amber-600 do DS
+     (#986109): o #ba7517 dá 3,7:1 como texto pequeno. */
   --color-text: #020035;
   --color-text-muted: #5f5a68;
-  --color-text-subtle: #716c7a;
+  --color-text-subtle: #6a6573;
 
   --color-border: #e2dfe5;
   --color-border-strong: #c8c4cd;
@@ -87,7 +96,7 @@
   --color-success: #0f6e56;
   --color-success-bg: #e1f5ee;
   --color-success-fg: #0f6e56;
-  --color-warning: #ba7517;
+  --color-warning: #986109;
   --color-warning-bg: #faeeda;
   --color-warning-fg: #7a4d06;
   --color-error: #c03800;
@@ -97,9 +106,11 @@
   --color-info-bg: #eee8ff;
   --color-info-fg: #2100b2;
 
-  /* Controles (input, select, checkbox) usam `line-control` do DS (≥3:1);
-     `--input` é o token shadcn que o CRM lê para a borda de campo. */
+  /* Controles usam `line-control` do DS (≥3:1). `--color-input` alimenta o
+     utilitário `border-input` (@theme inline do globals.css); `--input` é o
+     alias shadcn. O `Input` em si usa `border-border` — ver a regra abaixo. */
   --input: #7d7884;
+  --color-input: #7d7884;
   --axis-line-control: #7d7884;
 
   /* Raios do DS: sm 4 · md 6 · lg 12 · xl 16 */
@@ -163,6 +174,7 @@
   --color-info-fg: #b4b0ff;
 
   --input: #6d6a89;
+  --color-input: #6d6a89;
   --axis-line-control: #6d6a89;
 
   --radius-sm: 4px;
@@ -176,20 +188,41 @@
   --shadow-lg: 0 12px 32px -6px rgba(0, 0, 0, 0.55), 0 4px 12px -2px rgba(0, 0, 0, 0.4);
   --shadow-xl: 0 24px 48px -12px rgba(0, 0, 0, 0.65), 0 8px 16px -4px rgba(0, 0, 0, 0.5);
 
-  --destructive-foreground: #ffffff;
+  --destructive-foreground: #020035;
 }
 
 /* ── Bordas de controle (DS: `line-control`, ≥3:1) ───────────────────────────
-   O `Input` do produto usa `border-border` (decorativa, 1,3:1) — insuficiente
-   para delimitar um campo. A regra tem especificidade 0,1,1 (vence o utilitário
-   0,1,0), mas hover e foco (`hover:`/`focus-visible:`, 0,2,0) continuam
-   vencendo. Fora: checkbox/radio/range/file e campo declarado transparente. */
-input:not([type="checkbox"], [type="radio"], [type="range"], [type="file"], [type="hidden"]):not(
-    [class*="border-transparent"]
-  ),
-textarea:not([class*="border-transparent"]),
-select:not([class*="border-transparent"]) {
+   O `Input` do produto usa o utilitário `border-border` (decorativa, 1,3:1),
+   insuficiente para delimitar um campo. Para trocá-la a regra precisa ficar
+   FORA de `@layer` — CSS sem layer vence o `@layer utilities` do Tailwind —,
+   e por isso exclui os estados que o produto já pinta sozinho: foco
+   (`focus-visible:border-accent`) e erro (`aria-[invalid=true]:border-error`).
+   Sem essa exclusão, ela deixaria a borda cinza em foco e em erro (medido em
+   produção, 2026-10-02). Em repouso e em hover vale `line-control`.
+   Fora: checkbox/radio/range/file e campo declarado transparente. */
+input:not(
+  [type="checkbox"],
+  [type="radio"],
+  [type="range"],
+  [type="file"],
+  [type="hidden"],
+  [class*="border-transparent"],
+  [aria-invalid="true"],
+  :focus-visible
+),
+textarea:not([class*="border-transparent"], [aria-invalid="true"], :focus-visible),
+select:not([class*="border-transparent"], [aria-invalid="true"], :focus-visible) {
   border-color: var(--axis-line-control);
+}
+
+/* ── Texto branco sobre o preenchimento de erro, no tema escuro ───────────────
+   `bg-error text-white` (botão destrutivo): branco sobre #ff6a2b dá 2,9:1.
+   Navy sobre ele dá 7:1. `@layer utilities` + seletor mais específico vence o
+   `.text-white` sem editar o componente (que é do upstream). */
+@layer utilities {
+  [data-theme="dark"] .bg-error.text-white {
+    color: #020035;
+  }
 }
 
 /* ── Marca como detalhe: eyebrow Axis (barra laranja + mono 11px) ───────────
