@@ -1,4 +1,4 @@
-# VBN: Caddy do modo single-server ATRÁS do Traefik do servidor.
+# Axis: Caddy do modo single-server ATRÁS do Traefik do servidor.
 #
 # O Traefik termina o TLS e entrega HTTP aqui (porta 80, sem porta no host). As
 # rotas são as do Caddyfile.single-server: APIs públicas do Supabase para o
