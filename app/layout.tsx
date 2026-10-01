@@ -25,6 +25,7 @@ import { ThemeProvider } from "@/lib/theme";
 import { Providers } from "./providers";
 import { PublicEnvScript } from "./public-env-script";
 import "./globals.css";
+import "./axis-theme.css";
 
 // Fontes versionadas em app/fonts/ (origem e licença no README de lá): o
 // next/font/google as baixava durante o build, e o build caía quando o Google
@@ -36,6 +37,9 @@ const atkinson = localFont({
     { path: "./fonts/atkinson-hyperlegible-700-latin-latin-ext.woff2", weight: "700", style: "normal" },
   ],
   display: "swap",
+  // Tema Axis: Atkinson/Plex continuam declaradas (o tailwind-tokens.test confere),
+  // mas o tema redefine as variáveis para Inter/JetBrains — sem preload à toa.
+  preload: false,
   variable: "--font-atkinson",
 });
 
@@ -45,7 +49,31 @@ const plexMono = localFont({
     { path: "./fonts/ibm-plex-mono-500-latin-latin-ext.woff2", weight: "500", style: "normal" },
   ],
   display: "swap",
+  preload: false,
   variable: "--font-mono",
+});
+
+// Tema Axis (app/axis-theme.css): Plus Jakarta Sans (títulos), Inter (corpo) e
+// JetBrains Mono (números e dados), conforme o design system da Axis.
+const axisDisplay = localFont({
+  src: "./fonts/plus-jakarta-sans-200-800-latin.woff2",
+  weight: "200 800",
+  display: "swap",
+  variable: "--font-axis-display",
+});
+
+const axisBody = localFont({
+  src: "./fonts/inter-variable-latin.woff2",
+  weight: "100 900",
+  display: "swap",
+  variable: "--font-axis-body",
+});
+
+const axisMono = localFont({
+  src: "./fonts/jetbrains-mono-100-800-latin.woff2",
+  weight: "100 800",
+  display: "swap",
+  variable: "--font-axis-mono",
 });
 
 /**
@@ -282,7 +310,7 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
       lang="pt-BR"
       data-theme="light"
       suppressHydrationWarning
-      className={`${atkinson.variable} ${plexMono.variable}`}
+      className={`${atkinson.variable} ${plexMono.variable} ${axisDisplay.variable} ${axisBody.variable} ${axisMono.variable}`}
     >
       <head>
         {/* Primeiro de tudo: a cor da instalação, antes do CSS e do script de tema. */}

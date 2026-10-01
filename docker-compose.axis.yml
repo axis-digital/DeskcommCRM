@@ -1,12 +1,12 @@
-# VBN Digital — override local da instalação (entra via COMPOSE_EXTRA_FILES no .env).
+# Axis — override local da instalação (entra via COMPOSE_EXTRA_FILES no .env).
 #
 # Soma-se a docker-compose.prod.yml + docker-compose.single-server.yml:
-#   - imagens app/worker construídas aqui (branch `vbn`, patch de WAHA compartilhado);
+#   - imagens app/worker construídas aqui (branch `axis`, patch de WAHA compartilhado);
 #   - WAHA do stack desligado: o CRM usa o `wa-ha` já existente no servidor,
 #     alcançado pela rede network_public (sessões com webhook próprio, ver
 #     WAHA_SESSION_WEBHOOK em lib/waha/client.ts);
 #   - Caddy sem portas no host: o Traefik do servidor termina o TLS e entrega
-#     HTTP ao Caddy, que mantém as rotas do single-server (Caddyfile.vbn).
+#     HTTP ao Caddy, que mantém as rotas do single-server (Caddyfile.axis).
 
 x-waha-externo: &waha-externo
   WAHA_API_BASE_URL: http://wa-ha:3000
@@ -17,22 +17,22 @@ x-waha-externo: &waha-externo
 
 services:
   app:
-    image: deskcomm-app:vbn
+    image: deskcomm-app:axis
     pull_policy: never
     depends_on: !override
       srh:
         condition: service_started
     environment: *waha-externo
     networks:
-      vbn_public:
+      axis_public:
         aliases: [deskcomm-app]
 
   worker:
-    image: deskcomm-worker:vbn
+    image: deskcomm-worker:axis
     pull_policy: never
     environment: *waha-externo
     networks:
-      vbn_public: {}
+      axis_public: {}
 
   waha:
     profiles: ["waha-externo-nao-usado"]
@@ -40,7 +40,7 @@ services:
   caddy:
     ports: !reset []
     volumes: !override
-      - ./Caddyfile.vbn:/etc/caddy/Caddyfile:ro
+      - ./Caddyfile.axis:/etc/caddy/Caddyfile:ro
       - caddy-data:/data
       - caddy-config:/config
     # !override tira o apelido ${DOMAIN} do single-server: sem TLS aqui, quem
@@ -48,7 +48,7 @@ services:
     networks: !override
       internal: {}
       supabase_private: {}
-      vbn_public: {}
+      axis_public: {}
     labels:
       traefik.enable: "true"
       traefik.docker.network: network_public
@@ -59,6 +59,6 @@ services:
       traefik.http.services.deskcommcrm.loadbalancer.server.port: "80"
 
 networks:
-  vbn_public:
+  axis_public:
     external: true
     name: network_public

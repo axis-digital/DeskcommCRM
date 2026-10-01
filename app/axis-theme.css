@@ -1,0 +1,187 @@
+/* ─────────────────────────────────────────────────────────────────────────
+   Tema Axis — design system da Axis Aceleradora sobre o DeskcommCRM.
+
+   Fonte de verdade: o design system "Axis" (tokens.json): navy #020035,
+   cream #EFECF0, cinzas frios, laranja #F04801 como acento, Plus Jakarta
+   Sans / Inter / JetBrains Mono.
+
+   POR QUE UM ARQUIVO À PARTE (e não editar `globals.css`):
+   o fork acompanha o upstream (`git merge upstream/main`). `globals.css` é
+   arquivo vivo do upstream e vigiado por `tests/unit/tailwind-tokens.test.ts`;
+   este arquivo só REDEFINE valores de token, então um merge nunca conflita aqui
+   e, se o upstream acrescentar um token novo, ele aparece com a cor do upstream
+   (visível) em vez de quebrar. Ao receber um merge, reconferir os tokens novos.
+
+   POR QUE `:root:root` / `[data-theme][data-theme]`:
+   especificidade 0,2,0 vence o `:root` / `[data-theme="…"]` (0,1,0) do
+   `globals.css` sem depender da ordem de carga do CSS — mesmo motivo de
+   `lib/branding/css.ts`. O bloco escuro vem DEPOIS do claro (empate 0,2,0 entre
+   `:root:root` e `[data-theme="dark"][data-theme="dark"]` se decide pela ordem).
+
+   O QUE NÃO ESTÁ AQUI, DE PROPÓSITO:
+   - `--color-accent*`: o accent (laranja #F04801) é da MARCA, derivado em runtime
+     por `lib/branding` com piso de contraste por tema. Configure em /admin/marca
+     ou `APP_ACCENT_HEX=#F04801` no `.env`. Declarar aqui brigaria com o CSS que a
+     marca injeta no mesmo nível de especificidade.
+   - `--agenda-pessoa-*`: cores de dado (pessoas na agenda), não de identidade.
+
+   Os dois blocos declaram o MESMO conjunto de tokens — um token só no claro
+   vazaria para o escuro (e `tests/unit/branding-tema-claro-escopavel.test.ts`
+   exige o espelho).
+   ───────────────────────────────────────────────────────────────────────── */
+
+/* ── Tipografia ─────────────────────────────────────────────────────────────
+   O `globals.css` lê `--font-atkinson` (corpo) e `--font-mono`; ambas são
+   declaradas pelo next/font no <html> (0,1,0). Aqui apontamos para as fontes da
+   Axis, carregadas em `app/layout.tsx`. */
+:root:root {
+  --font-atkinson: var(--font-axis-body);
+  --font-mono: var(--font-axis-mono);
+  --font-display: var(--font-axis-display);
+}
+
+/* Títulos em Plus Jakarta Sans com tracking negativo (DS: -0,02 a -0,03em).
+   Seletor de elemento: utilitário `font-*` do Tailwind ainda vence. */
+:where(h1, h2, h3, h4) {
+  font-family: var(--font-display), var(--font-atkinson), ui-sans-serif, system-ui, sans-serif;
+  letter-spacing: -0.02em;
+}
+
+/* ── Tema claro ───────────────────────────────────────────────────────────── */
+:root:root,
+:root:root[data-theme="light"],
+[data-theme="light"][data-theme="light"] {
+  /* Superfícies: bg gray-50, card branco, respiro cream */
+  --color-bg: #f9f8fa;
+  --color-surface: #ffffff;
+  --color-surface-elevated: #efecf0;
+  --color-overlay: rgba(2, 0, 53, 0.48);
+
+  /* Texto: ink navy. `text-subtle` ≠ gray-400 do DS (2,9:1) — usado como texto
+     real no CRM, então fica em 5:1 sobre branco. */
+  --color-text: #020035;
+  --color-text-muted: #5f5a68;
+  --color-text-subtle: #716c7a;
+
+  --color-border: #e2dfe5;
+  --color-border-strong: #c8c4cd;
+
+  /* Neutros — gray DS (frio, levemente violeta) */
+  --color-neutral-50: #f9f8fa;
+  --color-neutral-100: #f1eff3;
+  --color-neutral-200: #e2dfe5;
+  --color-neutral-300: #c8c4cd;
+  --color-neutral-400: #9b96a2;
+  --color-neutral-500: #716c7a;
+  --color-neutral-600: #5f5a68;
+  --color-neutral-700: #443f4d;
+  --color-neutral-800: #2c2830;
+  --color-neutral-900: #1a161e;
+  --color-neutral-950: #0f0c13;
+
+  /* Estados — sempre acompanhados de texto/ícone, nunca só cor */
+  --color-success: #0f6e56;
+  --color-success-bg: rgba(15, 110, 86, 0.1);
+  --color-success-fg: #0b5846;
+  --color-warning: #ba7517;
+  --color-warning-bg: rgba(186, 117, 23, 0.12);
+  --color-warning-fg: #8f5a0f;
+  --color-error: #c03800;
+  --color-error-bg: rgba(192, 56, 0, 0.1);
+  --color-error-fg: #a02f00;
+  --color-info: #2100b2;
+  --color-info-bg: rgba(33, 0, 178, 0.08);
+  --color-info-fg: #2100b2;
+
+  /* Raios do DS: sm 4 · md 6 · lg 12 · xl 16 */
+  --radius-sm: 4px;
+  --radius-md: 6px;
+  --radius-lg: 12px;
+  --radius-xl: 16px;
+
+  /* Elevação: DS prefere borda; sombra só discreta, em tinta navy */
+  --shadow-xs: 0 1px 2px 0 rgba(2, 0, 53, 0.04);
+  --shadow-sm: 0 1px 2px 0 rgba(2, 0, 53, 0.05), 0 1px 1px 0 rgba(2, 0, 53, 0.03);
+  --shadow-md: 0 4px 12px -2px rgba(2, 0, 53, 0.07), 0 2px 4px -1px rgba(2, 0, 53, 0.04);
+  --shadow-lg: 0 12px 32px -6px rgba(2, 0, 53, 0.12), 0 4px 12px -2px rgba(2, 0, 53, 0.06);
+  --shadow-xl: 0 24px 48px -12px rgba(2, 0, 53, 0.18), 0 8px 16px -4px rgba(2, 0, 53, 0.08);
+
+  --destructive-foreground: #ffffff;
+}
+
+/* ── Tema escuro (Navy) ──────────────────────────────────────────────────── */
+:root:root[data-theme="dark"],
+[data-theme="dark"][data-theme="dark"] {
+  --color-bg: #020035;
+  --color-surface: #100e40;
+  --color-surface-elevated: #0a0839;
+  --color-overlay: rgba(1, 0, 24, 0.66);
+
+  /* muted/subtle ≥ 5:1 sobre o navy (o `ink-subtle` do DS no escuro não passa) */
+  --color-text: #efecf0;
+  --color-text-muted: #a3a1ba;
+  --color-text-subtle: #7c7a99;
+
+  --color-border: #23214f;
+  --color-border-strong: #49476d;
+
+  --color-neutral-50: #efecf0;
+  --color-neutral-100: #ddd9df;
+  --color-neutral-200: #c8c4cd;
+  --color-neutral-300: #a3a1ba;
+  --color-neutral-400: #7c7a99;
+  --color-neutral-500: #49476d;
+  --color-neutral-600: #23214f;
+  --color-neutral-700: #100e40;
+  --color-neutral-800: #0a0839;
+  --color-neutral-900: #020035;
+  --color-neutral-950: #010025;
+
+  --color-success: #34b58f;
+  --color-success-bg: rgba(52, 181, 143, 0.16);
+  --color-success-fg: #6fd3b5;
+  --color-warning: #e0a040;
+  --color-warning-bg: rgba(224, 160, 64, 0.16);
+  --color-warning-fg: #edb867;
+  /* erro ≠ accent: laranja-avermelhado mais claro e com bg próprio, para não se
+     confundir com o CTA #F04801 sobre navy */
+  --color-error: #ff7a4d;
+  --color-error-bg: rgba(255, 122, 77, 0.16);
+  --color-error-fg: #ff9a78;
+  --color-info: #b8b2f5;
+  --color-info-bg: rgba(184, 178, 245, 0.14);
+  --color-info-fg: #cfcbfa;
+
+  --radius-sm: 4px;
+  --radius-md: 6px;
+  --radius-lg: 12px;
+  --radius-xl: 16px;
+
+  --shadow-xs: 0 1px 2px 0 rgba(0, 0, 0, 0.3);
+  --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.4), 0 1px 1px 0 rgba(0, 0, 0, 0.2);
+  --shadow-md: 0 4px 12px -2px rgba(0, 0, 0, 0.45), 0 2px 4px -1px rgba(0, 0, 0, 0.3);
+  --shadow-lg: 0 12px 32px -6px rgba(0, 0, 0, 0.55), 0 4px 12px -2px rgba(0, 0, 0, 0.4);
+  --shadow-xl: 0 24px 48px -12px rgba(0, 0, 0, 0.65), 0 8px 16px -4px rgba(0, 0, 0, 0.5);
+
+  --destructive-foreground: #ffffff;
+}
+
+/* ── Marca como detalhe: eyebrow Axis (barra laranja + mono 11px) ───────────
+   Opt-in: `className="axis-eyebrow"` em qualquer rótulo acima de um título. */
+.axis-eyebrow {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-family: var(--font-mono), ui-monospace, monospace;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--color-text-muted);
+}
+.axis-eyebrow::before {
+  content: "";
+  width: 20px;
+  height: 2px;
+  background: var(--color-accent);
+}
