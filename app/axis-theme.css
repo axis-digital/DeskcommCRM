@@ -19,10 +19,12 @@
    `:root:root` e `[data-theme="dark"][data-theme="dark"]` se decide pela ordem).
 
    O QUE NÃO ESTÁ AQUI, DE PROPÓSITO:
-   - `--color-accent*`: o accent (laranja #F04801) é da MARCA, derivado em runtime
-     por `lib/branding` com piso de contraste por tema. Configure em /admin/marca
-     ou `APP_ACCENT_HEX=#F04801` no `.env`. Declarar aqui brigaria com o CSS que a
-     marca injeta no mesmo nível de especificidade.
+   - `--color-accent*`: o accent é da MARCA, derivado em runtime por `lib/branding`
+     com piso de contraste por tema. Use o `accent-strong` do DS, **#C03800**
+     (branco sobre ele = 5,5:1): com o #F04801 puro a derivação o escurece até
+     um marrom (#913214). Configure em /admin/marca ou `APP_ACCENT_HEX=#C03800`.
+     Declarar aqui brigaria com o CSS que a marca injeta no mesmo nível de
+     especificidade.
    - `--agenda-pessoa-*`: cores de dado (pessoas na agenda), não de identidade.
 
    Os dois blocos declaram o MESMO conjunto de tokens — um token só no claro
@@ -51,14 +53,16 @@
 :root:root,
 :root:root[data-theme="light"],
 [data-theme="light"][data-theme="light"] {
-  /* Superfícies: bg gray-50, card branco, respiro cream */
+  /* Superfícies (DS: bg → surface → surface-raised; surface-alt = cream) */
   --color-bg: #f9f8fa;
   --color-surface: #ffffff;
   --color-surface-elevated: #efecf0;
   --color-overlay: rgba(2, 0, 53, 0.48);
 
-  /* Texto: ink navy. `text-subtle` ≠ gray-400 do DS (2,9:1) — usado como texto
-     real no CRM, então fica em 5:1 sobre branco. */
+  /* Texto pela escala de contraste do DS. O CRM tem 3 níveis, o DS tem 5:
+     ink → `text`; ink-muted (≥4,5:1) → `text-muted`. `text-subtle` NÃO é o
+     ink-subtle do DS (≥3:1, só placeholder e ícone — 4,3:1 sobre branco): o
+     CRM usa `text-subtle` como texto real (hora, meta), então fica em 5:1. */
   --color-text: #020035;
   --color-text-muted: #5f5a68;
   --color-text-subtle: #716c7a;
@@ -66,32 +70,37 @@
   --color-border: #e2dfe5;
   --color-border-strong: #c8c4cd;
 
-  /* Neutros — gray DS (frio, levemente violeta) */
+  /* Neutros — gray DS 50–950 */
   --color-neutral-50: #f9f8fa;
   --color-neutral-100: #f1eff3;
   --color-neutral-200: #e2dfe5;
   --color-neutral-300: #c8c4cd;
   --color-neutral-400: #9b96a2;
-  --color-neutral-500: #716c7a;
+  --color-neutral-500: #7d7884;
   --color-neutral-600: #5f5a68;
-  --color-neutral-700: #443f4d;
+  --color-neutral-700: #413e46;
   --color-neutral-800: #2c2830;
   --color-neutral-900: #1a161e;
-  --color-neutral-950: #0f0c13;
+  --color-neutral-950: #0c0b0d;
 
-  /* Estados — sempre acompanhados de texto/ícone, nunca só cor */
+  /* Estados (DS success/warning/danger/info: preenchimento, -text, -tint) */
   --color-success: #0f6e56;
-  --color-success-bg: rgba(15, 110, 86, 0.1);
-  --color-success-fg: #0b5846;
+  --color-success-bg: #e1f5ee;
+  --color-success-fg: #0f6e56;
   --color-warning: #ba7517;
-  --color-warning-bg: rgba(186, 117, 23, 0.12);
-  --color-warning-fg: #8f5a0f;
+  --color-warning-bg: #faeeda;
+  --color-warning-fg: #7a4d06;
   --color-error: #c03800;
-  --color-error-bg: rgba(192, 56, 0, 0.1);
-  --color-error-fg: #a02f00;
+  --color-error-bg: #fff0eb;
+  --color-error-fg: #c03800;
   --color-info: #2100b2;
-  --color-info-bg: rgba(33, 0, 178, 0.08);
+  --color-info-bg: #eee8ff;
   --color-info-fg: #2100b2;
+
+  /* Controles (input, select, checkbox) usam `line-control` do DS (≥3:1);
+     `--input` é o token shadcn que o CRM lê para a borda de campo. */
+  --input: #7d7884;
+  --axis-line-control: #7d7884;
 
   /* Raios do DS: sm 4 · md 6 · lg 12 · xl 16 */
   --radius-sm: 4px;
@@ -114,43 +123,47 @@
 [data-theme="dark"][data-theme="dark"] {
   --color-bg: #020035;
   --color-surface: #100e40;
-  --color-surface-elevated: #0a0839;
+  --color-surface-elevated: #09073b;
   --color-overlay: rgba(1, 0, 24, 0.66);
 
-  /* muted/subtle ≥ 5:1 sobre o navy (o `ink-subtle` do DS no escuro não passa) */
+  /* ink / ink-muted do DS; `text-subtle` ≥4,5:1 também sobre `surface` (o
+     ink-subtle do DS, #6D6A89, dá 3,6:1 ali — serve a ícone, não a texto). */
   --color-text: #efecf0;
-  --color-text-muted: #a3a1ba;
-  --color-text-subtle: #7c7a99;
+  --color-text-muted: #8b89a1;
+  --color-text-subtle: #807e9d;
 
   --color-border: #23214f;
-  --color-border-strong: #49476d;
+  --color-border-strong: #3b3962;
 
-  --color-neutral-50: #efecf0;
-  --color-neutral-100: #ddd9df;
-  --color-neutral-200: #c8c4cd;
-  --color-neutral-300: #a3a1ba;
-  --color-neutral-400: #7c7a99;
-  --color-neutral-500: #49476d;
-  --color-neutral-600: #23214f;
-  --color-neutral-700: #100e40;
-  --color-neutral-800: #0a0839;
-  --color-neutral-900: #020035;
-  --color-neutral-950: #010025;
+  /* Neutros — escala navy do DS, invertida (50 = claro, 950 = fundo) */
+  --color-neutral-50: #e8e5ea;
+  --color-neutral-100: #dedbe3;
+  --color-neutral-200: #cecbd6;
+  --color-neutral-300: #b1afbf;
+  --color-neutral-400: #8b89a1;
+  --color-neutral-500: #6d6a89;
+  --color-neutral-600: #555376;
+  --color-neutral-700: #3b3962;
+  --color-neutral-800: #23214f;
+  --color-neutral-900: #100e40;
+  --color-neutral-950: #020035;
 
-  --color-success: #34b58f;
-  --color-success-bg: rgba(52, 181, 143, 0.16);
-  --color-success-fg: #6fd3b5;
-  --color-warning: #e0a040;
-  --color-warning-bg: rgba(224, 160, 64, 0.16);
-  --color-warning-fg: #edb867;
-  /* erro ≠ accent: laranja-avermelhado mais claro e com bg próprio, para não se
-     confundir com o CTA #F04801 sobre navy */
-  --color-error: #ff7a4d;
-  --color-error-bg: rgba(255, 122, 77, 0.16);
-  --color-error-fg: #ff9a78;
-  --color-info: #b8b2f5;
-  --color-info-bg: rgba(184, 178, 245, 0.14);
-  --color-info-fg: #cfcbfa;
+  --color-success: #53b392;
+  --color-success-bg: #061e41;
+  --color-success-fg: #88cbb1;
+  --color-warning: #cd9550;
+  --color-warning-bg: #27172f;
+  --color-warning-fg: #e0b585;
+  /* danger no mesmo matiz do accent: exceção declarada do DS — nunca só cor */
+  --color-error: #ff6a2b;
+  --color-error-bg: #320e2b;
+  --color-error-fg: #fea388;
+  --color-info: #8f8bfb;
+  --color-info-bg: #1b1564;
+  --color-info-fg: #b4b0ff;
+
+  --input: #6d6a89;
+  --axis-line-control: #6d6a89;
 
   --radius-sm: 4px;
   --radius-md: 6px;
@@ -164,6 +177,19 @@
   --shadow-xl: 0 24px 48px -12px rgba(0, 0, 0, 0.65), 0 8px 16px -4px rgba(0, 0, 0, 0.5);
 
   --destructive-foreground: #ffffff;
+}
+
+/* ── Bordas de controle (DS: `line-control`, ≥3:1) ───────────────────────────
+   O `Input` do produto usa `border-border` (decorativa, 1,3:1) — insuficiente
+   para delimitar um campo. A regra tem especificidade 0,1,1 (vence o utilitário
+   0,1,0), mas hover e foco (`hover:`/`focus-visible:`, 0,2,0) continuam
+   vencendo. Fora: checkbox/radio/range/file e campo declarado transparente. */
+input:not([type="checkbox"], [type="radio"], [type="range"], [type="file"], [type="hidden"]):not(
+    [class*="border-transparent"]
+  ),
+textarea:not([class*="border-transparent"]),
+select:not([class*="border-transparent"]) {
+  border-color: var(--axis-line-control);
 }
 
 /* ── Marca como detalhe: eyebrow Axis (barra laranja + mono 11px) ───────────
