@@ -73,6 +73,7 @@ const axisMono = localFont({
   src: "./fonts/jetbrains-mono-100-800-latin.woff2",
   weight: "100 800",
   display: "swap",
+  preload: false,
   variable: "--font-axis-mono",
 });
 
