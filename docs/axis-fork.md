@@ -30,5 +30,13 @@ e, se sim, definir o valor Axis dele em `app/axis-theme.css` nos DOIS temas.
 ## Marca em runtime (não é código)
 
 Nome, cor e logo vêm do banco (`/admin/marca`) com `.env` como semente: `APP_NAME`,
-`APP_ACCENT_HEX`. O accent passa pela derivação de contraste de `lib/branding`, que escurece
-o laranja `#F04801` até o texto branco caber — ver a decisão registrada na sessão do tema.
+`APP_ACCENT_HEX`. O accent passa pela derivação de contraste de `lib/branding`.
+
+**Use `APP_ACCENT_HEX=#C03800`** (o `accent-strong` do design system, branco sobre ele = 5,5:1):
+a derivação o mantém. Com o `#F04801` puro ela escurece o botão até `#913214` (marrom). No tema
+escuro a própria derivação clareia o accent (`#F96B40`, texto escuro no botão).
+
+Tokens do tema seguem a seção "Cor e contraste" do design system (escalas 50–950, texto em
+níveis, `line-control` nas bordas de campo). Exceções registradas em `app/axis-theme.css`:
+`text-subtle` fica em ≥4,5:1 (o `ink-subtle` do DS é só 3:1) e `danger` no escuro compartilha o
+matiz do accent, como o DS declara.
