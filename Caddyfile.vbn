@@ -1,0 +1,35 @@
+# VBN: Caddy do modo single-server ATRÁS do Traefik do servidor.
+#
+# O Traefik termina o TLS e entrega HTTP aqui (porta 80, sem porta no host). As
+# rotas são as do Caddyfile.single-server: APIs públicas do Supabase para o
+# Envoy privado, o resto para o app, e o webhook global do WAHA bloqueado.
+# `trusted_proxies` preserva o X-Forwarded-Proto=https que o Traefik manda.
+
+{
+	auto_https off
+	servers {
+		trusted_proxies static private_ranges
+	}
+}
+
+:80 {
+	encode gzip
+
+	route {
+		@waha_global path /api/v1/webhooks/waha
+		respond @waha_global 403
+
+		@supabase path /auth/v1* /rest/v1* /realtime/v1* /storage/v1* /functions/v1* /graphql/v1*
+		reverse_proxy @supabase supabase-envoy:8000
+
+		@agentrun path /api/internal/agents/run*
+		reverse_proxy @agentrun app:3000 {
+			transport http {
+				read_timeout 320s
+				write_timeout 320s
+			}
+		}
+
+		reverse_proxy app:3000
+	}
+}

@@ -1,0 +1,61 @@
+# VBN Digital — override local da instalação (entra via COMPOSE_EXTRA_FILES no .env).
+#
+# Soma-se a docker-compose.prod.yml + docker-compose.single-server.yml:
+#   - imagens app/worker construídas aqui (branch `vbn`, patch de WAHA compartilhado);
+#   - WAHA do stack desligado: o CRM usa o `wa-ha` já existente no servidor,
+#     alcançado pela rede network_public (sessões com webhook próprio, ver
+#     WAHA_SESSION_WEBHOOK em lib/waha/client.ts);
+#   - Caddy sem portas no host: o Traefik do servidor termina o TLS e entrega
+#     HTTP ao Caddy, que mantém as rotas do single-server (Caddyfile.vbn).
+
+x-waha-externo: &waha-externo
+  WAHA_API_BASE_URL: http://wa-ha:3000
+  WAHA_WEBHOOK_BASE_URL: http://deskcomm-app:3000
+
+services:
+  app:
+    image: deskcomm-app:vbn
+    pull_policy: never
+    depends_on: !override
+      srh:
+        condition: service_started
+    environment: *waha-externo
+    networks:
+      vbn_public:
+        aliases: [deskcomm-app]
+
+  worker:
+    image: deskcomm-worker:vbn
+    pull_policy: never
+    environment: *waha-externo
+    networks:
+      vbn_public: {}
+
+  waha:
+    profiles: ["waha-externo-nao-usado"]
+
+  caddy:
+    ports: !reset []
+    volumes: !override
+      - ./Caddyfile.vbn:/etc/caddy/Caddyfile:ro
+      - caddy-data:/data
+      - caddy-config:/config
+    # !override tira o apelido ${DOMAIN} do single-server: sem TLS aqui, quem
+    # resolvesse o domínio para este Caddy falaria HTTPS com uma porta 80.
+    networks: !override
+      internal: {}
+      supabase_private: {}
+      vbn_public: {}
+    labels:
+      traefik.enable: "true"
+      traefik.docker.network: network_public
+      traefik.http.routers.deskcommcrm.rule: "Host(`${DOMAIN}`)"
+      traefik.http.routers.deskcommcrm.entrypoints: websecure
+      traefik.http.routers.deskcommcrm.tls: "true"
+      traefik.http.routers.deskcommcrm.tls.certresolver: letsencryptresolver
+      traefik.http.services.deskcommcrm.loadbalancer.server.port: "80"
+
+networks:
+  vbn_public:
+    external: true
+    name: network_public
