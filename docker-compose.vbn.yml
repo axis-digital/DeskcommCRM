@@ -11,6 +11,9 @@
 x-waha-externo: &waha-externo
   WAHA_API_BASE_URL: http://wa-ha:3000
   WAHA_WEBHOOK_BASE_URL: http://deskcomm-app:3000
+  # Docker daqui não faz hairpin ao IP público (firewall): o servidor fala com o
+  # Supabase pela rede privada, sem passar pelo Traefik.
+  SUPABASE_SERVER_URL: http://supabase-envoy:8000
 
 services:
   app:
