@@ -182,6 +182,9 @@ const schema = z.object({
   // derrubaria a ingestão de mensagens. Ligue se usa WAHA Plus ou um proxy que
   // assine — aí a verificação passa a ser obrigatória.
   WAHA_WEBHOOK_REQUIRE_SIGNATURE: z.string().optional().default("false"),
+  // WAHA compartilhado (opt-in). Lidas por getWahaClient em lib/waha/client.ts.
+  WAHA_ACCEPTED_ENGINES: z.string().optional().default(""),
+  WAHA_SESSION_WEBHOOK: z.string().optional().default(""),
 
   // ─── Chamada de voz WhatsApp (WaCalls, spec 18) ───
   //

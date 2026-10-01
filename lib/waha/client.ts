@@ -130,9 +130,33 @@ export const TETO_DE_MIDIA_MS = 30_000;
  *
  * Achado de @prevprocesso-maker no PR #465.
  */
+/**
+ * Os eventos que o CRM consome — os mesmos do `WHATSAPP_HOOK_EVENTS` do
+ * docker-compose.prod.yml (lá está o porquê de `message` ficar de fora).
+ */
+export const EVENTOS_DO_WEBHOOK = [
+  "message.any",
+  "message.ack",
+  "message.edited",
+  "message.revoked",
+  "session.status",
+  "state.change",
+] as const;
+
+/** Webhook gravado NA sessão, para WAHA compartilhado sem hook global. */
+export interface WahaSessionWebhook {
+  url: string;
+  /** Segredo do HMAC SHA512 com que o WAHA assina; sem ele vai sem assinatura. */
+  hmacKey?: string;
+}
+
 export interface WahaClientOpts {
   /** Sobrescreve o teto padrão. Existe para o teste; produção usa o default. */
   tetoMs?: number;
+  /** Engines que contam como compatíveis. Default: só NOWEB, o contrato do stack. */
+  enginesAceitos?: readonly string[];
+  /** Quando presente, toda sessão criada leva este webhook na própria config. */
+  webhookDaSessao?: WahaSessionWebhook | null;
 }
 
 const sessionSnapshotSchema = z.object({
@@ -174,6 +198,8 @@ function knownSessionConflict(body: unknown, status: number, operation: SessionO
 
 export class WahaClient {
   private readonly tetoMs: number;
+  private readonly enginesAceitos: readonly string[];
+  private readonly webhookDaSessao: WahaSessionWebhook | null;
 
   constructor(
     private readonly baseUrl: string,
@@ -181,6 +207,22 @@ export class WahaClient {
     opts: WahaClientOpts = {},
   ) {
     this.tetoMs = opts.tetoMs ?? TETO_PADRAO_MS;
+    this.enginesAceitos = opts.enginesAceitos?.length ? opts.enginesAceitos : ["NOWEB"];
+    this.webhookDaSessao = opts.webhookDaSessao ?? null;
+  }
+
+  /** As opções efetivas — sem a chave da API. */
+  opcoes(): { enginesAceitos: readonly string[]; webhookDaSessao: WahaSessionWebhook | null } {
+    return { enginesAceitos: this.enginesAceitos, webhookDaSessao: this.webhookDaSessao };
+  }
+
+  private configDeCriacao(): Record<string, unknown> {
+    const wh = this.webhookDaSessao;
+    if (!wh) return { ignore: CONVERSAS_IGNORADAS };
+    return {
+      ignore: CONVERSAS_IGNORADAS,
+      webhooks: [{ url: wh.url, events: [...EVENTOS_DO_WEBHOOK], ...(wh.hmacKey ? { hmac: { key: wh.hmacKey } } : {}) }],
+    };
   }
 
   /**
@@ -240,7 +282,7 @@ export class WahaClient {
     const actualEngine = engine ?? (await this.getServerVersion()).engine;
     // O contrato de criação atual é NOWEB. Engine desconhecido não é licença:
     // a operação já foi tentada, mas não podemos confirmar uma sessão incompatível.
-    if (actualEngine !== "NOWEB") return false;
+    if (!actualEngine || !this.enginesAceitos.includes(actualEngine)) return false;
     const ignore = session.config.ignore;
     if (ignore === undefined) return true; // sessão legada; convergência preserva webhooks
     if (!ignore || typeof ignore !== "object" || Array.isArray(ignore)) return false;
@@ -253,7 +295,7 @@ export class WahaClient {
     const res = await this.fetchComTeto(`${this.baseUrl}/api/sessions`, {
       method: "POST",
       headers: { "X-Api-Key": this.apiKey, "Content-Type": "application/json" },
-      body: JSON.stringify({ name, start: false, config: { ignore: CONVERSAS_IGNORADAS } }),
+      body: JSON.stringify({ name, start: false, config: this.configDeCriacao() }),
     });
     if (!res.ok && !knownSessionConflict(await res.json().catch(() => null), res.status, "create", name)) {
       throw new WahaSessionError("create", res.status);
@@ -374,7 +416,7 @@ export class WahaClient {
       // errado seria recusar o próprio propósito da função.
       const engine = typeof sessao.engine === "string" ? sessao.engine : sessao.engine?.engine;
       const actualEngine = engine ?? (await this.getServerVersion()).engine;
-      if (actualEngine !== "NOWEB") {
+      if (!actualEngine || !this.enginesAceitos.includes(actualEngine)) {
         logger.warn("[waha] engine incompatível; não vou reescrever o filtro da sessão", {});
         return;
       }
@@ -806,5 +848,24 @@ export function getWahaClient(): WahaClient | null {
   const url = process.env.WAHA_API_BASE_URL;
   const key = process.env.WAHA_API_KEY;
   if (!url || !key || key === "dev_plaintext_change_me") return null;
-  return new WahaClient(url, key);
+  return new WahaClient(url, key, opcoesDoAmbiente());
+}
+
+/**
+ * WAHA compartilhado com outros sistemas (opt-in, default = contrato do stack):
+ *   WAHA_ACCEPTED_ENGINES=NOWEB,GOWS  engines aceitos como compatíveis
+ *   WAHA_SESSION_WEBHOOK=true         webhook na sessão em vez do hook global
+ */
+function opcoesDoAmbiente(): WahaClientOpts {
+  const engines = (process.env.WAHA_ACCEPTED_ENGINES ?? "")
+    .split(",")
+    .map((e) => e.trim().toUpperCase())
+    .filter(Boolean);
+  const base = process.env.WAHA_WEBHOOK_BASE_URL?.replace(/\/+$/, "");
+  const hmacKey = process.env.WAHA_HMAC_SECRET?.trim();
+  const webhookDaSessao =
+    process.env.WAHA_SESSION_WEBHOOK === "true" && base
+      ? { url: `${base}/api/v1/webhooks/waha`, ...(hmacKey ? { hmacKey } : {}) }
+      : null;
+  return { enginesAceitos: engines, webhookDaSessao };
 }

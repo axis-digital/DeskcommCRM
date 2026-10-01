@@ -244,15 +244,24 @@ unset _deskcomm_chamador
 #
 # Todo `docker compose` do kit passa por aqui: com proxy externo, um comando sem
 # o override subiria o Caddy e ele iria bater de frente com o proxy da hospedagem.
+# COMPOSE_EXTRA_FILES (opcional, no .env): overrides locais da instalação,
+# separados por espaço, acrescentados DEPOIS dos do kit em todo comando. Vazio
+# = comportamento de sempre.
+compose_extra_args() {
+  local f
+  for f in ${COMPOSE_EXTRA_FILES:-}; do printf -- '-f\n%s\n' "$f"; done
+}
 dc() {
+  local -a extra=()
+  mapfile -t extra < <(compose_extra_args)
   if [ "${SINGLE_SERVER:-0}" = "1" ]; then
-    docker compose -f "$COMPOSE" -f docker-compose.single-server.yml "$@"
+    docker compose -f "$COMPOSE" -f docker-compose.single-server.yml ${extra[@]+"${extra[@]}"} "$@"
     return
   fi
   case "${REVERSE_PROXY:-caddy}" in
-  traefik) docker compose -f "$COMPOSE" -f "$COMPOSE_TRAEFIK" "$@" ;;
-  npm)     docker compose -f "$COMPOSE" -f "$COMPOSE_NPM" "$@" ;;
-  *)       docker compose -f "$COMPOSE" "$@" ;;
+  traefik) docker compose -f "$COMPOSE" -f "$COMPOSE_TRAEFIK" ${extra[@]+"${extra[@]}"} "$@" ;;
+  npm)     docker compose -f "$COMPOSE" -f "$COMPOSE_NPM" ${extra[@]+"${extra[@]}"} "$@" ;;
+  *)       docker compose -f "$COMPOSE" ${extra[@]+"${extra[@]}"} "$@" ;;
   esac
 }
 
@@ -260,14 +269,16 @@ dc() {
 # dono. Se a mensagem omitisse o override numa instalação com proxy externo, o
 # próprio dono derrubaria o site seguindo a instrução do kit.
 dc_files() {
+  local f extra=""
+  for f in ${COMPOSE_EXTRA_FILES:-}; do extra="$extra -f $f"; done
   if [ "${SINGLE_SERVER:-0}" = "1" ]; then
-    printf -- '-f %s -f %s' "$COMPOSE" docker-compose.single-server.yml
+    printf -- '-f %s -f %s%s' "$COMPOSE" docker-compose.single-server.yml "$extra"
     return
   fi
   case "${REVERSE_PROXY:-caddy}" in
-  traefik) printf -- '-f %s -f %s' "$COMPOSE" "$COMPOSE_TRAEFIK" ;;
-  npm)     printf -- '-f %s -f %s' "$COMPOSE" "$COMPOSE_NPM" ;;
-  *)       printf -- '-f %s' "$COMPOSE" ;;
+  traefik) printf -- '-f %s -f %s%s' "$COMPOSE" "$COMPOSE_TRAEFIK" "$extra" ;;
+  npm)     printf -- '-f %s -f %s%s' "$COMPOSE" "$COMPOSE_NPM" "$extra" ;;
+  *)       printf -- '-f %s%s' "$COMPOSE" "$extra" ;;
   esac
 }
 
