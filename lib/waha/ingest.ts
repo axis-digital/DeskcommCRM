@@ -37,6 +37,7 @@ import type { createAdminClient } from "@/lib/supabase/admin";
 import { ackToStatus } from "@/lib/types/messaging";
 import type { WahaEnvelope, WahaPayload } from "@/lib/waha/envelope";
 import { bareWaMessageId, chatIdFromWaMessageId } from "@/lib/waha/message-id";
+import { registrarStatusParaHistorico } from "@/lib/waha/historico";
 import { logger } from "@/lib/logger";
 import {
   ehNumeroInternoDeAviso,
@@ -243,7 +244,7 @@ export function parseChatId(chatId: string): ChatIdentity {
 }
 
 /** Só estes dois viram contato no CRM — ver a guarda de `upsertContact`. */
-function ehEnderecavel(parsed: ChatIdentity): boolean {
+export function ehEnderecavel(parsed: ChatIdentity): boolean {
   return parsed.kind === "phone" || parsed.kind === "lid";
 }
 
@@ -304,7 +305,7 @@ export function verifyHmacSha512(
   }
 }
 
-function previewFromMessage(p: WahaPayload): string {
+export function previewFromMessage(p: WahaPayload): string {
   if (p.body) return p.body.slice(0, 280);
   const t = resolveMessageType(p);
   return t !== "text" ? `[${t}]` : "";
@@ -408,12 +409,12 @@ export function resolveMessageType(p: WahaPayload): string {
   return "text";
 }
 
-function notifyNameOf(p: WahaPayload): string | null {
+export function notifyNameOf(p: WahaPayload): string | null {
   return p._data?.notifyName ?? p._data?.pushName ?? null;
 }
 
 /** Corpo textual: WAHA nem sempre preenche `body` em cartões de contato NOWEB. */
-function bodyOf(p: WahaPayload): string | null {
+export function bodyOf(p: WahaPayload): string | null {
   if (p.body) return p.body;
   const msg = p._data?.message;
   if (!msg || typeof msg !== "object") return null;
@@ -1310,6 +1311,9 @@ async function handleSessionStatus(
     update.warmup_completed_at = now;
   }
   await admin.from("channel_sessions").update(update).eq("id", session.id);
+
+  // Fork Axis: pareamento novo (QR → WORKING) importa o histórico — ver lib/waha/historico.ts.
+  registrarStatusParaHistorico(admin as unknown as SupabaseClient, session, status);
 
   // ─── E agora alguém precisa SABER ────────────────────────────────────────
   //

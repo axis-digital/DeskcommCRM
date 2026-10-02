@@ -186,6 +186,8 @@ const schema = z.object({
   WAHA_ACCEPTED_ENGINES: z.string().optional().default(""),
   WAHA_SESSION_WEBHOOK: z.string().optional().default(""),
   WAHA_SESSION_PROXY: z.string().optional().default(""),
+  // Dias de histórico importados ao parear um número (lib/waha/historico.ts). 0 = desligado.
+  WAHA_HISTORY_IMPORT_DAYS: z.string().optional().default("0"),
 
   // ─── Chamada de voz WhatsApp (WaCalls, spec 18) ───
   //

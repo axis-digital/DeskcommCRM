@@ -128,6 +128,8 @@ describe("getWahaClient lê as opções do ambiente", () => {
     vi.stubEnv("WAHA_API_KEY", "real-key");
     vi.stubEnv("WAHA_WEBHOOK_BASE_URL", "http://crm-app:3000");
     vi.stubEnv("WAHA_HMAC_SECRET", "h".repeat(32));
+    // O `.env` de uma instalação real pode ter proxy; este bloco mede só engine e webhook.
+    vi.stubEnv("WAHA_SESSION_PROXY", "");
   }
 
   it("default: só NOWEB, sem webhook por sessão", () => {

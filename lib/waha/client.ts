@@ -540,6 +540,64 @@ export class WahaClient {
   }
 
   /**
+   * Conversas da sessão, da mais recente para a mais antiga — insumo da
+   * importação de histórico (`lib/waha/historico.ts`). O `id` chega string no
+   * GOWS/NOWEB e `{ _serialized }` no WEBJS; `ultimaEm` é unix em segundos.
+   */
+  async listarChats(
+    session: string,
+    pagina: { limit: number; offset: number },
+  ): Promise<Array<{ chatId: string; ultimaEm: number | null }>> {
+    const url = new URL(`${this.baseUrl}/api/${encodeURIComponent(session)}/chats`);
+    url.searchParams.set("limit", String(pagina.limit));
+    url.searchParams.set("offset", String(pagina.offset));
+    url.searchParams.set("sortBy", "conversationTimestamp");
+    url.searchParams.set("sortOrder", "desc");
+    const res = await this.fetchComTeto(url, { headers: { "X-Api-Key": this.apiKey } });
+    if (!res.ok) throw new Error(`waha_chats_${res.status}`);
+    const bruto = (await res.json().catch(() => null)) as unknown;
+    if (!Array.isArray(bruto)) return [];
+    const chats: Array<{ chatId: string; ultimaEm: number | null }> = [];
+    for (const item of bruto) {
+      if (!item || typeof item !== "object") continue;
+      const o = item as Record<string, unknown>;
+      const id = o.id;
+      const chatId =
+        typeof id === "string" ? id
+        : id && typeof id === "object" && typeof (id as Record<string, unknown>)._serialized === "string"
+          ? ((id as Record<string, unknown>)._serialized as string)
+          : null;
+      if (!chatId) continue;
+      const ts = o.conversationTimestamp ?? o.timestamp;
+      chats.push({ chatId, ultimaEm: typeof ts === "number" && Number.isFinite(ts) ? ts : null });
+    }
+    return chats;
+  }
+
+  /**
+   * Mensagens de UMA conversa a partir de `desde` (unix, segundos), sem baixar
+   * mídia. Devolve o JSON cru: quem valida é o chamador, com o mesmo schema do
+   * webhook (`wahaPayloadSchema`).
+   */
+  async listarMensagensDoChat(
+    session: string,
+    chatId: string,
+    pagina: { limit: number; offset: number; desde: number },
+  ): Promise<unknown[]> {
+    const url = new URL(
+      `${this.baseUrl}/api/${encodeURIComponent(session)}/chats/${encodeURIComponent(chatId)}/messages`,
+    );
+    url.searchParams.set("limit", String(pagina.limit));
+    url.searchParams.set("offset", String(pagina.offset));
+    url.searchParams.set("downloadMedia", "false");
+    url.searchParams.set("filter.timestamp.gte", String(pagina.desde));
+    const res = await this.fetchComTeto(url, { headers: { "X-Api-Key": this.apiKey } });
+    if (!res.ok) throw new Error(`waha_chat_messages_${res.status}`);
+    const bruto = (await res.json().catch(() => null)) as unknown;
+    return Array.isArray(bruto) ? bruto : [];
+  }
+
+  /**
    * Liga ou desliga o recebimento de grupos NESTA sessão. Só devolve `true` quando o GET
    * seguinte confirma a troca: o WAHA já respondeu 200 para operação que não aconteceu
    * (medido na issue melgarafael/DeskcommCRM#1428).
