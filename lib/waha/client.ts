@@ -395,7 +395,8 @@ export class WahaClient {
     // me preenchido não provam descarte de credenciais. STARTING sem me é a
     // retomada do transporte após logout, não promessa de canal conectado.
     // https://waha.devlike.pro/docs/how-to/sessions/#logout-session
-    if (operation === "logout" && ["STOPPED", "STARTING", "SCAN_QR_CODE"].includes(session.status) && session.me === null) return;
+    // `me` ausente (GOWS omite o campo) vale o mesmo que `null`.
+    if (operation === "logout" && ["STOPPED", "STARTING", "SCAN_QR_CODE"].includes(session.status) && session.me == null) return;
     throw new WahaSessionError(operation, res.status);
   }
 
