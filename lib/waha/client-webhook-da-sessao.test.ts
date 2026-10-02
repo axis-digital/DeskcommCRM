@@ -134,7 +134,7 @@ describe("getWahaClient lê as opções do ambiente", () => {
     stubBase();
     vi.stubEnv("WAHA_ACCEPTED_ENGINES", "");
     vi.stubEnv("WAHA_SESSION_WEBHOOK", "");
-    expect(getWahaClient()?.opcoes()).toEqual({ enginesAceitos: ["NOWEB"], webhookDaSessao: null });
+    expect(getWahaClient()?.opcoes()).toEqual({ enginesAceitos: ["NOWEB"], webhookDaSessao: null, proxyDaSessao: null });
   });
 
   it("WAHA_ACCEPTED_ENGINES e WAHA_SESSION_WEBHOOK=true ligam o modo compartilhado", () => {
@@ -144,6 +144,7 @@ describe("getWahaClient lê as opções do ambiente", () => {
     expect(getWahaClient()?.opcoes()).toEqual({
       enginesAceitos: ["NOWEB", "GOWS"],
       webhookDaSessao: { url: "http://crm-app:3000/api/v1/webhooks/waha", hmacKey: "h".repeat(32) },
+      proxyDaSessao: null,
     });
   });
 });
