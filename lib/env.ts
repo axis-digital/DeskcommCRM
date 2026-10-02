@@ -185,6 +185,7 @@ const schema = z.object({
   // WAHA compartilhado (opt-in). Lidas por getWahaClient em lib/waha/client.ts.
   WAHA_ACCEPTED_ENGINES: z.string().optional().default(""),
   WAHA_SESSION_WEBHOOK: z.string().optional().default(""),
+  WAHA_SESSION_PROXY: z.string().optional().default(""),
 
   // ─── Chamada de voz WhatsApp (WaCalls, spec 18) ───
   //

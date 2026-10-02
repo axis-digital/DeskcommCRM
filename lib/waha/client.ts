@@ -157,6 +157,36 @@ export interface WahaClientOpts {
   enginesAceitos?: readonly string[];
   /** Quando presente, toda sessão criada leva este webhook na própria config. */
   webhookDaSessao?: WahaSessionWebhook | null;
+  /** Quando presente, toda sessão criada sai por este proxy (`config.proxy`). */
+  proxyDaSessao?: WahaSessionProxy | null;
+}
+
+/** O `config.proxy` do WAHA: `server` é `host:porta`, sem esquema. */
+export interface WahaSessionProxy {
+  server: string;
+  username?: string;
+  password?: string;
+}
+
+/**
+ * `WAHA_SESSION_PROXY` → `config.proxy`. Aceita `http://usuario:senha@host:porta`
+ * (credenciais percent-encoded) ou só `host:porta`. Vazio ou malformado = sem
+ * proxy: a sessão nasce sem ele, como antes — nunca lança, porque o cliente é
+ * montado em todo request que fala com o WhatsApp.
+ */
+export function lerProxyDaSessao(valor: string | undefined): WahaSessionProxy | null {
+  const bruto = valor?.trim();
+  if (!bruto) return null;
+  let url: URL;
+  try {
+    url = new URL(bruto.includes("://") ? bruto : `http://${bruto}`);
+  } catch {
+    return null;
+  }
+  if (!url.hostname || !url.port) return null;
+  const server = `${url.hostname}:${url.port}`;
+  if (!url.username) return { server };
+  return { server, username: decodeURIComponent(url.username), password: decodeURIComponent(url.password) };
 }
 
 const sessionSnapshotSchema = z.object({
@@ -200,6 +230,7 @@ export class WahaClient {
   private readonly tetoMs: number;
   private readonly enginesAceitos: readonly string[];
   private readonly webhookDaSessao: WahaSessionWebhook | null;
+  private readonly proxyDaSessao: WahaSessionProxy | null;
 
   constructor(
     private readonly baseUrl: string,
@@ -209,19 +240,31 @@ export class WahaClient {
     this.tetoMs = opts.tetoMs ?? TETO_PADRAO_MS;
     this.enginesAceitos = opts.enginesAceitos?.length ? opts.enginesAceitos : ["NOWEB"];
     this.webhookDaSessao = opts.webhookDaSessao ?? null;
+    this.proxyDaSessao = opts.proxyDaSessao ?? null;
   }
 
-  /** As opções efetivas — sem a chave da API. */
-  opcoes(): { enginesAceitos: readonly string[]; webhookDaSessao: WahaSessionWebhook | null } {
-    return { enginesAceitos: this.enginesAceitos, webhookDaSessao: this.webhookDaSessao };
+  /** As opções efetivas — sem a chave da API e sem a senha do proxy. */
+  opcoes(): {
+    enginesAceitos: readonly string[];
+    webhookDaSessao: WahaSessionWebhook | null;
+    proxyDaSessao: { server: string; autenticado: boolean } | null;
+  } {
+    const proxy = this.proxyDaSessao;
+    return {
+      enginesAceitos: this.enginesAceitos,
+      webhookDaSessao: this.webhookDaSessao,
+      proxyDaSessao: proxy ? { server: proxy.server, autenticado: Boolean(proxy.username) } : null,
+    };
   }
 
   private configDeCriacao(): Record<string, unknown> {
     const wh = this.webhookDaSessao;
-    if (!wh) return { ignore: CONVERSAS_IGNORADAS };
     return {
       ignore: CONVERSAS_IGNORADAS,
-      webhooks: [{ url: wh.url, events: [...EVENTOS_DO_WEBHOOK], ...(wh.hmacKey ? { hmac: { key: wh.hmacKey } } : {}) }],
+      ...(wh
+        ? { webhooks: [{ url: wh.url, events: [...EVENTOS_DO_WEBHOOK], ...(wh.hmacKey ? { hmac: { key: wh.hmacKey } } : {}) }] }
+        : {}),
+      ...(this.proxyDaSessao ? { proxy: this.proxyDaSessao } : {}),
     };
   }
 
@@ -855,6 +898,7 @@ export function getWahaClient(): WahaClient | null {
  * WAHA compartilhado com outros sistemas (opt-in, default = contrato do stack):
  *   WAHA_ACCEPTED_ENGINES=NOWEB,GOWS  engines aceitos como compatíveis
  *   WAHA_SESSION_WEBHOOK=true         webhook na sessão em vez do hook global
+ *   WAHA_SESSION_PROXY=http://u:s@h:p proxy de saída de toda sessão criada
  */
 function opcoesDoAmbiente(): WahaClientOpts {
   const engines = (process.env.WAHA_ACCEPTED_ENGINES ?? "")
@@ -867,5 +911,9 @@ function opcoesDoAmbiente(): WahaClientOpts {
     process.env.WAHA_SESSION_WEBHOOK === "true" && base
       ? { url: `${base}/api/v1/webhooks/waha`, ...(hmacKey ? { hmacKey } : {}) }
       : null;
-  return { enginesAceitos: engines, webhookDaSessao };
+  return {
+    enginesAceitos: engines,
+    webhookDaSessao,
+    proxyDaSessao: lerProxyDaSessao(process.env.WAHA_SESSION_PROXY),
+  };
 }
