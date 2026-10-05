@@ -31,9 +31,12 @@ export const MOTIVOS_AGUARDANDO = [
 export interface FiltrosDoHistorico {
   periodo: Periodo;
   situacao: Situacao;
-  /** `Purchase`, `QualifiedLead`, `Etapa:<uuid>`, `MetaEtapa:<uuid>` ou vazio para todos. */
+  /**
+   * `Purchase`, `QualifiedLead`, `Etapa:<uuid>`, `MetaEtapa:<uuid>`, `GA4:Venda`,
+   * `GA4Etapa:<uuid>`, `SemOrigem:<plataforma>:Purchase` ou vazio para todos.
+   */
   evento: string;
-  plataforma: "" | "google_ads" | "meta_ads";
+  plataforma: "" | "google_ads" | "meta_ads" | "ga4";
   busca: string;
   pagina: number;
 }
@@ -93,8 +96,13 @@ export function lerFiltros(bruto: Record<string, string | undefined>): FiltrosDo
   return {
     periodo: um(PERIODOS, bruto.periodo, "30d"),
     situacao: um(SITUACOES, bruto.situacao, "todas"),
-    evento: /^(Purchase|QualifiedLead|(Meta)?Etapa:[0-9a-f-]{36})$/.test(evento) ? evento : "",
-    plataforma: um(["", "google_ads", "meta_ads"] as const, bruto.plataforma, ""),
+    evento:
+      /^(Purchase|QualifiedLead|GA4:Venda|(Meta|GA4)?Etapa:[0-9a-f-]{36}|SemOrigem:(meta_ads|google_ads):Purchase)$/.test(
+        evento,
+      )
+        ? evento
+        : "",
+    plataforma: um(["", "google_ads", "meta_ads", "ga4"] as const, bruto.plataforma, ""),
     // Só letras, números, espaço e pontuação comum: vai para um ilike.
     busca: (bruto.busca ?? "")
       .replace(/[^\p{L}\p{N} .@+-]/gu, "")

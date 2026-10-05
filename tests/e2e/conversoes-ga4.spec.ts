@@ -237,11 +237,20 @@ test("dono liga o GA4, testa a conexão, e o ganho chega ao GA4 com o client_id 
     await expect
       .poll(
         async () => {
+          // Pela mensagem, não pelo telefone: a ingestão normaliza o celular
+          // brasileiro (nono dígito), e o número gravado não é o que entrou.
+          const { data: mensagem } = await admin
+            .from("messages")
+            .select("contact_id")
+            .eq("organization_id", org)
+            .eq("body", texto)
+            .maybeSingle();
+          if (!mensagem?.contact_id) return null;
           const { data } = await admin
             .from("contacts")
             .select("id, source_metadata")
             .eq("organization_id", org)
-            .eq("phone_number", telefone)
+            .eq("id", mensagem.contact_id)
             .maybeSingle();
           contatoId = data?.id ?? null;
           const meta = (data?.source_metadata ?? {}) as {
@@ -305,8 +314,11 @@ test("dono liga o GA4, testa a conexão, e o ganho chega ao GA4 com o client_id 
 
     // ── 6. O Histórico mostra a venda enviada ao GA4 ──────────────────────
     await page.goto("/app/settings/conversoes");
-    const linha = page.getByRole("row").filter({ hasText: "Venda (GA4)" }).first();
+    await page.getByRole("link", { name: "Histórico de envios", exact: true }).click();
+    const historico = page.getByTestId("historico-de-envios");
+    const linha = historico.getByRole("listitem").filter({ hasText: "Venda (GA4)" }).first();
     await expect(linha).toBeVisible();
+    await expect(linha).toContainText("Entregue");
     await page.screenshot({ path: path.join(EVIDENCIA, "02-historico.png"), fullPage: true });
   } finally {
     if (site?.listening) await new Promise<void>((resolve) => site!.close(() => resolve()));
@@ -341,5 +353,61 @@ test("dono liga o GA4, testa a conexão, e o ganho chega ao GA4 com o client_id 
         .eq("platform", "ga4");
     if (capturaAnterior) await admin.from("google_ads_landing_pages").upsert(capturaAnterior);
     else await admin.from("google_ads_landing_pages").delete().eq("organization_id", org);
+  }
+});
+
+test("dono liga e desliga o envio de vendas sem origem, e a escolha sobrevive ao recarregar", async ({
+  page,
+}) => {
+  await loginComoAdmin(page, lerCreds());
+  const org = credsDoNascimento().org_id;
+  const { data: antes } = await admin
+    .from("organizations")
+    .select("settings")
+    .eq("id", org)
+    .single();
+  try {
+    await page.goto("/app/settings/conversoes");
+    const chave = page.getByRole("switch", {
+      name: "Enviar vendas de contatos sem anúncio nem site",
+      exact: true,
+    });
+    await expect(chave, "vem desligado").toHaveAttribute("aria-checked", "false");
+    await chave.click();
+    await expect(page.getByText("Conexão salva.", { exact: true })).toBeVisible();
+    await page.reload();
+    await expect(chave, "a escolha sobrevive ao recarregar").toHaveAttribute(
+      "aria-checked",
+      "true",
+    );
+    await chave.scrollIntoViewIfNeeded();
+    await page.screenshot({
+      path: path.join(EVIDENCIA, "03-venda-sem-origem-ligada.png"),
+      fullPage: true,
+    });
+
+    const { data: depois } = await admin
+      .from("organizations")
+      .select("settings")
+      .eq("id", org)
+      .single();
+    expect(
+      (depois?.settings as { conversions?: Record<string, unknown> }).conversions
+        ?.enviar_sem_origem,
+    ).toBe(true);
+    const { data: auditoria } = await admin
+      .from("api_audit_log")
+      .select("action")
+      .eq("organization_id", org)
+      .eq("action", "conversions.enviar_sem_origem_updated");
+    expect(auditoria?.length ?? 0, "ligar é auditado").toBeGreaterThan(0);
+
+    await chave.click();
+    await expect(chave).toHaveAttribute("aria-checked", "false");
+  } finally {
+    await admin
+      .from("organizations")
+      .update({ settings: antes?.settings ?? {} })
+      .eq("id", org);
   }
 });
