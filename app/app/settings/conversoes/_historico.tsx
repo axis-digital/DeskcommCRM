@@ -186,7 +186,9 @@ export function HistoricoDeEnvios({
                             ? "Google Ads"
                             : l.plataforma === "meta_ads"
                               ? "Meta Ads"
-                              : l.plataforma}
+                              : l.plataforma === "ga4"
+                                ? "GA4"
+                                : l.plataforma}
                         </span>
                       </p>
                       <p className="truncate text-xs text-muted-foreground">

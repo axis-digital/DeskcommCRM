@@ -158,6 +158,7 @@ export const DICIONARIO: Traducoes = {
   "Saúde da integração com o Google Ads": { es: "Estado de la integración con Google Ads" },
   Problema: { es: "Problema" },
   "Venda (negócio ganho)": { es: "Venta (negocio ganado)" },
+  "Venda (GA4)": { es: "Venta (GA4)" },
   "Ação de conversão da venda (ID)": { es: "Acción de conversión de la venta (ID)" },
   "Recebe a compra quando o negócio é marcado como ganho. Deixe vazio se você só quer enviar etapas do funil.":
     {

@@ -4,11 +4,18 @@ import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/re
 import { FormularioDeCapturaDeUtm } from "@/app/app/settings/conversoes/_formCapturaDeUtm";
 import { FormularioDeConversoesGoogle } from "@/app/app/settings/conversoes/_formGoogle";
 import { RegrasDeConversaoGoogle } from "@/app/app/settings/conversoes/_regrasGoogle";
+import { FormularioDoGa4 } from "@/app/app/settings/conversoes/_formGa4";
 const mock = vi.hoisted(() => ({
   salvarCaptura: vi.fn(),
   salvarGoogle: vi.fn(),
   salvarRegras: vi.fn(),
   criarAcao: vi.fn(),
+  salvarGa4: vi.fn(),
+  testarGa4: vi.fn(),
+}));
+vi.mock("@/app/actions/settings/updateGa4Connection", () => ({
+  updateGa4Connection: mock.salvarGa4,
+  testarConexaoGa4: mock.testarGa4,
 }));
 vi.mock("@/app/actions/settings/salvarRegrasDeConversaoGoogle", () => ({
   salvarRegrasDeConversaoGoogle: mock.salvarRegras,
@@ -31,6 +38,59 @@ beforeEach(() => {
   mock.salvarGoogle.mockResolvedValue({ ok: true });
   mock.salvarRegras.mockResolvedValue({ ok: true });
   mock.criarAcao.mockResolvedValue({ ok: true, dados: { id: "555", nome: "Novo lead #abcde" } });
+  mock.salvarGa4.mockResolvedValue({ ok: true });
+  mock.testarGa4.mockResolvedValue({ ok: true });
+});
+
+describe("FormularioDoGa4", () => {
+  it("não mostra o secret gravado e indica que existe", () => {
+    render(
+      <FormularioDoGa4
+        estado={{
+          configurada: true,
+          enabled: true,
+          measurementId: "G-ABC123",
+          wonEvent: "purchase",
+          temSegredo: true,
+        }}
+        idioma="pt-BR"
+      />,
+    );
+    expect(screen.getByLabelText("Measurement ID")).toHaveValue("G-ABC123");
+    expect(screen.getByLabelText("API secret")).toHaveValue("");
+    expect(screen.getByText("Secret gravado. Deixe em branco para manter.")).toBeInTheDocument();
+  });
+
+  it("salvar chama a ação com o que foi digitado", async () => {
+    render(
+      <FormularioDoGa4
+        estado={{
+          configurada: false,
+          enabled: false,
+          measurementId: null,
+          wonEvent: "close_convert_lead",
+          temSegredo: false,
+        }}
+        idioma="pt-BR"
+      />,
+    );
+    fireEvent.change(screen.getByLabelText("Measurement ID"), {
+      target: { value: "G-XYZ987" },
+    });
+    fireEvent.change(screen.getByLabelText("API secret"), {
+      target: { value: "segredo-123456" },
+    });
+    fireEvent.click(screen.getByRole("switch", { name: "Enviar ao GA4" }));
+    fireEvent.click(screen.getByRole("button", { name: "Salvar" }));
+    await waitFor(() =>
+      expect(mock.salvarGa4).toHaveBeenCalledWith({
+        measurement_id: "G-XYZ987",
+        api_secret: "segredo-123456",
+        won_event: "close_convert_lead",
+        enabled: true,
+      }),
+    );
+  });
 });
 describe("formulários de conversão", () => {
   it("a captura Google salva destino e referência na plataforma certa", async () => {

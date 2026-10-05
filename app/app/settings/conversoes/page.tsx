@@ -79,6 +79,13 @@ import { RegrasDeConversaoGoogle, type EtapaAberta } from "./_regrasGoogle";
 import { listarRegrasGoogle } from "@/lib/conversoes/regras-google";
 import { RegrasDeConversaoMeta } from "./_regrasMeta";
 import { listarRegrasMeta, rotuloDoEventoDaMeta } from "@/lib/conversoes/regras-meta";
+import {
+  EVENTO_DE_VENDA_GA4,
+  listarRegrasGa4,
+  rotuloDoEventoDoGa4,
+} from "@/lib/conversoes/regras-ga4";
+import { FormularioDoGa4 } from "./_formGa4";
+import { RegrasDeConversaoGa4 } from "./_regrasGa4";
 
 export const metadata = { title: "Conversões" };
 export const dynamic = "force-dynamic";
@@ -131,6 +138,7 @@ export default async function ConversoesPage({
     regrasGoogle,
     regrasMeta,
     estadoGa4,
+    regrasGa4,
   ] = await Promise.all([
     lerEstadoDaConexao(admin, activeOrg.orgId),
     lerPendencias(admin, activeOrg.orgId),
@@ -155,6 +163,7 @@ export default async function ConversoesPage({
     listarRegrasMeta(admin, activeOrg.orgId).catch(() => null),
     // Conexão GA4 desligada ou sem Measurement ID não entra no script do site.
     lerEstadoDaConexaoGa4(admin, activeOrg.orgId).catch(() => null),
+    listarRegrasGa4(admin, activeOrg.orgId).catch(() => null),
   ]);
   // O nome que a pessoa reconhece para cada evento de etapa, das duas
   // plataformas — o Histórico e as pendências leem daqui.
@@ -164,6 +173,11 @@ export default async function ConversoesPage({
       eventName: r.eventName,
       label: `${rotuloDoEventoDaMeta(r.metaEvent)} (Meta)`,
     })),
+    ...(regrasGa4 ?? []).map((r) => ({
+      eventName: r.eventName,
+      label: `${rotuloDoEventoDoGa4(r.ga4Event)} (GA4)`,
+    })),
+    { eventName: EVENTO_DE_VENDA_GA4, label: "Venda (GA4)" },
   ];
   const linhaDaOrganizacao = organizacao.data as { slug: string | null; settings?: unknown } | null;
   const slug = linhaDaOrganizacao?.slug ?? null;
@@ -350,6 +364,15 @@ export default async function ConversoesPage({
           {estado.conectada && !etapas.error && regrasMeta && (
             <RegrasDeConversaoMeta etapas={etapasAbertas} regras={regrasMeta} idioma={idioma} />
           )}
+          <section className="flex flex-col gap-4" aria-labelledby="titulo-ga4">
+            <h2 id="titulo-ga4" className="text-lg font-semibold">
+              {t("Google Analytics 4")}
+            </h2>
+            {estadoGa4 && <FormularioDoGa4 estado={estadoGa4} idioma={idioma} />}
+            {estadoGa4?.configurada && !etapas.error && regrasGa4 && (
+              <RegrasDeConversaoGa4 etapas={etapasAbertas} regras={regrasGa4} idioma={idioma} />
+            )}
+          </section>
           <FormularioDeConversoesGoogle
             estado={estadoGoogle}
             idioma={idioma}
@@ -431,9 +454,7 @@ export default async function ConversoesPage({
                             {p.tituloDoLead ?? t("(sem título)")}
                           </a>
                         </td>
-                        <td className="p-3">
-                          {t(rotuloDoEvento(p.evento, rotulosDeEtapa))}
-                        </td>
+                        <td className="p-3">{t(rotuloDoEvento(p.evento, rotulosDeEtapa))}</td>
                         <td className="p-3">
                           {p.plataforma === "meta_ads"
                             ? "Meta Ads"
