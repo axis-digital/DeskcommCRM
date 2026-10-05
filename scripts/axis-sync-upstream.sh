@@ -126,5 +126,5 @@ cat <<EOF
     pnpm test:db                       # se o upstream trouxe migration (CONFERENCIA_KIT_RELEASE=${VERSAO:-vX.Y.Z} sem rede)
     git switch $BASE && git merge --no-ff $BRANCH
     git push $FORK_REMOTE $BASE
-    # rebuild das imagens :axis (app, worker, scheduler) e deploy com docker-compose.axis.yml
+    # rebuild das imagens :axis (app, worker — o scheduler segue a imagem publicada do upstream) e deploy com docker-compose.axis.yml
 EOF

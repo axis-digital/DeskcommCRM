@@ -39,7 +39,7 @@ costumam conflitar. Sem conflito, ele imprime o próximo passo:
 pnpm test:db                                   # se o upstream trouxe migration (sem rede: CONFERENCIA_KIT_RELEASE=vX.Y.Z)
 git switch axis && git merge --no-ff sync/upstream-AAAA-MM-DD
 git push origin axis
-# rebuild das imagens :axis (app, worker, scheduler) e deploy com docker-compose.axis.yml
+# rebuild das imagens :axis (app, worker — o scheduler segue a imagem publicada do upstream) e deploy com docker-compose.axis.yml
 ```
 
 Não há GitHub Action para isso de propósito: o fork herdaria os workflows do upstream.
