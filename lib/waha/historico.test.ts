@@ -46,7 +46,10 @@ function gowsOutbound(over: Partial<WahaPayload> = {}): WahaPayload {
     id: `true_${LID}@lid_3A1DB91B7554F20CC3FD`,
     fromMe: true,
     body: "Tô no polo da parangaba",
-    _data: { Info: { PushName: "Davi Guerreiro" }, Message: { extendedTextMessage: { text: "x" } } },
+    _data: {
+      Info: { PushName: "Davi Guerreiro" },
+      Message: { extendedTextMessage: { text: "x" } },
+    },
     ...over,
   } as Partial<WahaPayload>);
 }
@@ -78,17 +81,35 @@ describe("paraLinhaDeHistorico — mesma identidade do webhook", () => {
 
   it("foto sem legenda do GOWS vira image com preview, não texto vazio", () => {
     const linha = paraLinhaDeHistorico(
-      gowsInbound({ body: null, hasMedia: true, _data: { Message: { imageMessage: {} } } } as Partial<WahaPayload>),
+      gowsInbound({
+        body: null,
+        hasMedia: true,
+        _data: { Message: { imageMessage: {} } },
+      } as Partial<WahaPayload>),
       CHAT_DA_LISTA,
     );
     expect(linha).toMatchObject({ type: "image", body: null, preview: "[image]" });
   });
 
   it("descarta grupo, evento vazio e mensagem sem id ou sem data", () => {
-    expect(paraLinhaDeHistorico(gowsInbound({ from: "120363000000000000@g.us" }), "120363000000000000@g.us")).toBeNull();
-    expect(paraLinhaDeHistorico(gowsInbound({ body: null, _data: {} } as Partial<WahaPayload>), CHAT_DA_LISTA)).toBeNull();
-    expect(paraLinhaDeHistorico(gowsInbound({ id: null } as Partial<WahaPayload>), CHAT_DA_LISTA)).toBeNull();
-    expect(paraLinhaDeHistorico(gowsInbound({ timestamp: null } as Partial<WahaPayload>), CHAT_DA_LISTA)).toBeNull();
+    expect(
+      paraLinhaDeHistorico(
+        gowsInbound({ from: "120363000000000000@g.us" }),
+        "120363000000000000@g.us",
+      ),
+    ).toBeNull();
+    expect(
+      paraLinhaDeHistorico(
+        gowsInbound({ body: null, _data: {} } as Partial<WahaPayload>),
+        CHAT_DA_LISTA,
+      ),
+    ).toBeNull();
+    expect(
+      paraLinhaDeHistorico(gowsInbound({ id: null } as Partial<WahaPayload>), CHAT_DA_LISTA),
+    ).toBeNull();
+    expect(
+      paraLinhaDeHistorico(gowsInbound({ timestamp: null } as Partial<WahaPayload>), CHAT_DA_LISTA),
+    ).toBeNull();
   });
 
   it("chat por telefone: o número vem do próprio chatId", () => {
@@ -100,7 +121,13 @@ describe("paraLinhaDeHistorico — mesma identidade do webhook", () => {
   });
 });
 
-function adminFalso(resposta: (linhas: LinhaDeHistorico[]) => unknown = (l) => ({ inseridas: l.length, duplicadas: 0, ignoradas: 0 })) {
+function adminFalso(
+  resposta: (linhas: LinhaDeHistorico[]) => unknown = (l) => ({
+    inseridas: l.length,
+    duplicadas: 0,
+    ignoradas: 0,
+  }),
+) {
   const lotes: LinhaDeHistorico[][] = [];
   const admin = {
     rpc: vi.fn(async (nome: string, args: { p_mensagens: LinhaDeHistorico[] }) => {
@@ -125,7 +152,9 @@ describe("importarHistoricoDaSessao — uma rodada", () => {
       { chatId: "558533334444@c.us", ultimaEm: agoraS - 40 * DIA },
     ];
     const client = {
-      listarChats: vi.fn(async (_s: string, p: { offset: number }) => (p.offset === 0 ? chats : [])),
+      listarChats: vi.fn(async (_s: string, p: { offset: number }) =>
+        p.offset === 0 ? chats : [],
+      ),
       listarMensagensDoChat: vi.fn(async (_s: string, chatId: string, p: { desde: number }) => {
         expect(p.desde).toBe(agoraS - 30 * DIA);
         if (chatId === "558511112222@c.us") throw new Error("waha_chat_messages_500");
@@ -134,10 +163,23 @@ describe("importarHistoricoDaSessao — uma rodada", () => {
     };
     const { admin, lotes } = adminFalso();
 
-    const r = await importarHistoricoDaSessao({ admin, client }, sessao, { dias: 30, agora: AGORA });
+    const r = await importarHistoricoDaSessao({ admin, client }, sessao, {
+      dias: 30,
+      agora: AGORA,
+    });
 
-    expect(client.listarMensagensDoChat.mock.calls.map((c) => c[1])).toEqual([CHAT_DA_LISTA, "558511112222@c.us"]);
-    expect(r).toEqual({ chats: 2, mensagensLidas: 3, inseridas: 2, duplicadas: 0, ignoradas: 0, falhas: 1 });
+    expect(client.listarMensagensDoChat.mock.calls.map((c) => c[1])).toEqual([
+      CHAT_DA_LISTA,
+      "558511112222@c.us",
+    ]);
+    expect(r).toEqual({
+      chats: 2,
+      mensagensLidas: 3,
+      inseridas: 2,
+      duplicadas: 0,
+      ignoradas: 0,
+      falhas: 1,
+    });
     expect(lotes).toHaveLength(1);
     expect(lotes[0]!.map((l) => l.direction)).toEqual(["inbound", "outbound"]);
   });
@@ -150,9 +192,9 @@ describe("importarHistoricoDaSessao — uma rodada", () => {
     const admin = {
       rpc: vi.fn(async () => ({ data: null, error: { message: "historico_sessao_fora_da_org" } })),
     } as unknown as SupabaseClient;
-    await expect(importarHistoricoDaSessao({ admin, client }, sessao, { dias: 30, agora: AGORA })).rejects.toThrow(
-      /historico_lote/,
-    );
+    await expect(
+      importarHistoricoDaSessao({ admin, client }, sessao, { dias: 30, agora: AGORA }),
+    ).rejects.toThrow(/historico_lote/);
   });
 });
 
@@ -166,7 +208,11 @@ describe("importarEmRodadas", () => {
       listarMensagensDoChat: vi.fn(async () => [gowsInbound()]),
     };
     const inseridasPorRodada = [1, 3, 0, 0, 5];
-    const { admin } = adminFalso(() => ({ inseridas: inseridasPorRodada[chamada++] ?? 0, duplicadas: 0, ignoradas: 0 }));
+    const { admin } = adminFalso(() => ({
+      inseridas: inseridasPorRodada[chamada++] ?? 0,
+      duplicadas: 0,
+      ignoradas: 0,
+    }));
     const esperas: number[] = [];
 
     const r = await importarEmRodadas(
@@ -196,14 +242,18 @@ describe("disparo e configuração", () => {
 
   it("WORKING sem QR antes (restart) não dispara", () => {
     const { admin } = adminFalso();
-    expect(registrarStatusParaHistorico(admin, { ...sessao, id: "restart" }, "WORKING")).toBe(false);
+    expect(registrarStatusParaHistorico(admin, { ...sessao, id: "restart" }, "WORKING")).toBe(
+      false,
+    );
   });
 
   it("QR → WORKING com a feature desligada não dispara", () => {
     vi.stubEnv("WAHA_HISTORY_IMPORT_DAYS", "0");
     const { admin } = adminFalso();
     registrarStatusParaHistorico(admin, { ...sessao, id: "desligada" }, "SCAN_QR_CODE", 1_000);
-    expect(registrarStatusParaHistorico(admin, { ...sessao, id: "desligada" }, "WORKING", 2_000)).toBe(false);
+    expect(
+      registrarStatusParaHistorico(admin, { ...sessao, id: "desligada" }, "WORKING", 2_000),
+    ).toBe(false);
   });
 
   it("QR visto há mais de 30 min não conta como pareamento", () => {
@@ -212,6 +262,8 @@ describe("disparo e configuração", () => {
     vi.stubEnv("WAHA_API_KEY", "k");
     const { admin } = adminFalso();
     registrarStatusParaHistorico(admin, { ...sessao, id: "velho" }, "SCAN_QR_CODE", 0);
-    expect(registrarStatusParaHistorico(admin, { ...sessao, id: "velho" }, "WORKING", 31 * 60_000)).toBe(false);
+    expect(
+      registrarStatusParaHistorico(admin, { ...sessao, id: "velho" }, "WORKING", 31 * 60_000),
+    ).toBe(false);
   });
 });

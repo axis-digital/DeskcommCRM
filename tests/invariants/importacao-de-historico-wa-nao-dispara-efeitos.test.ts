@@ -51,11 +51,17 @@ function linha(over: Linha = {}): Linha {
   };
 }
 
-async function importar(linhas: Linha[], org = ORG): Promise<{ inseridas: number; duplicadas: number; ignoradas: number }> {
-  const { rows } = await pool.query<{ r: { inseridas: number; duplicadas: number; ignoradas: number } }>(
-    "select public.fn_importar_historico_wa($1, $2, $3::jsonb) as r",
-    [org, SESSAO, JSON.stringify(linhas)],
-  );
+async function importar(
+  linhas: Linha[],
+  org = ORG,
+): Promise<{ inseridas: number; duplicadas: number; ignoradas: number }> {
+  const { rows } = await pool.query<{
+    r: { inseridas: number; duplicadas: number; ignoradas: number };
+  }>("select public.fn_importar_historico_wa($1, $2, $3::jsonb) as r", [
+    org,
+    SESSAO,
+    JSON.stringify(linhas),
+  ]);
   return rows[0]!.r;
 }
 
@@ -65,10 +71,17 @@ async function contar(sql: string, params: unknown[]): Promise<number> {
 }
 
 const eventosDaOrg = () =>
-  contar("select count(*)::int n from event_log where organization_id = $1 and event_type like 'message.%'", [ORG]);
+  contar(
+    "select count(*)::int n from event_log where organization_id = $1 and event_type like 'message.%'",
+    [ORG],
+  );
 const pedidosDeRoteamento = () =>
-  contar("select count(*)::int n from event_log where organization_id = $1 and event_type like '%routing%'", [ORG]);
-const demandasDaOrg = () => contar("select count(*)::int n from demandas where organization_id = $1", [ORG]);
+  contar(
+    "select count(*)::int n from event_log where organization_id = $1 and event_type like '%routing%'",
+    [ORG],
+  );
+const demandasDaOrg = () =>
+  contar("select count(*)::int n from demandas where organization_id = $1", [ORG]);
 
 beforeAll(async () => {
   for (const [id, slug] of [
@@ -95,7 +108,11 @@ afterAll(async () => {
 
 describe("importação de histórico", () => {
   it("grava contato, conversa e mensagens sem evento, demanda nem roteamento", async () => {
-    const [ev0, rot0, dem0] = [await eventosDaOrg(), await pedidosDeRoteamento(), await demandasDaOrg()];
+    const [ev0, rot0, dem0] = [
+      await eventosDaOrg(),
+      await pedidosDeRoteamento(),
+      await demandasDaOrg(),
+    ];
 
     const r = await importar([
       linha(),
@@ -149,7 +166,14 @@ describe("importação de histórico", () => {
   });
 
   it("mensagem mais antiga não rebaixa last_message_* de conversa existente", async () => {
-    await importar([linha({ external_id: "false_5531900090001@c.us_3A0000", body: "a primeira", preview: "a primeira", sent_at: "2025-11-01T08:00:00Z" })]);
+    await importar([
+      linha({
+        external_id: "false_5531900090001@c.us_3A0000",
+        body: "a primeira",
+        preview: "a primeira",
+        sent_at: "2025-11-01T08:00:00Z",
+      }),
+    ]);
     const { rows } = await pool.query<{ last_message_preview: string }>(
       `select v.last_message_preview from conversations v join contacts c on c.id = v.contact_id
         where v.organization_id = $1 and c.phone_number = '+5531900090001'`,

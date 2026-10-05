@@ -172,14 +172,22 @@ async function gravarLote(
   sessao: SessaoParaImportar,
   linhas: LinhaDeHistorico[],
 ): Promise<{ inseridas: number; duplicadas: number; ignoradas: number }> {
-  const { data, error } = await admin.rpc("fn_importar_historico_wa" as never, {
-    p_org: sessao.organization_id,
-    p_session: sessao.id,
-    p_mensagens: linhas,
-  } as never);
-  if (error) throw new Error(`historico_lote: ${(error as { message?: string }).message ?? "erro"}`);
+  const { data, error } = await admin.rpc(
+    "fn_importar_historico_wa" as never,
+    {
+      p_org: sessao.organization_id,
+      p_session: sessao.id,
+      p_mensagens: linhas,
+    } as never,
+  );
+  if (error)
+    throw new Error(`historico_lote: ${(error as { message?: string }).message ?? "erro"}`);
   const r = (data ?? {}) as Partial<Record<"inseridas" | "duplicadas" | "ignoradas", number>>;
-  return { inseridas: r.inseridas ?? 0, duplicadas: r.duplicadas ?? 0, ignoradas: r.ignoradas ?? 0 };
+  return {
+    inseridas: r.inseridas ?? 0,
+    duplicadas: r.duplicadas ?? 0,
+    ignoradas: r.ignoradas ?? 0,
+  };
 }
 
 /**
@@ -228,12 +236,20 @@ export async function importarHistoricoDaSessao(
       if (tipo !== "phone" && tipo !== "lid") continue;
       total.chats += 1;
       try {
-        for (let deslocamento = 0; deslocamento < MAX_MENSAGENS_POR_CHAT; deslocamento += TAMANHO_DA_PAGINA_DE_MENSAGENS) {
-          const pagina = await deps.client.listarMensagensDoChat(sessao.waha_session_name, chat.chatId, {
-            limit: TAMANHO_DA_PAGINA_DE_MENSAGENS,
-            offset: deslocamento,
-            desde,
-          });
+        for (
+          let deslocamento = 0;
+          deslocamento < MAX_MENSAGENS_POR_CHAT;
+          deslocamento += TAMANHO_DA_PAGINA_DE_MENSAGENS
+        ) {
+          const pagina = await deps.client.listarMensagensDoChat(
+            sessao.waha_session_name,
+            chat.chatId,
+            {
+              limit: TAMANHO_DA_PAGINA_DE_MENSAGENS,
+              offset: deslocamento,
+              desde,
+            },
+          );
           for (const bruto of pagina) {
             total.mensagensLidas += 1;
             const lido = wahaPayloadSchema.safeParse(bruto);
@@ -279,7 +295,11 @@ export const RITMO_PADRAO: RitmoDasRodadas = {
  * inserirem nada (o celular terminou de entregar) ou até `maxRodadas`.
  */
 export async function importarEmRodadas(
-  deps: { admin: SupabaseClient; client: ClienteDeHistorico; esperar?: (ms: number) => Promise<void> },
+  deps: {
+    admin: SupabaseClient;
+    client: ClienteDeHistorico;
+    esperar?: (ms: number) => Promise<void>;
+  },
   sessao: SessaoParaImportar,
   dias: number,
   ritmo: RitmoDasRodadas = RITMO_PADRAO,
@@ -288,7 +308,7 @@ export async function importarEmRodadas(
   let quietas = 0;
   let inseridas = 0;
   let rodadas = 0;
-  for (; rodadas < ritmo.maxRodadas; ) {
+  for (; rodadas < ritmo.maxRodadas;) {
     await esperar(rodadas === 0 ? ritmo.primeiraEsperaMs : ritmo.intervaloMs);
     rodadas += 1;
     const r = await importarHistoricoDaSessao(deps, sessao, { dias });
@@ -318,14 +338,18 @@ const EM_ANDAMENTO = new Set<string>();
  * `false` (e não faz nada) se a feature está desligada, falta WAHA/sessão, ou
  * já há uma importação desta sessão rodando neste processo.
  */
-export function agendarImportacaoDeHistorico(admin: SupabaseClient, sessao: {
-  id: string;
-  organization_id: string;
-  waha_session_name?: string | null;
-}): boolean {
+export function agendarImportacaoDeHistorico(
+  admin: SupabaseClient,
+  sessao: {
+    id: string;
+    organization_id: string;
+    waha_session_name?: string | null;
+  },
+): boolean {
   const dias = diasDeHistoricoDoAmbiente();
   const client = getWahaClient();
-  if (dias === 0 || !client || !sessao.waha_session_name || EM_ANDAMENTO.has(sessao.id)) return false;
+  if (dias === 0 || !client || !sessao.waha_session_name || EM_ANDAMENTO.has(sessao.id))
+    return false;
   EM_ANDAMENTO.add(sessao.id);
   const alvo: SessaoParaImportar = {
     id: sessao.id,
