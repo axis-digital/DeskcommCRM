@@ -57,7 +57,9 @@ export type NomeDoEvento =
   | "Purchase"
   | "QualifiedLead"
   | `Etapa:${string}`
-  | `MetaEtapa:${string}`;
+  | `MetaEtapa:${string}`
+  | "GA4:Venda"
+  | `GA4Etapa:${string}`;
 
 /**
  * Uma conversão pronta para sair — no formato da CASA, não no da plataforma.
