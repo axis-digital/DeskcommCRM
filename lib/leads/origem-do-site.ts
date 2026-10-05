@@ -68,6 +68,11 @@ export const CHAVES_DE_UTM = [
   "utm_placement",
   "gclid",
   "fbclid",
+  // Identidade do GA4 (0902): o `client_id` do cookie `_ga` e o `session_id`
+  // do `_ga_<ID>`, lidos pelo `rastreio/v1.js` quando o site liga `data-ga4`.
+  // Não são UTM, mas viajam pelo mesmo trilho — como `gclid` e `fbclid` acima.
+  "ga_client_id",
+  "ga_session_id",
 ] as const;
 
 /** Teto por valor. Nada legítimo chega perto disso; colagem aleatória chega. */
