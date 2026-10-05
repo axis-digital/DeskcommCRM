@@ -182,11 +182,19 @@ describe("o teto de tamanho do código", () => {
     expect(montarCodigoDeOrigemDoSite(gigante)).toBeNull();
   });
 
-  it("o pior caso plausível CABE: as dez chaves no teto de valor", () => {
-    // 2868 caracteres de base64url — o motivo de o teto ser o número que é. Se
-    // este caso passasse a ser recusado, a página perderia link de campanha de
+  it("o pior caso plausível CABE: as dez chaves de campanha no teto de valor, mais os ids do GA4 em tamanho real", () => {
+    // 2868 caracteres de base64url só com as dez chaves de campanha, e 2967 com
+    // os dois ids do GA4 em tamanho real (`GA1.1.<10 dígitos>.<10 dígitos>` e a
+    // sessão de 10 dígitos). Os ids do GA4 NÃO são medidos no teto de valor (200):
+    // isso daria 3451 e seria recusado, mas não é o que chega do `_ga`. Se o pior
+    // caso real passasse a ser recusado, a página perderia link de campanha de
     // verdade, e não de colagem aleatória.
-    const noLimite = Object.fromEntries(CHAVES_DE_UTM.map((chave) => [chave, "x".repeat(200)]));
+    const campanha = CHAVES_DE_UTM.filter((chave) => !chave.startsWith("ga_"));
+    const noLimite = {
+      ...Object.fromEntries(campanha.map((chave) => [chave, "x".repeat(200)])),
+      ga_client_id: "GA1.1.1234567890.1234567890",
+      ga_session_id: "1234567890",
+    };
     const codigo = montarCodigoDeOrigemDoSite(noLimite);
     expect(codigo).not.toBeNull();
     expect(codigo!.length).toBeLessThanOrEqual(TAMANHO_MAXIMO_DO_CODIGO + 8);
