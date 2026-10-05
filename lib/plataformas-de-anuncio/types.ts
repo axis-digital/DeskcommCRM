@@ -59,7 +59,8 @@ export type NomeDoEvento =
   | `Etapa:${string}`
   | `MetaEtapa:${string}`
   | "GA4:Venda"
-  | `GA4Etapa:${string}`;
+  | `GA4Etapa:${string}`
+  | `SemOrigem:${PlataformaDeAnuncio}:Purchase`;
 
 /**
  * Uma conversão pronta para sair — no formato da CASA, não no da plataforma.
@@ -95,6 +96,11 @@ export interface ConversaoOffline {
   identificadoresGoogle?: IdentificadoresGoogle;
   /** E.164 sem `+`, ainda EM CLARO: o hash é responsabilidade do transporte. */
   telefone: string | null;
+  /**
+   * E-mail do contato, só no fallback sem origem (0902+). Sai em SHA-256 e só
+   * quando não há clique: é o identificador que o Google casa sem `gclid`.
+   */
+  emailDoContato?: string | null;
   valorCentavos: number | null;
   moeda: string;
   /**

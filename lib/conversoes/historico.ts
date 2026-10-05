@@ -192,6 +192,7 @@ export function rotuloDoEvento(
   regras: Pick<RegraDeConversaoGoogle, "eventName" | "label">[],
 ): string {
   if (evento === "Purchase") return "Compra";
+  if (evento.startsWith("SemOrigem:")) return "Venda sem origem";
   const regra = regras.find((r) => r.eventName === evento);
   if (regra) return regra.label;
   return evento === "QualifiedLead" ? "Lead qualificado" : "Etapa do funil";

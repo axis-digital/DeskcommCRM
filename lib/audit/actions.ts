@@ -998,6 +998,9 @@ export const AUDIT_ACTIONS = [
   // "Enviar vendas pelo canal da conversa" (doc 76, PR #1819): ligar faz o
   // valor da venda e o telefone do cliente saírem para o provedor do canal.
   "conversions.report_via_channel_updated",
+  // Fallback sem origem (0902): ligar faz a venda de quem chegou sem anúncio
+  // sair para a Meta e para o Google em hash, sem clique.
+  "conversions.enviar_sem_origem_updated",
 
   // CRM B2B fase 1 — companies / people / import (migration 0239)
   "companies.created",

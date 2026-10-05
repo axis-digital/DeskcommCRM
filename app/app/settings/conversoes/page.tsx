@@ -74,6 +74,8 @@ import { FormularioDeConversoesGoogle } from "./_formGoogle";
 import { IdentidadeDaConversao } from "./_identidadeDaMeta";
 import { VendaPeloCanal } from "./_vendaPeloCanal";
 import { vendaPeloCanalLigada } from "@/lib/conversoes/venda-pelo-canal";
+import { enviarSemOrigemLigado } from "@/lib/conversoes/enviar-sem-origem";
+import { EnviarSemOrigem } from "./_enviarSemOrigem";
 import { identidadeDaMeta } from "@/lib/plataformas-de-anuncio/meta/identidade";
 import { RegrasDeConversaoGoogle, type EtapaAberta } from "./_regrasGoogle";
 import { listarRegrasGoogle } from "@/lib/conversoes/regras-google";
@@ -352,6 +354,10 @@ export default async function ConversoesPage({
           <FormularioDeConversoes estado={estado} idioma={idioma} />
           <VendaPeloCanal
             ligada={vendaPeloCanalLigada(linhaDaOrganizacao?.settings)}
+            idioma={idioma}
+          />
+          <EnviarSemOrigem
+            ligada={enviarSemOrigemLigado(linhaDaOrganizacao?.settings)}
             idioma={idioma}
           />
           {estado.conectada && (
