@@ -29,6 +29,28 @@
   if (installed[key]) return;
   installed[key] = true;
   var storage = script.getAttribute("data-storage") !== "none";
+  // GA4 (opt-in): com data-ga4="G-XXXX" o clique leva junto o client_id do
+  // cookie _ga e o session_id do _ga_<XXXX>, para o CRM reportar o evento à
+  // mesma sessão do site. Lido no clique, não aqui: o _ga pode nascer depois.
+  var ga4 = /^G-[A-Z0-9]{4,16}$/.test(script.getAttribute("data-ga4") || "")
+    ? script.getAttribute("data-ga4").slice(2)
+    : "";
+  function cookie(name) {
+    var parts = ("; " + document.cookie).split("; " + name + "=");
+    return parts.length < 2 ? "" : decodeURIComponent(parts.pop().split(";")[0] || "");
+  }
+  function gaIdentity() {
+    if (!ga4) return {};
+    var out = {};
+    var ga = /^GA\d\.\d+\.(\d{1,12})\.(\d{1,12})$/.exec(cookie("_ga"));
+    if (!ga) return out;
+    out.ga_client_id = ga[1] + "." + ga[2];
+    var session = cookie("_ga_" + ga4);
+    var match =
+      /^GS1\.\d+\.(\d{1,20})\./.exec(session) || /^GS2\.\d+\.s(\d{1,20})(?:\$|$)/.exec(session);
+    if (match) out.ga_session_id = match[1];
+    return out;
+  }
   var utms = [
     "utm_source",
     "utm_medium",
@@ -88,7 +110,9 @@
   function destination() {
     var isGoogle = Boolean(origin.gclid || origin.gbraid || origin.wbraid);
     var target = linkId ? namedPhone : isGoogle ? google : meta;
-    if (!target || (!linkId && !Object.keys(origin).length)) return null;
+    var identity = gaIdentity();
+    var temOrigem = Object.keys(origin).length > 0;
+    if (!target || (!linkId && !temOrigem && !identity.ga_client_id)) return null;
     var url = new URL(
       linkId
         ? "/api/v1/rastreio/" + linkId
@@ -97,6 +121,9 @@
     );
     Object.keys(origin).forEach(function (name) {
       url.searchParams.set(name, origin[name]);
+    });
+    Object.keys(identity).forEach(function (name) {
+      url.searchParams.set(name, identity[name]);
     });
     return { phone: target, url: url.href };
   }
