@@ -1224,6 +1224,7 @@ export type Database = {
           event_id: string | null
           event_name: string
           event_occurred_at: string | null
+          ga4_event_name: string | null
           google_action_id: string | null
           id: string
           lead_id: string
@@ -1245,6 +1246,7 @@ export type Database = {
           event_id?: string | null
           event_name: string
           event_occurred_at?: string | null
+          ga4_event_name?: string | null
           google_action_id?: string | null
           id?: string
           lead_id: string
@@ -1266,6 +1268,7 @@ export type Database = {
           event_id?: string | null
           event_name?: string
           event_occurred_at?: string | null
+          ga4_event_name?: string | null
           google_action_id?: string | null
           id?: string
           lead_id?: string
@@ -1296,12 +1299,67 @@ export type Database = {
           },
         ]
       }
+      ga4_conversion_rules: {
+        Row: {
+          configured_at: string
+          created_at: string
+          enabled: boolean
+          event_name: string
+          ga4_event: string
+          id: string
+          organization_id: string
+          stage_id: string
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          configured_at?: string
+          created_at?: string
+          enabled?: boolean
+          event_name: string
+          ga4_event: string
+          id?: string
+          organization_id: string
+          stage_id: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          configured_at?: string
+          created_at?: string
+          enabled?: boolean
+          event_name?: string
+          ga4_event?: string
+          id?: string
+          organization_id?: string
+          stage_id?: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ga4_conversion_rules_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ga4_conversion_rules_stage_org_fk"
+            columns: ["organization_id", "stage_id"]
+            isOneToOne: false
+            referencedRelation: "crm_stages"
+            referencedColumns: ["organization_id", "id"]
+          },
+        ]
+      }
       ad_platform_connections: {
         Row: {
           access_token_encrypted: string | null
           created_at: string
           dataset_id: string | null
           enabled: boolean
+          ga4_won_event: string | null
           google_api: string
           google_conversion_action_id: string | null
           google_customer_id: string | null
@@ -1328,6 +1386,7 @@ export type Database = {
           created_at?: string
           dataset_id?: string | null
           enabled?: boolean
+          ga4_won_event?: string | null
           google_api?: string
           google_conversion_action_id?: string | null
           google_customer_id?: string | null
@@ -1354,6 +1413,7 @@ export type Database = {
           created_at?: string
           dataset_id?: string | null
           enabled?: boolean
+          ga4_won_event?: string | null
           google_api?: string
           google_conversion_action_id?: string | null
           google_customer_id?: string | null

@@ -297,6 +297,15 @@ const PROVA_PROPRIA: readonly Excecao[] = [
       "FK composta que recusa etapa de outra organização.",
   },
   {
+    tabela: "ga4_conversion_rules",
+    razao:
+      "tests/invariants/conversoes-ga4-schema.test.ts — RLS ligada, zero policies, " +
+      "privilégios revogados de anon/authenticated (papéis do navegador não leem a " +
+      "regra nem executam o gatilho). O servidor aplica organization_id às regras por " +
+      "etapa do GA4 (0902); a FK composta que recusa etapa de outra organização é " +
+      "provada no mesmo arquivo.",
+  },
+  {
     tabela: "ad_tracking_links",
     razao:
       "tests/invariants/captura-de-clique-e-server-side.test.ts — mesmo teste " +
