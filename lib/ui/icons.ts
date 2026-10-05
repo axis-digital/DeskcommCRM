@@ -29,7 +29,7 @@ import {
   CalendarPlus as CalendarPlusLucide,
   CalendarX as CalendarXLucide,
   ChartBar as ChartBarLucide,
-  ChartNoAxesCombined as ChartNoAxesCombinedLucide,
+  ChartLine as ChartLineLucide,
   Check as CheckLucide,
   CheckCheck as CheckCheckLucide,
   ChevronDown as ChevronDownLucide,
@@ -126,7 +126,6 @@ import {
   TriangleAlert as TriangleAlertLucide,
   Upload as UploadLucide,
   Users as UsersLucide,
-  UsersRound as UsersRoundLucide,
   Webhook as WebhookLucide,
   Wifi as WifiLucide,
   WifiOff as WifiOffLucide,
@@ -164,11 +163,12 @@ function axisStrokeWidth(weight: AxisIconWeight, strokeWidth?: number): number {
 
 function axisIcon(Icon: LucideIcon, displayName: string): AxisIcon {
   const Component = forwardRef<SVGSVGElement, AxisIconProps>(
-    ({ weight = "regular", strokeWidth, ...props }, ref) =>
+    ({ size = "1em", weight = "regular", strokeWidth, ...props }, ref) =>
       createElement(Icon, {
         ...props,
         ref,
         fill: "none",
+        size,
         strokeWidth: axisStrokeWidth(weight, strokeWidth),
       }),
   );
@@ -177,132 +177,132 @@ function axisIcon(Icon: LucideIcon, displayName: string): AxisIcon {
 }
 
 // Navegação e estrutura
-export const Inbox = axisIcon(InboxLucide, "Inbox");
-export const ListChecks = axisIcon(ListChecksLucide, "ListChecks");
-export const Plugs = axisIcon(PlugLucide, "Plugs");
-export const PlugsConnected = axisIcon(PlugZapLucide, "PlugsConnected");
-export const QrCode = axisIcon(QrCodeLucide, "QrCode");
-export const Kanban = axisIcon(KanbanLucide, "Kanban");
-export const Users = axisIcon(UsersLucide, "Users");
-export const UsersThree = axisIcon(UsersRoundLucide, "UsersThree");
-export const Storefront = axisIcon(StoreLucide, "Storefront");
-export const Robot = axisIcon(BotLucide, "Robot");
-export const Sparkle = axisIcon(SparklesLucide, "Sparkle");
-export const ShieldCheck = axisIcon(ShieldCheckLucide, "ShieldCheck");
-export const Gear = axisIcon(SettingsLucide, "Gear");
-export const House = axisIcon(HouseLucide, "House");
-export const Buildings = axisIcon(Building2Lucide, "Buildings");
-export const FlowArrow = axisIcon(WorkflowLucide, "FlowArrow");
-export const ChatsCircle = axisIcon(MessageCircleMoreLucide, "ChatsCircle");
-export const ClipboardText = axisIcon(ClipboardListLucide, "ClipboardText");
-export const Scales = axisIcon(ScaleLucide, "Scales");
+export const Inbox = /* @__PURE__ */ axisIcon(InboxLucide, "Inbox");
+export const ListChecks = /* @__PURE__ */ axisIcon(ListChecksLucide, "ListChecks");
+export const Plugs = /* @__PURE__ */ axisIcon(PlugLucide, "Plugs");
+export const PlugsConnected = /* @__PURE__ */ axisIcon(PlugZapLucide, "PlugsConnected");
+export const QrCode = /* @__PURE__ */ axisIcon(QrCodeLucide, "QrCode");
+export const Kanban = /* @__PURE__ */ axisIcon(KanbanLucide, "Kanban");
+export const Users = /* @__PURE__ */ axisIcon(UsersLucide, "Users");
+export const UsersThree = /* @__PURE__ */ axisIcon(UsersLucide, "UsersThree");
+export const Storefront = /* @__PURE__ */ axisIcon(StoreLucide, "Storefront");
+export const Robot = /* @__PURE__ */ axisIcon(BotLucide, "Robot");
+export const Sparkle = /* @__PURE__ */ axisIcon(SparklesLucide, "Sparkle");
+export const ShieldCheck = /* @__PURE__ */ axisIcon(ShieldCheckLucide, "ShieldCheck");
+export const Gear = /* @__PURE__ */ axisIcon(SettingsLucide, "Gear");
+export const House = /* @__PURE__ */ axisIcon(HouseLucide, "House");
+export const Buildings = /* @__PURE__ */ axisIcon(Building2Lucide, "Buildings");
+export const FlowArrow = /* @__PURE__ */ axisIcon(WorkflowLucide, "FlowArrow");
+export const ChatsCircle = /* @__PURE__ */ axisIcon(MessageCircleMoreLucide, "ChatsCircle");
+export const ClipboardText = /* @__PURE__ */ axisIcon(ClipboardListLucide, "ClipboardText");
+export const Scales = /* @__PURE__ */ axisIcon(ScaleLucide, "Scales");
 export const ScalesSimple = Scales;
-export const Gauge = axisIcon(GaugeLucide, "Gauge");
-export const WifiSlash = axisIcon(WifiOffLucide, "WifiSlash");
-export const Clock = axisIcon(ClockLucide, "Clock");
-export const Palette = axisIcon(PaletteLucide, "Palette");
-export const Megaphone = axisIcon(MegaphoneLucide, "Megaphone");
-export const WifiHigh = axisIcon(WifiLucide, "WifiHigh");
-export const Brain = axisIcon(BrainLucide, "Brain");
-export const ArrowsClockwise = axisIcon(RefreshCwLucide, "ArrowsClockwise");
-export const Dot = axisIcon(DotLucide, "Dot");
+export const Gauge = /* @__PURE__ */ axisIcon(GaugeLucide, "Gauge");
+export const WifiSlash = /* @__PURE__ */ axisIcon(WifiOffLucide, "WifiSlash");
+export const Clock = /* @__PURE__ */ axisIcon(ClockLucide, "Clock");
+export const Palette = /* @__PURE__ */ axisIcon(PaletteLucide, "Palette");
+export const Megaphone = /* @__PURE__ */ axisIcon(MegaphoneLucide, "Megaphone");
+export const WifiHigh = /* @__PURE__ */ axisIcon(WifiLucide, "WifiHigh");
+export const Brain = /* @__PURE__ */ axisIcon(BrainLucide, "Brain");
+export const ArrowsClockwise = /* @__PURE__ */ axisIcon(RefreshCwLucide, "ArrowsClockwise");
+export const Dot = /* @__PURE__ */ axisIcon(DotLucide, "Dot");
 
 // Ações
-export const ArrowBendUpLeft = axisIcon(ReplyLucide, "ArrowBendUpLeft");
-export const ArrowLeft = axisIcon(ArrowLeftLucide, "ArrowLeft");
-export const ArrowsLeftRight = axisIcon(ArrowLeftRightLucide, "ArrowsLeftRight");
-export const ArrowRight = axisIcon(ArrowRightLucide, "ArrowRight");
-export const List = axisIcon(ListLucide, "List");
-export const Bell = axisIcon(BellLucide, "Bell");
-export const BellSlash = axisIcon(BellOffLucide, "BellSlash");
-export const EnvelopeSimple = axisIcon(MailLucide, "EnvelopeSimple");
-export const PaperPlaneTilt = axisIcon(SendLucide, "PaperPlaneTilt");
-export const Smiley = axisIcon(SmileLucide, "Smiley");
-export const Check = axisIcon(CheckLucide, "Check");
-export const Checks = axisIcon(CheckCheckLucide, "Checks");
-export const X = axisIcon(XLucide, "X");
-export const Plus = axisIcon(PlusLucide, "Plus");
-export const Trash = axisIcon(Trash2Lucide, "Trash");
-export const PencilSimple = axisIcon(PencilLucide, "PencilSimple");
-export const MagnifyingGlass = axisIcon(SearchLucide, "MagnifyingGlass");
-export const Pause = axisIcon(PauseLucide, "Pause");
-export const Play = axisIcon(PlayLucide, "Play");
-export const SkipForward = axisIcon(SkipForwardLucide, "SkipForward");
-export const Copy = axisIcon(CopyLucide, "Copy");
-export const DownloadSimple = axisIcon(DownloadLucide, "DownloadSimple");
-export const Archive = axisIcon(ArchiveLucide, "Archive");
-export const Globe = axisIcon(GlobeLucide, "Globe");
-export const ArrowSquareOut = axisIcon(ExternalLinkLucide, "ArrowSquareOut");
+export const ArrowBendUpLeft = /* @__PURE__ */ axisIcon(ReplyLucide, "ArrowBendUpLeft");
+export const ArrowLeft = /* @__PURE__ */ axisIcon(ArrowLeftLucide, "ArrowLeft");
+export const ArrowsLeftRight = /* @__PURE__ */ axisIcon(ArrowLeftRightLucide, "ArrowsLeftRight");
+export const ArrowRight = /* @__PURE__ */ axisIcon(ArrowRightLucide, "ArrowRight");
+export const List = /* @__PURE__ */ axisIcon(ListLucide, "List");
+export const Bell = /* @__PURE__ */ axisIcon(BellLucide, "Bell");
+export const BellSlash = /* @__PURE__ */ axisIcon(BellOffLucide, "BellSlash");
+export const EnvelopeSimple = /* @__PURE__ */ axisIcon(MailLucide, "EnvelopeSimple");
+export const PaperPlaneTilt = /* @__PURE__ */ axisIcon(SendLucide, "PaperPlaneTilt");
+export const Smiley = /* @__PURE__ */ axisIcon(SmileLucide, "Smiley");
+export const Check = /* @__PURE__ */ axisIcon(CheckLucide, "Check");
+export const Checks = /* @__PURE__ */ axisIcon(CheckCheckLucide, "Checks");
+export const X = /* @__PURE__ */ axisIcon(XLucide, "X");
+export const Plus = /* @__PURE__ */ axisIcon(PlusLucide, "Plus");
+export const Trash = /* @__PURE__ */ axisIcon(Trash2Lucide, "Trash");
+export const PencilSimple = /* @__PURE__ */ axisIcon(PencilLucide, "PencilSimple");
+export const MagnifyingGlass = /* @__PURE__ */ axisIcon(SearchLucide, "MagnifyingGlass");
+export const Pause = /* @__PURE__ */ axisIcon(PauseLucide, "Pause");
+export const Play = /* @__PURE__ */ axisIcon(PlayLucide, "Play");
+export const SkipForward = /* @__PURE__ */ axisIcon(SkipForwardLucide, "SkipForward");
+export const Copy = /* @__PURE__ */ axisIcon(CopyLucide, "Copy");
+export const DownloadSimple = /* @__PURE__ */ axisIcon(DownloadLucide, "DownloadSimple");
+export const Archive = /* @__PURE__ */ axisIcon(ArchiveLucide, "Archive");
+export const Globe = /* @__PURE__ */ axisIcon(GlobeLucide, "Globe");
+export const ArrowSquareOut = /* @__PURE__ */ axisIcon(ExternalLinkLucide, "ArrowSquareOut");
 export const Tray = Inbox;
 
 // Feedback e estado
-export const CheckCircle = axisIcon(CircleCheckLucide, "CheckCircle");
-export const Warning = axisIcon(TriangleAlertLucide, "Warning");
-export const WarningOctagon = axisIcon(OctagonAlertLucide, "WarningOctagon");
-export const Info = axisIcon(InfoLucide, "Info");
-export const CircleNotch = axisIcon(LoaderCircleLucide, "CircleNotch");
-export const Eye = axisIcon(EyeLucide, "Eye");
-export const EyeSlash = axisIcon(EyeOffLucide, "EyeSlash");
-export const ChartBar = axisIcon(ChartBarLucide, "ChartBar");
-export const ClockCountdown = axisIcon(TimerLucide, "ClockCountdown");
-export const ChartLineUp = axisIcon(ChartNoAxesCombinedLucide, "ChartLineUp");
-export const Lightbulb = axisIcon(LightbulbLucide, "Lightbulb");
+export const CheckCircle = /* @__PURE__ */ axisIcon(CircleCheckLucide, "CheckCircle");
+export const Warning = /* @__PURE__ */ axisIcon(TriangleAlertLucide, "Warning");
+export const WarningOctagon = /* @__PURE__ */ axisIcon(OctagonAlertLucide, "WarningOctagon");
+export const Info = /* @__PURE__ */ axisIcon(InfoLucide, "Info");
+export const CircleNotch = /* @__PURE__ */ axisIcon(LoaderCircleLucide, "CircleNotch");
+export const Eye = /* @__PURE__ */ axisIcon(EyeLucide, "Eye");
+export const EyeSlash = /* @__PURE__ */ axisIcon(EyeOffLucide, "EyeSlash");
+export const ChartBar = /* @__PURE__ */ axisIcon(ChartBarLucide, "ChartBar");
+export const ClockCountdown = /* @__PURE__ */ axisIcon(TimerLucide, "ClockCountdown");
+export const ChartLineUp = /* @__PURE__ */ axisIcon(ChartLineLucide, "ChartLineUp");
+export const Lightbulb = /* @__PURE__ */ axisIcon(LightbulbLucide, "Lightbulb");
 
 // Tema e conversa
-export const Sun = axisIcon(SunLucide, "Sun");
-export const Moon = axisIcon(MoonLucide, "Moon");
-export const MonitorPlay = axisIcon(MonitorPlayLucide, "MonitorPlay");
-export const ChatCircle = axisIcon(MessageCircleLucide, "ChatCircle");
-export const Phone = axisIcon(PhoneLucide, "Phone");
-export const PhoneIncoming = axisIcon(PhoneIncomingLucide, "PhoneIncoming");
-export const PhoneOutgoing = axisIcon(PhoneOutgoingLucide, "PhoneOutgoing");
-export const PhoneX = axisIcon(PhoneOffLucide, "PhoneX");
-export const Paperclip = axisIcon(PaperclipLucide, "Paperclip");
-export const Microphone = axisIcon(MicLucide, "Microphone");
-export const MicrophoneSlash = axisIcon(MicOffLucide, "MicrophoneSlash");
-export const ImageIcon = axisIcon(ImageLucide, "ImageIcon");
-export const ImageSquare = axisIcon(ImagesLucide, "ImageSquare");
-export const MusicNote = axisIcon(MusicLucide, "MusicNote");
-export const Note = axisIcon(StickyNoteLucide, "Note");
-export const FileText = axisIcon(FileTextLucide, "FileText");
-export const Lock = axisIcon(LockLucide, "Lock");
-export const LockOpen = axisIcon(LockOpenLucide, "LockOpen");
-export const Receipt = axisIcon(ReceiptLucide, "Receipt");
-export const Tag = axisIcon(TagLucide, "Tag");
-export const Question = axisIcon(CircleHelpLucide, "Question");
-export const Keyboard = axisIcon(KeyboardLucide, "Keyboard");
+export const Sun = /* @__PURE__ */ axisIcon(SunLucide, "Sun");
+export const Moon = /* @__PURE__ */ axisIcon(MoonLucide, "Moon");
+export const MonitorPlay = /* @__PURE__ */ axisIcon(MonitorPlayLucide, "MonitorPlay");
+export const ChatCircle = /* @__PURE__ */ axisIcon(MessageCircleLucide, "ChatCircle");
+export const Phone = /* @__PURE__ */ axisIcon(PhoneLucide, "Phone");
+export const PhoneIncoming = /* @__PURE__ */ axisIcon(PhoneIncomingLucide, "PhoneIncoming");
+export const PhoneOutgoing = /* @__PURE__ */ axisIcon(PhoneOutgoingLucide, "PhoneOutgoing");
+export const PhoneX = /* @__PURE__ */ axisIcon(PhoneOffLucide, "PhoneX");
+export const Paperclip = /* @__PURE__ */ axisIcon(PaperclipLucide, "Paperclip");
+export const Microphone = /* @__PURE__ */ axisIcon(MicLucide, "Microphone");
+export const MicrophoneSlash = /* @__PURE__ */ axisIcon(MicOffLucide, "MicrophoneSlash");
+export const ImageIcon = /* @__PURE__ */ axisIcon(ImageLucide, "ImageIcon");
+export const ImageSquare = /* @__PURE__ */ axisIcon(ImagesLucide, "ImageSquare");
+export const MusicNote = /* @__PURE__ */ axisIcon(MusicLucide, "MusicNote");
+export const Note = /* @__PURE__ */ axisIcon(StickyNoteLucide, "Note");
+export const FileText = /* @__PURE__ */ axisIcon(FileTextLucide, "FileText");
+export const Lock = /* @__PURE__ */ axisIcon(LockLucide, "Lock");
+export const LockOpen = /* @__PURE__ */ axisIcon(LockOpenLucide, "LockOpen");
+export const Receipt = /* @__PURE__ */ axisIcon(ReceiptLucide, "Receipt");
+export const Tag = /* @__PURE__ */ axisIcon(TagLucide, "Tag");
+export const Question = /* @__PURE__ */ axisIcon(CircleHelpLucide, "Question");
+export const Keyboard = /* @__PURE__ */ axisIcon(KeyboardLucide, "Keyboard");
 
 // Fluxos e utilitários
-export const GitBranch = axisIcon(GitBranchLucide, "GitBranch");
-export const Flag = axisIcon(FlagLucide, "Flag");
-export const TreeStructure = axisIcon(NetworkLucide, "TreeStructure");
-export const DotsThree = axisIcon(EllipsisLucide, "DotsThree");
-export const CaretDown = axisIcon(ChevronDownLucide, "CaretDown");
-export const CaretUp = axisIcon(ChevronUpLucide, "CaretUp");
-export const CaretDoubleLeft = axisIcon(ChevronsLeftLucide, "CaretDoubleLeft");
-export const CaretDoubleRight = axisIcon(ChevronsRightLucide, "CaretDoubleRight");
-export const CaretLeft = axisIcon(ChevronLeftLucide, "CaretLeft");
-export const CaretRight = axisIcon(ChevronRightLucide, "CaretRight");
-export const SignOut = axisIcon(LogOutLucide, "SignOut");
-export const WebhooksLogo = axisIcon(WebhookLucide, "WebhooksLogo");
-export const PuzzlePiece = axisIcon(PuzzleLucide, "PuzzlePiece");
-export const UploadSimple = axisIcon(UploadLucide, "UploadSimple");
-export const Signpost = axisIcon(SignpostLucide, "Signpost");
-export const ArrowCircleUp = axisIcon(CircleArrowUpLucide, "ArrowCircleUp");
-export const Funnel = axisIcon(FunnelLucide, "Funnel");
-export const BookOpen = axisIcon(BookOpenLucide, "BookOpen");
-export const Key = axisIcon(KeyRoundLucide, "Key");
-export const UserCircle = axisIcon(CircleUserRoundLucide, "UserCircle");
-export const ClockCounterClockwise = axisIcon(HistoryLucide, "ClockCounterClockwise");
-export const IdentificationCard = axisIcon(ContactRoundLucide, "IdentificationCard");
-export const CalendarBlank = axisIcon(CalendarLucide, "CalendarBlank");
-export const CalendarDots = axisIcon(CalendarDaysLucide, "CalendarDots");
-export const CalendarPlus = axisIcon(CalendarPlusLucide, "CalendarPlus");
-export const CalendarX = axisIcon(CalendarXLucide, "CalendarX");
-export const CalendarCheck = axisIcon(CalendarCheckLucide, "CalendarCheck");
-export const MapPin = axisIcon(MapPinLucide, "MapPin");
-export const ArrowsOutSimple = axisIcon(ExpandLucide, "ArrowsOutSimple");
-export const Stack = axisIcon(LayersLucide, "Stack");
+export const GitBranch = /* @__PURE__ */ axisIcon(GitBranchLucide, "GitBranch");
+export const Flag = /* @__PURE__ */ axisIcon(FlagLucide, "Flag");
+export const TreeStructure = /* @__PURE__ */ axisIcon(NetworkLucide, "TreeStructure");
+export const DotsThree = /* @__PURE__ */ axisIcon(EllipsisLucide, "DotsThree");
+export const CaretDown = /* @__PURE__ */ axisIcon(ChevronDownLucide, "CaretDown");
+export const CaretUp = /* @__PURE__ */ axisIcon(ChevronUpLucide, "CaretUp");
+export const CaretDoubleLeft = /* @__PURE__ */ axisIcon(ChevronsLeftLucide, "CaretDoubleLeft");
+export const CaretDoubleRight = /* @__PURE__ */ axisIcon(ChevronsRightLucide, "CaretDoubleRight");
+export const CaretLeft = /* @__PURE__ */ axisIcon(ChevronLeftLucide, "CaretLeft");
+export const CaretRight = /* @__PURE__ */ axisIcon(ChevronRightLucide, "CaretRight");
+export const SignOut = /* @__PURE__ */ axisIcon(LogOutLucide, "SignOut");
+export const WebhooksLogo = /* @__PURE__ */ axisIcon(WebhookLucide, "WebhooksLogo");
+export const PuzzlePiece = /* @__PURE__ */ axisIcon(PuzzleLucide, "PuzzlePiece");
+export const UploadSimple = /* @__PURE__ */ axisIcon(UploadLucide, "UploadSimple");
+export const Signpost = /* @__PURE__ */ axisIcon(SignpostLucide, "Signpost");
+export const ArrowCircleUp = /* @__PURE__ */ axisIcon(CircleArrowUpLucide, "ArrowCircleUp");
+export const Funnel = /* @__PURE__ */ axisIcon(FunnelLucide, "Funnel");
+export const BookOpen = /* @__PURE__ */ axisIcon(BookOpenLucide, "BookOpen");
+export const Key = /* @__PURE__ */ axisIcon(KeyRoundLucide, "Key");
+export const UserCircle = /* @__PURE__ */ axisIcon(CircleUserRoundLucide, "UserCircle");
+export const ClockCounterClockwise = /* @__PURE__ */ axisIcon(HistoryLucide, "ClockCounterClockwise");
+export const IdentificationCard = /* @__PURE__ */ axisIcon(ContactRoundLucide, "IdentificationCard");
+export const CalendarBlank = /* @__PURE__ */ axisIcon(CalendarLucide, "CalendarBlank");
+export const CalendarDots = /* @__PURE__ */ axisIcon(CalendarDaysLucide, "CalendarDots");
+export const CalendarPlus = /* @__PURE__ */ axisIcon(CalendarPlusLucide, "CalendarPlus");
+export const CalendarX = /* @__PURE__ */ axisIcon(CalendarXLucide, "CalendarX");
+export const CalendarCheck = /* @__PURE__ */ axisIcon(CalendarCheckLucide, "CalendarCheck");
+export const MapPin = /* @__PURE__ */ axisIcon(MapPinLucide, "MapPin");
+export const ArrowsOutSimple = /* @__PURE__ */ axisIcon(ExpandLucide, "ArrowsOutSimple");
+export const Stack = /* @__PURE__ */ axisIcon(LayersLucide, "Stack");
 
 // Nomes Lucide usados por componentes shadcn e superfícies recentes.
 export const Search = MagnifyingGlass;
@@ -312,10 +312,10 @@ export const CheckCircle2 = CheckCircle;
 export const TriangleAlert = Warning;
 export const KeyRound = Key;
 export const HelpCircle = Question;
-export const MessageSquare = axisIcon(MessageSquareLucide, "MessageSquare");
-export const Package = axisIcon(PackageLucide, "Package");
+export const MessageSquare = /* @__PURE__ */ axisIcon(MessageSquareLucide, "MessageSquare");
+export const Package = /* @__PURE__ */ axisIcon(PackageLucide, "Package");
 export const Trash2 = Trash;
 export const ChevronDown = CaretDown;
 export const ChevronUp = CaretUp;
 export const ChevronRight = CaretRight;
-export const Circle = axisIcon(CircleLucide, "Circle");
+export const Circle = /* @__PURE__ */ axisIcon(CircleLucide, "Circle");

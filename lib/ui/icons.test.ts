@@ -19,6 +19,15 @@ describe("lib/ui/icons", () => {
     expect(markup).not.toContain('fill="currentColor"');
   });
 
+  it("preserva o tamanho padrão relativo usado pelos consumidores legados", () => {
+    const markup = renderToStaticMarkup(
+      createElement(MagnifyingGlass, { "aria-hidden": true }),
+    );
+
+    expect(markup).toContain('width="1em"');
+    expect(markup).toContain('height="1em"');
+  });
+
   it.each([
     ["thin", "1.75"],
     ["regular", "1.75"],
