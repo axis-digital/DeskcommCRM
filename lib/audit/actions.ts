@@ -473,6 +473,8 @@ export const AUDIT_ACTIONS = [
   "google_ads_conversion_action.created",
   // O que cada etapa do funil informa à Meta (0524) — o par da regra acima.
   "meta_ads_conversion_rules.updated",
+  // O que cada etapa do funil informa ao GA4 (0902) — o par da regra acima.
+  "ga4_conversion_rules.updated",
   // A conexão de LEITURA da organização com a conta de anúncios (0214).
   // Ação SEPARADA da de cima, e não um `metadata.purpose` na mesma: a pergunta
   // que cada trilha responde é diferente. "Quem apontou minhas vendas para este
