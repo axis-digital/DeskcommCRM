@@ -165,6 +165,40 @@ describe("importação de histórico", () => {
     expect(n).toBe(1);
   });
 
+  it("mesma mensagem já gravada pelo webhook com o chat em @lid não duplica (0901)", async () => {
+    // Medido em produção (05/10): o webhook GOWS grava `false_<lid>@lid_<id>` e a
+    // listagem de chats do WAHA devolve a MESMA mensagem como `false_<fone>@c.us_<id>`.
+    // O unique de external_id não as reconhece como iguais: 39 pares duplicados.
+    const { rows } = await pool.query<{ contact_id: string; id: string }>(
+      `select v.contact_id, v.id from conversations v join contacts c on c.id = v.contact_id
+        where v.organization_id = $1 and c.phone_number = '+5531900090001'`,
+      [ORG],
+    );
+    await pool.query(
+      `insert into messages (organization_id, conversation_id, channel_session_id, contact_id, external_id,
+                             type, direction, status, body, sent_via, sent_at)
+       values ($1, $2, $3, $4, 'false_99000900090001@lid_3ALID01', 'text', 'inbound', 'delivered',
+               'veio pelo webhook', 'external_device', '2025-11-15T09:00:00Z')`,
+      [ORG, rows[0]!.id, SESSAO, rows[0]!.contact_id],
+    );
+
+    const r = await importar([
+      linha({
+        external_id: "false_5531900090001@c.us_3ALID01",
+        body: "veio pelo webhook",
+        preview: "veio pelo webhook",
+        sent_at: "2025-11-15T09:00:00Z",
+      }),
+    ]);
+
+    expect(r).toEqual({ inseridas: 0, duplicadas: 1, ignoradas: 0 });
+    const n = await contar(
+      "select count(*)::int n from messages where organization_id = $1 and external_id like '%\\_3ALID01'",
+      [ORG],
+    );
+    expect(n).toBe(1);
+  });
+
   it("mensagem mais antiga não rebaixa last_message_* de conversa existente", async () => {
     await importar([
       linha({
