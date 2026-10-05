@@ -23,10 +23,7 @@ import {
   pausarIaDuravelmente,
   pausarIaPorAtendimentoManual,
 } from "@/lib/escalacao/atendimento-manual";
-import {
-  agenteAceitaComandoDeCelular,
-  lerComandoDeControle,
-} from "@/lib/escalacao/comando-de-canal";
+import { agenteAceitaComandoDeCelular, lerComandoDeControle } from "@/lib/escalacao/comando-de-canal";
 import { devolverAtendimentoAoAgente } from "@/lib/escalacao/retomada";
 import { getWahaClient } from "@/lib/waha/client";
 import { acelerarPipelineDeEventos } from "@/lib/dev/kick-local-pipeline";
@@ -289,17 +286,14 @@ async function avisarChatNaoReconhecido(
   chatId: string,
   direction: "inbound" | "outbound",
 ): Promise<void> {
-  const { error } = await admin.rpc(
-    "emit_event" as never,
-    {
-      p_event_type: "whatsapp.chat_id_not_recognized",
-      p_entity_kind: "channel_session",
-      p_entity_id: sessionId,
-      p_payload: { sufixo: sufixoDeChatId(chatId), direction },
-      p_metadata: { severity: "warn" },
-      p_organization_id: organizationId,
-    } as never,
-  );
+  const { error } = await admin.rpc("emit_event" as never, {
+    p_event_type: "whatsapp.chat_id_not_recognized",
+    p_entity_kind: "channel_session",
+    p_entity_id: sessionId,
+    p_payload: { sufixo: sufixoDeChatId(chatId), direction },
+    p_metadata: { severity: "warn" },
+    p_organization_id: organizationId,
+  } as never);
   if (error) {
     console.error("[waha.ingest] o aviso de chat não reconhecido também falhou", error.message);
   }
@@ -1241,11 +1235,7 @@ async function handleOutboundFromUserPhone(
     // C-076: o interruptor é do agente que atende ESTA conversa
     // (`ai_agents.config.aceita_comandos_celular`, ligado na tela). FAIL-CLOSED:
     // falha de leitura ⇒ desligado ⇒ o comportamento de antes do recurso.
-    const aceita = await agenteAceitaComandoDeCelular(
-      admin,
-      session.organization_id,
-      conversationId,
-    );
+    const aceita = await agenteAceitaComandoDeCelular(admin, session.organization_id, conversationId);
     comandoAplicado = aceita ? comando : null;
     if (comandoAplicado === "off") {
       await pausarIaDuravelmente(admin, {
