@@ -96,7 +96,8 @@ describe("casarClickRef", () => {
     };
 
     const casado = await casarClickRef(admin as never, ORG, "ABC123", CONTATO);
-    expect(casado).toEqual({ gclid: "gclid-xyz" });
+    // `ga` é null quando o clique não trouxe identidade do GA4 (0902).
+    expect(casado).toEqual({ gclid: "gclid-xyz", ga: null });
     // O filtro tem que incluir a organização (lição da #236) e a trava de
     // consumo único.
     expect(filtros.organization_id).toBe(ORG);

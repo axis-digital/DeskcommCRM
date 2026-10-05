@@ -879,6 +879,11 @@ const HOSTS_DECLARADOS: Record<string, EntradaDeHost> = {
     motivo:
       "endpoint da Graph API do WhatsApp Cloud — 6 arquivos: envio de template, sincronização de modelos, validação de credencial, conversões e insights. É contrato da Meta, não escolha nossa.",
   },
+  "www.google-analytics.com": {
+    categoria: "FORNECEDOR",
+    motivo:
+      "endpoint do GA4 Measurement Protocol (`lib/plataformas-de-anuncio/ga4/base.ts`), para onde o CRM envia a conversão ao Google Analytics da propriedade do cliente. Irmão de `www.googleapis.com` e `graph.facebook.com`: é contrato do fornecedor, não escolha nossa — a propriedade é do cliente, o domínio é do Google. Sobrescrevível por `GA4_MP_BASE_URL` para ambiente de teste.",
+  },
   "www.googleapis.com": {
     categoria: "FORNECEDOR",
     motivo:
