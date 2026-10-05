@@ -330,7 +330,12 @@ export function ChatThread({
           {t("Resultados nas mensagens carregadas")}: {resultados.size}
         </div>
       )}
-      <div ref={scrollerRef} className="min-w-0 flex-1 overflow-y-auto py-2">
+      {/* Fundo próprio da conversa quando o tema declara `--inbox-thread-bg`;
+          sem ele, transparente como sempre foi. */}
+      <div
+        ref={scrollerRef}
+        className="min-w-0 flex-1 overflow-y-auto bg-[var(--inbox-thread-bg,transparent)] py-2"
+      >
         {q.hasNextPage && (
           <div className="flex justify-center py-2">
             <Button

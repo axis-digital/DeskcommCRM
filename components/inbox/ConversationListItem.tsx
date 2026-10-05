@@ -229,12 +229,15 @@ export function ConversationListItem({
       className={cn(
         "group relative flex w-full items-start gap-3 border-b border-border/70 px-3 py-2.5 text-left transition-colors hover:bg-surface-elevated",
         "focus-visible:outline-hidden focus-visible:bg-surface-elevated",
-        isSelected && "bg-accent-50 hover:bg-accent-50",
+        // `accent-50` é um degrau FIXO da rampa (quase branco) nos dois temas;
+        // no escuro ele pintava a linha de branco sob texto claro. Lá vale a
+        // seleção tonal do tema (`--surface-selected`), ou o `accent-soft`.
+        isSelected && "bg-accent-50 hover:bg-accent-50 dark:bg-[var(--surface-selected,var(--color-accent-soft))] dark:hover:bg-[var(--surface-selected,var(--color-accent-soft))]",
       )}
       aria-current={isSelected ? "true" : undefined}
     >
       {isSelected && (
-        <span className="absolute inset-y-0 left-0 w-0.5 bg-accent" aria-hidden />
+        <span className="absolute inset-y-0 left-0 w-0.5 bg-accent dark:w-[3px]" aria-hidden />
       )}
       <div className="relative shrink-0">
         <Avatar className="h-10 w-10">

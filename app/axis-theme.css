@@ -126,69 +126,114 @@
   --shadow-lg: 0 12px 32px -6px rgba(2, 0, 53, 0.12), 0 4px 12px -2px rgba(2, 0, 53, 0.06);
   --shadow-xl: 0 24px 48px -12px rgba(2, 0, 53, 0.18), 0 8px 16px -4px rgba(2, 0, 53, 0.08);
 
+  --popover: var(--color-surface);
+  --ring: var(--color-accent-500);
+  --axis-focus: var(--color-accent-500);
+
+  /* Espelho dos tokens do escuro (o claro mantém o comportamento do upstream:
+     os componentes só os leem sob `dark:`). */
+  --surface-selected: var(--color-accent-50);
+  --surface-selected-border: var(--color-accent-200);
+  --inbox-thread-bg: transparent;
+  --inbox-bubble-in: var(--color-surface-elevated);
+  --inbox-bubble-in-border: transparent;
+  --inbox-bubble-out: var(--color-accent);
+  --inbox-bubble-out-fg: var(--color-accent-fg);
+  --inbox-bubble-ai: var(--color-accent);
+
   --destructive-foreground: #ffffff;
 }
 
-/* ── Tema escuro (Navy) ──────────────────────────────────────────────────── */
+/* ── Tema escuro (Axis Midnight Indigo) ──────────────────────────────────────
+   Fonte: "Axis Dark Mode — Especificação Técnica" v1.0. Escala azul-fria e
+   dessaturada no lugar do navy #020035 cheio (saturação 100%, que cansava em
+   uso prolongado). Profundidade por TONALIDADE: canvas < base < surface 1 <
+   surface 2; a conversa fica no canvas, o plano mais escuro.
+   Mapeamento spec → CRM: base → `bg` · surface 1 → `surface` · surface 2 →
+   `surface-elevated` (hover, `muted`) e popover · text.secondary → `text-muted`
+   · text.muted → `text-subtle`.
+   Desvios medidos (a spec pede AA e ela mesma não fecha):
+   - borda de controle #455287 dá 2,35:1 sobre surface 1 → #5B69A2 (≥3:1 em
+     base, surface 1 e surface 2);
+   - popover em surface 2, não 3: o `text-subtle` (#818BB1) dá 4,07:1 sobre
+     #202A59 e 4,74:1 sobre #171F46.
+   O accent (ação, laranja) segue vindo da MARCA — ver o cabeçalho. */
 :root:root[data-theme="dark"],
 [data-theme="dark"][data-theme="dark"] {
-  --color-bg: #020035;
-  --color-surface: #100e40;
-  --color-surface-elevated: #09073b;
-  --color-overlay: rgba(1, 0, 24, 0.66);
+  --color-bg: #0a0e28;
+  --color-surface: #111735;
+  --color-surface-elevated: #171f46;
+  --color-overlay: rgba(7, 10, 30, 0.72);
 
-  /* ink / ink-muted do DS; `text-subtle` ≥4,5:1 também sobre `surface` (o
-     ink-subtle do DS, #6D6A89, dá 3,6:1 ali — serve a ícone, não a texto). */
-  --color-text: #efecf0;
-  --color-text-muted: #8b89a1;
-  --color-text-subtle: #807e9d;
+  --color-text: #f1f3ff;
+  --color-text-muted: #b5bddb;
+  --color-text-subtle: #818bb1;
 
-  --color-border: #23214f;
-  --color-border-strong: #3b3962;
+  --color-border: #29335f;
+  --color-border-strong: #49588e;
 
-  /* Neutros — escala navy do DS, invertida (50 = claro, 950 = fundo) */
-  --color-neutral-50: #e8e5ea;
-  --color-neutral-100: #dedbe3;
-  --color-neutral-200: #cecbd6;
-  --color-neutral-300: #b1afbf;
-  --color-neutral-400: #8b89a1;
-  --color-neutral-500: #6d6a89;
-  --color-neutral-600: #555376;
-  --color-neutral-700: #3b3962;
-  --color-neutral-800: #23214f;
-  --color-neutral-900: #100e40;
-  --color-neutral-950: #020035;
+  /* Neutros — a própria escala da spec, invertida (50 = claro, 950 = canvas) */
+  --color-neutral-50: #f1f3ff;
+  --color-neutral-100: #dfe4f7;
+  --color-neutral-200: #b5bddb;
+  --color-neutral-300: #9ca6ca;
+  --color-neutral-400: #818bb1;
+  --color-neutral-500: #49588e;
+  --color-neutral-600: #29335f;
+  --color-neutral-700: #202a59;
+  --color-neutral-800: #171f46;
+  --color-neutral-900: #111735;
+  --color-neutral-950: #070a1e;
 
-  --color-success: #53b392;
-  --color-success-bg: #061e41;
-  --color-success-fg: #88cbb1;
-  --color-warning: #cd9550;
-  --color-warning-bg: #27172f;
-  --color-warning-fg: #e0b585;
-  /* danger no mesmo matiz do accent: exceção declarada do DS — nunca só cor */
-  --color-error: #ff6a2b;
-  --color-error-bg: #320e2b;
-  --color-error-fg: #fea388;
-  --color-info: #8f8bfb;
-  --color-info-bg: #1b1564;
-  --color-info-fg: #b4b0ff;
+  /* Status da spec. Laranja NÃO é erro: na Axis laranja é ação. */
+  --color-success: #41d9a4;
+  --color-success-bg: #0f2a2e;
+  --color-success-fg: #7fe6c2;
+  --color-warning: #ffb649;
+  --color-warning-bg: #2e2418;
+  --color-warning-fg: #ffcd80;
+  --color-error: #ff6b7a;
+  --color-error-bg: #3b1b28;
+  --color-error-fg: #ffa3ad;
+  --color-info: #76b7ff;
+  --color-info-bg: #13244a;
+  --color-info-fg: #a6cfff;
 
-  --input: #6d6a89;
-  --color-input: #6d6a89;
-  --axis-line-control: #6d6a89;
+  --input: #5b69a2;
+  --color-input: #5b69a2;
+  --axis-line-control: #5b69a2;
+
+  --popover: #171f46;
+
+  /* Foco e IA são roxos (spec §1.3) */
+  --ring: #aa9aff;
+  --axis-focus: #aa9aff;
+
+  /* Seleção tonal (spec §6/§7.4): fundo + faixa de 3 px, nunca laranja sólido */
+  --surface-selected: #371d22;
+  --surface-selected-border: #6b4b54;
+
+  /* Mensageria (spec §7.5) */
+  --inbox-thread-bg: #070a1e;
+  --inbox-bubble-in: #111735;
+  --inbox-bubble-in-border: #202952;
+  --inbox-bubble-out: #2b1d2a;
+  --inbox-bubble-out-fg: #fff3ef;
+  --inbox-bubble-ai: #16143d;
 
   --radius-sm: 4px;
   --radius-md: 6px;
   --radius-lg: 12px;
   --radius-xl: 16px;
 
-  --shadow-xs: 0 1px 2px 0 rgba(0, 0, 0, 0.3);
-  --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.4), 0 1px 1px 0 rgba(0, 0, 0, 0.2);
-  --shadow-md: 0 4px 12px -2px rgba(0, 0, 0, 0.45), 0 2px 4px -1px rgba(0, 0, 0, 0.3);
-  --shadow-lg: 0 12px 32px -6px rgba(0, 0, 0, 0.55), 0 4px 12px -2px rgba(0, 0, 0, 0.4);
-  --shadow-xl: 0 24px 48px -12px rgba(0, 0, 0, 0.65), 0 8px 16px -4px rgba(0, 0, 0, 0.5);
+  /* Elevação curta (spec §3): a tonalidade é o sinal, a sombra só complementa */
+  --shadow-xs: 0 1px 0 0 rgba(255, 255, 255, 0.03) inset;
+  --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.24);
+  --shadow-md: 0 8px 24px rgba(0, 0, 0, 0.18);
+  --shadow-lg: inset 0 1px 0 rgba(255, 255, 255, 0.05), 0 18px 48px rgba(0, 0, 0, 0.36);
+  --shadow-xl: inset 0 1px 0 rgba(255, 255, 255, 0.05), 0 24px 56px rgba(0, 0, 0, 0.44);
 
-  --destructive-foreground: #020035;
+  --destructive-foreground: #230c11;
 }
 
 /* ── Bordas de controle (DS: `line-control`, ≥3:1) ───────────────────────────
@@ -216,12 +261,12 @@ select:not([class*="border-transparent"], [aria-invalid="true"], :focus-visible)
 }
 
 /* ── Texto branco sobre o preenchimento de erro, no tema escuro ───────────────
-   `bg-error text-white` (botão destrutivo): branco sobre #ff6a2b dá 2,9:1.
-   Navy sobre ele dá 7:1. `@layer utilities` + seletor mais específico vence o
+   `bg-error text-white` (botão destrutivo): branco sobre #ff6b7a dá 2,7:1.
+   #230c11 sobre ele dá 6,7:1. `@layer utilities` + seletor mais específico vence o
    `.text-white` sem editar o componente (que é do upstream). */
 @layer utilities {
   [data-theme="dark"] .bg-error.text-white {
-    color: #020035;
+    color: #230c11;
   }
 }
 
@@ -243,4 +288,33 @@ select:not([class*="border-transparent"], [aria-invalid="true"], :focus-visible)
   width: 20px;
   height: 2px;
   background: var(--color-accent);
+}
+
+/* ── Escuro: foco roxo, navegação tonal (spec §6 e §7.3) ─────────────────────
+   Em `@layer base` o foco empata com a regra do `globals.css` e vence pela
+   especificidade; fora de layer ele derrubaria `focus-visible:outline-hidden`
+   dos componentes que desenham o próprio anel. */
+@layer base {
+  [data-theme="dark"][data-theme="dark"] :focus-visible {
+    outline: 3px solid rgba(170, 154, 255, 0.7);
+    outline-offset: 2px;
+  }
+}
+
+/* A sidebar do upstream pinta o item ativo com o accent SÓLIDO e o hover com
+   accent a 50% — laranja dominando o cromo, o que a spec proíbe. No escuro:
+   ativo = seleção tonal + faixa de 3 px; hover = surface 2. O seletor ancora
+   no `aside` que contém a navegação principal, sem editar o componente. */
+@layer utilities {
+  [data-theme="dark"] aside:has(> nav, nav[aria-label]) {
+    background-color: #0d1230;
+  }
+  [data-theme="dark"] aside:has(nav[aria-label]) a[aria-current="page"] {
+    background-color: var(--surface-selected);
+    color: var(--color-text);
+    box-shadow: inset 3px 0 0 var(--color-accent);
+  }
+  [data-theme="dark"] aside:has(nav[aria-label]) a:not([aria-current="page"]):hover {
+    background-color: var(--color-surface-elevated);
+  }
 }
