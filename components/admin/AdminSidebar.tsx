@@ -2,6 +2,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
+  type AxisIcon,
   Gauge,
   ChatsCircle,
   Buildings,
@@ -23,7 +24,6 @@ import {
   PuzzlePiece,
   Stack,
 } from "@/lib/ui/icons";
-import type { Icon as PhosphorIcon } from "@phosphor-icons/react";
 import { cn } from "@/lib/utils";
 import { SimboloDoProduto } from "@/components/branding/MarcaDoProduto";
 import { marcaEhADoProduto } from "@/lib/branding";
@@ -33,7 +33,7 @@ import { useT } from "@/hooks/i18n/useT";
 interface NavItem {
   href: string;
   label: string;
-  icon: PhosphorIcon;
+  icon: AxisIcon;
 }
 
 const NAV_ITEMS: NavItem[] = [

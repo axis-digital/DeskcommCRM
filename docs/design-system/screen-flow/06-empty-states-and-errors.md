@@ -8,7 +8,7 @@ date: 2026-04-28
 
 # 06 — Empty States & Errors
 
-> Catálogo padronizado em PT-BR. Toda tela com estado `empty | error | no-permission | loading-failed` deve usar uma destas composições. Ícones do Phosphor Icons (consistência com design-system base).
+> Catálogo padronizado em PT-BR. Toda tela com estado `empty | error | no-permission | loading-failed` deve usar uma destas composições. Ícones Axis/Lucide do barrel canônico (consistência com o design system base).
 
 ## Princípios
 
@@ -20,7 +20,7 @@ date: 2026-04-28
 
 ## Formato de cada entrada
 
-`Tela / contexto` · **Ícone Phosphor** · **Headline** · **Sub-copy** · **Ação primária** · **Ação secundária**
+`Tela / contexto` · **Ícone Axis/Lucide** · **Headline** · **Sub-copy** · **Ação primária** · **Ação secundária**
 
 ---
 
@@ -248,7 +248,7 @@ date: 2026-04-28
 | "Você não pode fazer isso" | "Seu papel atual não permite" |
 | "Recarregue a página" | "Tente novamente" |
 | "Erro 500" sem contexto | "Algo deu errado — código {request_id}" |
-| Emojis em erros | Texto + ícone Phosphor |
+| Emojis em erros | Texto + ícone Axis/Lucide |
 | Frases passivas longas | Frases curtas, ativas |
 
 ## E. Acessibilidade dos estados

@@ -12,9 +12,7 @@ describe("lib/ui/icons", () => {
   });
 
   it("renderiza Lucide outline com o traço Axis padrão", () => {
-    const markup = renderToStaticMarkup(
-      createElement(MagnifyingGlass, { "aria-hidden": true }),
-    );
+    const markup = renderToStaticMarkup(createElement(MagnifyingGlass, { "aria-hidden": true }));
 
     expect(markup).toContain("lucide-search");
     expect(markup).toContain('stroke-width="1.75"');
@@ -22,7 +20,7 @@ describe("lib/ui/icons", () => {
   });
 
   it.each([
-    ["thin", "1.5"],
+    ["thin", "1.75"],
     ["regular", "1.75"],
     ["duotone", "1.75"],
     ["bold", "2"],
@@ -34,5 +32,17 @@ describe("lib/ui/icons", () => {
 
     expect(markup).toContain(`stroke-width="${strokeWidth}"`);
     expect(markup).not.toContain('fill="currentColor"');
+  });
+
+  it("limita strokeWidth explícito ao intervalo Axis", () => {
+    const fino = renderToStaticMarkup(
+      createElement(MagnifyingGlass, { strokeWidth: 1, "aria-hidden": true }),
+    );
+    const grosso = renderToStaticMarkup(
+      createElement(MagnifyingGlass, { strokeWidth: 4, "aria-hidden": true }),
+    );
+
+    expect(fino).toContain('stroke-width="1.75"');
+    expect(grosso).toContain('stroke-width="2"');
   });
 });
