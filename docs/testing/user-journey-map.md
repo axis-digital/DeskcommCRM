@@ -3282,3 +3282,23 @@ Spec: `tests/e2e/mapas-em-provedores.spec.ts`.
 | J40.6 | O que o Google diz × o endereço anotado em 8 pedidos confirmados (28/09/2026, numa instalação real) | município 8/8, região 8/8, localidade 7/8 (na zona rural virou o povoado), rua 3/5, bairro 1/8, número interpolado → a cidade é o MUNICÍPIO; bairro e número não saem | **MEDIDO em produção** (fora deste repositório); regra em `tests/unit/mapas-pino-com-endereco.test.ts` |
 | J40.7 | O pino com endereço aproximado, aberto na conversa pela equipe | o cartão do pino mostra «Rua, Cidade, Estado (aprox.)», com o texto inteiro no `title` (o cartão corta com …) e o toque abre as COORDENADAS no mapa | **PASS pela tela** — Evidência: `evidence/triagem-16set-l12/mapas-03-pino-na-conversa.png` |
 | J40.8 | A API do canal intermediado não responde a tempo na ingestão do pino (medido 29/09/2026: timeout duas vezes seguidas) | a mensagem entra com o marcador e pede nova busca (`message.location_retry_requested`); 1 min depois, e a cada 2 min até 15, busca de novo e grava tipo `location` + link (+ endereço aproximado com chave); nunca rebaixa um pino que já tem coordenadas; desiste sem virar incidente | **PASS (unit)** — `tests/unit/pino-reintento.test.ts`, `tests/unit/channel-ingest-zernio.test.ts` |
+
+## J41 — Ligar o GA4 e ver o ganho chegar na sessão do site `[P1]` (2026-10-06)
+
+Contexto: as vendas e as etapas configuradas do funil saem para a propriedade GA4
+da organização pelo Measurement Protocol, só para o contato que veio do site com
+o `_ga` capturado (`rastreio/v1.js` com `data-ga4`). Migration 0902; consumidor
+`lib/conversoes/ga4.handler.ts`. Junto, a venda de contato SEM origem pode ir à
+Meta e ao Google em hash, com opt-in (`organizations.settings.conversions.enviar_sem_origem`).
+
+Spec: `tests/e2e/conversoes-ga4.spec.ts` (receptor HTTP real no lugar do Google,
+`GA4_MP_BASE_URL=http://127.0.0.1:4599`).
+
+| # | Caso | Expectativa | Resultado |
+|---|------|-------------|-----------|
+| J41.1 | Dono cola Measurement ID e API secret, liga e salva | «Conexão com o GA4 salva.»; o secret não volta ao HTML | PENDENTE |
+| J41.2 | «Testar conexão» | o receptor recebe `/debug/mp/collect?measurement_id=…`; a tela diz «O GA4 aceitou o evento de teste.» | PENDENTE |
+| J41.3 | Script do site com o GA4 ligado | o snippet leva `data-ga4="G-…"` | PENDENTE |
+| J41.4 | Visitante com cookie `_ga` clica no WhatsApp do site | o clique leva `ga_client_id`/`ga_session_id`; a primeira mensagem pelo webhook do WAHA casa o ref e o contato ganha a identidade GA4 | PENDENTE |
+| J41.5 | Negócio marcado como ganho no kanban, dreno rodado | o receptor recebe `/mp/collect` com o `client_id` do cookie, a sessão, valor e moeda; o Histórico mostra «Venda (GA4)» | PENDENTE |
+| J41.6 | Venda de contato sem anúncio nem site, opt-in desligado / ligado | desligado: nada sai nem é gravado; ligado: uma linha por plataforma ligada (`SemOrigem:<plataforma>:Purchase`), Meta com `ph`, Google com `hashedEmail`/`hashedPhoneNumber`; a venda já enviada sem origem não sai de novo quando a atribuição aparece depois | **PASS (unit)** — `tests/unit/conversoes-sem-origem.test.ts`, `tests/unit/google-ads-sem-origem.test.ts`. Sem prova pela tela |

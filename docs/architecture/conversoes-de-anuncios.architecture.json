@@ -170,6 +170,27 @@
       "col": 5,
       "type": "component",
       "label": "meta_ads_conversion_rules"
+    },
+    {
+      "id": "ga4",
+      "lane": "motor",
+      "col": 7,
+      "type": "component",
+      "label": "conversoes.ga4 (Measurement Protocol)"
+    },
+    {
+      "id": "regras-ga4",
+      "lane": "dados",
+      "col": 7,
+      "type": "component",
+      "label": "ga4_conversion_rules"
+    },
+    {
+      "id": "sem-origem",
+      "lane": "motor",
+      "col": 9,
+      "type": "component",
+      "label": "Venda sem origem (opt-in): Meta e Google em hash"
     }
   ],
   "edges": [
@@ -358,6 +379,66 @@
       "from": "tela",
       "to": "regras-meta",
       "label": "O que cada etapa informa à Meta"
+    },
+    {
+      "id": "ga4-evento",
+      "from": "eventos",
+      "to": "ga4",
+      "label": "won / stage_changed / retry_requested"
+    },
+    {
+      "id": "ga4-identidade",
+      "from": "origem",
+      "to": "ga4",
+      "label": "client_id e session_id do _ga"
+    },
+    {
+      "id": "ga4-script",
+      "from": "script",
+      "to": "captura",
+      "label": "data-ga4: _ga no clique"
+    },
+    {
+      "id": "ga4-conexao",
+      "from": "conexao",
+      "to": "ga4",
+      "label": "Measurement ID e API secret"
+    },
+    {
+      "id": "ga4-regra",
+      "from": "regras-ga4",
+      "to": "ga4",
+      "label": "evento por etapa"
+    },
+    {
+      "id": "ga4-tela",
+      "from": "tela",
+      "to": "regras-ga4",
+      "label": "Eventos do GA4 por etapa"
+    },
+    {
+      "id": "ga4-registro",
+      "from": "ga4",
+      "to": "registro",
+      "label": "Venda (GA4) e etapas no Histórico"
+    },
+    {
+      "id": "sem-origem-handler",
+      "from": "handler",
+      "to": "sem-origem",
+      "label": "sem atribuição e opt-in ligado"
+    },
+    {
+      "id": "sem-origem-transporte",
+      "from": "sem-origem",
+      "to": "transporte",
+      "label": "system_generated + ph / userIdentifiers"
+    },
+    {
+      "id": "sem-origem-registro",
+      "from": "sem-origem",
+      "to": "registro",
+      "label": "SemOrigem:<plataforma>:Purchase"
     }
   ]
 }

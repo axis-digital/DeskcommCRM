@@ -168,6 +168,11 @@ EXTENSIONS_LOCAL_CATALOG_ORIGIN=http://127.0.0.1:56331
 # escuta aqui, e não precisa: o Jev nasce desligado em toda organização.
 JEV_API_BASE_URL=http://127.0.0.1:3996
 
+# O Measurement Protocol do GA4 fala com o receptor que a spec
+# \`conversoes-ga4\` sobe nesta porta. Fora daquela spec nada escuta aqui, e
+# não precisa: o GA4 nasce desligado em toda organização.
+GA4_MP_BASE_URL=http://127.0.0.1:4599
+
 # Placeholders: 'next start' roda em NODE_ENV=production, e lib/env.ts exige
 # estas vars em produção. As specs não exercitam os serviços por trás delas.
 # Local e CI falham pelos mesmos motivos porque leem ESTE arquivo: o workflow
