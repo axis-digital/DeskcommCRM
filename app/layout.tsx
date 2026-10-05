@@ -5,7 +5,7 @@ import { Toaster } from "sonner";
 import { coresDaBarraDoNavegador } from "@/lib/branding/barra-do-navegador";
 import { MarcaDaInstalacaoProvider } from "@/lib/branding/contexto";
 import { cssDaMarca } from "@/lib/branding/css";
-import { iconeDaAba } from "@/lib/branding/icone";
+import { ICONE_DESENHADO, iconeDaAba } from "@/lib/branding/icone";
 import { folhaPersonalizadaDaInstalacao } from "@/lib/branding/folha-personalizada";
 import { CABECALHO_SEM_CSS } from "@/lib/branding/sem-css-personalizado";
 import {
@@ -300,7 +300,10 @@ async function MarcaNoNavegador() {
  * mesma resposta antes de o documento ser liberado.
  */
 async function MarcaDosClientComponents({ children }: { children: React.ReactNode }) {
-  const { marca } = await marcaResolvida();
+  const { marca, linha } = await marcaResolvida();
+  // Só ARQUIVO subido: o ícone desenhado (`/icon`) é a própria inicial, que a
+  // sidebar já sabe desenhar.
+  const simbolo = iconeDaAba(linha?.favicon_path);
   // Só os três campos de `Branding`: `marca` carrega junto `cor`, `origens` e
   // `motivos`, que são diagnóstico do servidor e não têm leitor no navegador —
   // mandá-los engordaria o payload do RSC de TODA página com dado que ninguém lê.
@@ -311,6 +314,7 @@ async function MarcaDosClientComponents({ children }: { children: React.ReactNod
         logoUrl: marca.logoUrl,
         logoDarkUrl: marca.logoDarkUrl,
         initial: marca.initial,
+        simboloUrl: simbolo === ICONE_DESENHADO ? null : simbolo,
       }}
     >
       {children}
