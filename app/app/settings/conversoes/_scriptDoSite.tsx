@@ -18,11 +18,14 @@ export function ScriptDoSite({
   slug,
   google,
   meta,
+  ga4MeasurementId,
   idioma,
 }: {
   slug: string;
   google: EstadoDaCaptura | null;
   meta: EstadoDaCaptura | null;
+  /** Measurement ID (G-…) da conexão GA4 ligada; sem ele o script não lê o `_ga`. */
+  ga4MeasurementId: string | null;
   idioma: Idioma;
 }) {
   const t = (text: string) => traduzir(text, idioma);
@@ -37,6 +40,12 @@ export function ScriptDoSite({
       ([platform, config]) =>
         `data-${platform}-whatsapp="${escapeAttribute(config!.whatsappE164.replace(/\D/g, ""))}"`,
     );
+  // O GA4 não tem número de WhatsApp: o script só precisa saber se deve ler o
+  // `_ga` e qual propriedade. Com só o GA4 ligado, o snippet sai com esse
+  // atributo e sem `data-*-whatsapp` — o `v1.js` aceita essa forma.
+  if (ga4MeasurementId) {
+    attributes.push(`data-ga4="${escapeAttribute(ga4MeasurementId)}"`);
+  }
   const snippet =
     origin && attributes.length
       ? `<script defer src="${escapeAttribute(origin)}/rastreio/v1.js" data-org="${escapeAttribute(slug)}" ${attributes.join(" ")} referrerpolicy="no-referrer"></script>`

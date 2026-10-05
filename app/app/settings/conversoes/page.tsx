@@ -54,6 +54,7 @@ import {
   faltaParaConectarOGoogleAds,
   googleAdsEstaConfigurado,
 } from "@/lib/plataformas-de-anuncio/google/config";
+import { lerEstadoDaConexaoGa4 } from "@/lib/plataformas-de-anuncio/ga4/credencial";
 import { lerEstadoDaConexaoGoogle } from "@/lib/plataformas-de-anuncio/google/estado-da-conexao";
 import { lerEstadoDaCaptura } from "@/lib/plataformas-de-anuncio/landing-config";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -129,6 +130,7 @@ export default async function ConversoesPage({
     etapas,
     regrasGoogle,
     regrasMeta,
+    estadoGa4,
   ] = await Promise.all([
     lerEstadoDaConexao(admin, activeOrg.orgId),
     lerPendencias(admin, activeOrg.orgId),
@@ -151,6 +153,8 @@ export default async function ConversoesPage({
     // Falha na leitura das regras não derruba a tela: o editor some e o resto fica.
     listarRegrasGoogle(admin, activeOrg.orgId).catch(() => null),
     listarRegrasMeta(admin, activeOrg.orgId).catch(() => null),
+    // Conexão GA4 desligada ou sem Measurement ID não entra no script do site.
+    lerEstadoDaConexaoGa4(admin, activeOrg.orgId).catch(() => null),
   ]);
   // O nome que a pessoa reconhece para cada evento de etapa, das duas
   // plataformas — o Histórico e as pendências leem daqui.
@@ -481,6 +485,9 @@ export default async function ConversoesPage({
               slug={slug}
               google={capturaGoogle}
               meta={estadoDaCaptura}
+              ga4MeasurementId={
+                estadoGa4?.enabled && estadoGa4.measurementId ? estadoGa4.measurementId : null
+              }
               idioma={idioma}
             />
           ) : null}

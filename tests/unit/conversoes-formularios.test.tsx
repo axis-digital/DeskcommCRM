@@ -165,7 +165,7 @@ describe("formulários de conversão", () => {
 
 it("só gera o script com captura ativa salva, sem credenciais", () => {
   const { rerender } = render(
-    <ScriptDoSite slug="loja" google={null} meta={null} idioma="pt-BR" />,
+    <ScriptDoSite slug="loja" google={null} meta={null} ga4MeasurementId={null} idioma="pt-BR" />,
   );
   expect(screen.queryByRole("button", { name: "Copiar script do site" })).toBeNull();
   rerender(
@@ -177,6 +177,7 @@ it("só gera o script com captura ativa salva, sem credenciais", () => {
         habilitada: true,
       }}
       meta={null}
+      ga4MeasurementId={null}
       idioma="pt-BR"
     />,
   );
