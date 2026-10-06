@@ -85,6 +85,42 @@ describe("consumidor GA4", () => {
     expect(gravados[0]).toMatchObject({ plataforma: "ga4", evento: "GA4:Venda", status: "sent", ga4EventName: "close_convert_lead" });
   });
 
+  it("close_convert_lead não leva transaction_id", async () => {
+    await conversaoGa4Handler.handle(linha("lead.won"));
+    expect(vi.mocked(enviarEventoGa4).mock.calls[0]![1]).toMatchObject({ transactionId: null });
+  });
+
+  it("com purchase escolhido, o ganho leva transaction_id = id do lead, valor e moeda", async () => {
+    vi.mocked(lerCredencialGa4).mockResolvedValueOnce({
+      ok: true,
+      credencial: { measurementId: "G-ABC123", apiSecret: "s", wonEvent: "purchase" },
+    });
+    await conversaoGa4Handler.handle(linha("lead.won"));
+    expect(vi.mocked(enviarEventoGa4).mock.calls[0]![1]).toMatchObject({
+      nome: "purchase",
+      transactionId: LEAD,
+      valorCentavos: 990000,
+      moeda: "brl",
+    });
+    expect(gravados[0]).toMatchObject({ evento: "GA4:Venda", ga4EventName: "purchase" });
+  });
+
+  it("reenvio de venda gravada como purchase repete o retrato com transaction_id", async () => {
+    estado.registro = {
+      status: "error",
+      event_occurred_at: new Date().toISOString(),
+      ga4_event_name: "purchase",
+    };
+    await conversaoGa4Handler.handle(
+      linha("ad_conversion.retry_requested", { event_name: "GA4:Venda" }),
+    );
+    expect(vi.mocked(enviarEventoGa4).mock.calls[0]![1]).toMatchObject({
+      nome: "purchase",
+      transactionId: LEAD,
+      valorCentavos: 990000,
+    });
+  });
+
   it("etapa com regra envia o evento da regra sem valor", async () => {
     estado.lead = { ...estado.lead, status: "open" };
     await conversaoGa4Handler.handle(linha("lead.stage_changed", { to_stage_id: ETAPA }));

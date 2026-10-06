@@ -64,6 +64,40 @@ describe("updateGa4Connection", () => {
     expect(JSON.stringify(vi.mocked(audit).mock.calls)).not.toContain("segredo-real-123");
   });
 
+  it.each(["close_convert_lead", "purchase"] as const)(
+    "evento do ganho %s é aceito, gravado na coluna e auditado",
+    async (evento) => {
+      const r = await updateGa4Connection({
+        measurement_id: "G-ABC123",
+        won_event: evento,
+        enabled: true,
+      });
+      expect(r).toEqual({ ok: true });
+      expect(upserts[0]).toMatchObject({ ga4_won_event: evento });
+      expect(vi.mocked(audit)).toHaveBeenCalledWith(
+        expect.objectContaining({
+          action: "ad_platform_connection.updated",
+          organizationId: "org-1",
+          metadata: expect.objectContaining({ platform: "ga4", won_event: evento }),
+        }),
+      );
+    },
+  );
+
+  it.each(["generate_lead", "Purchase", "", "page_view"])(
+    "evento do ganho fora do vocabulário (%j) é recusado sem gravar nem auditar",
+    async (evento) => {
+      const r = await updateGa4Connection({
+        measurement_id: "G-ABC123",
+        won_event: evento as never,
+        enabled: true,
+      });
+      expect(r).toMatchObject({ ok: false, error: "validation_failed" });
+      expect(upserts).toHaveLength(0);
+      expect(vi.mocked(audit)).not.toHaveBeenCalled();
+    },
+  );
+
   it("sem api_secret mantém o secret gravado (não zera a coluna)", async () => {
     await updateGa4Connection({
       measurement_id: "G-ABC123",
