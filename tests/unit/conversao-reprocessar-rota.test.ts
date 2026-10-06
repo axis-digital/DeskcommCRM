@@ -86,23 +86,28 @@ describe("reprocessamento autorizado", () => {
       p_event: evento,
     });
   });
-  it.each(["GA4:Compra", "GA4Etapa:1%27%3B--", "SemOrigem:ga4:Purchase", "SemOrigem:meta_ads:Lead"])(
-    "recusa a variação desconhecida %s",
-    async (evento) => {
-      const resposta = await POST(
-        new Request(`https://example.test?event_name=${evento}`, { method: "POST" }),
-        { params: Promise.resolve({ id }) },
-      );
-      expect(resposta.status).toBe(400);
-      expect(rpc).not.toHaveBeenCalled();
-    },
-  );
+  it.each([
+    "GA4:Compra",
+    "GA4Etapa:1%27%3B--",
+    "SemOrigem:ga4:Purchase",
+    "SemOrigem:meta_ads:Lead",
+  ])("recusa a variação desconhecida %s", async (evento) => {
+    const resposta = await POST(
+      new Request(`https://example.test?event_name=${evento}`, { method: "POST" }),
+      { params: Promise.resolve({ id }) },
+    );
+    expect(resposta.status).toBe(400);
+    expect(rpc).not.toHaveBeenCalled();
+  });
   it("recusa etapa com identificador malformado", async () => {
     expect(
       (
-        await POST(new Request("https://example.test?event_name=Etapa:1%27%3B--", { method: "POST" }), {
-          params: Promise.resolve({ id }),
-        })
+        await POST(
+          new Request("https://example.test?event_name=Etapa:1%27%3B--", { method: "POST" }),
+          {
+            params: Promise.resolve({ id }),
+          },
+        )
       ).status,
     ).toBe(400);
     expect(rpc).not.toHaveBeenCalled();

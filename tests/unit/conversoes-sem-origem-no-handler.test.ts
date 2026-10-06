@@ -124,9 +124,7 @@ describe("fallback sem origem no handler da venda", () => {
   it("o reenvio pedido para a venda sem origem volta ao fallback", async () => {
     estado.settings = { conversions: { enviar_sem_origem: true } };
     estado.registros["SemOrigem:meta_ads:Purchase"] = { status: "error", platform: "meta_ads" };
-    const r = await conversaoDeVendaHandler.handle(
-      reenvio("SemOrigem:meta_ads:Purchase"),
-    );
+    const r = await conversaoDeVendaHandler.handle(reenvio("SemOrigem:meta_ads:Purchase"));
     expect(r.status).toBe("ok");
     expect(estado.reportar).toHaveBeenCalledOnce();
   });
@@ -144,5 +142,9 @@ describe("fallback sem origem no handler da venda", () => {
 });
 
 function reenvio(evento: string): EventRow {
-  return { ...ganho(), event_type: "ad_conversion.retry_requested", payload: { event_name: evento } };
+  return {
+    ...ganho(),
+    event_type: "ad_conversion.retry_requested",
+    payload: { event_name: evento },
+  };
 }
