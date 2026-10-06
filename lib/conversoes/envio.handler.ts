@@ -57,6 +57,7 @@ import { lerValorDaConversa } from "./valor-da-conversa";
 import { lerVendaPeloCanal } from "./venda-pelo-canal";
 import { ehEventoDeEtapa } from "./regras-google";
 import { ehEventoDeEtapaMeta } from "./regras-meta";
+import { EVENTO_DE_VENDA_GA4, ehEventoDeEtapaGa4 } from "./regras-ga4";
 import { lerRegistro, registraEnvio } from "./registro-de-envio";
 import {
   eventoSemOrigem,
@@ -88,6 +89,21 @@ export interface EventoDeEtapa {
   eventoMeta?: string;
 }
 
+/**
+ * O reenvio é pedido por evento, e cada evento tem um dono: as etapas do Google
+ * e da Meta e as linhas do GA4 são reenviadas pelos seus consumidores. Aqui só
+ * entram `Purchase` e a venda sem origem — sem este filtro, o reenvio de uma
+ * linha do GA4 reprocessaria a venda das plataformas de anúncio de carona.
+ */
+function ehReenvioDeOutroConsumidor(evento: unknown): boolean {
+  return (
+    ehEventoDeEtapa(evento) ||
+    ehEventoDeEtapaMeta(evento) ||
+    ehEventoDeEtapaGa4(evento) ||
+    evento === EVENTO_DE_VENDA_GA4
+  );
+}
+
 export async function processarConversao(
   row: EventRow,
   qualificacao?: EventoDeEtapa,
@@ -96,7 +112,7 @@ export async function processarConversao(
   if (
     !qualificacao &&
     row.event_type === "ad_conversion.retry_requested" &&
-    (ehEventoDeEtapa(row.payload.event_name) || ehEventoDeEtapaMeta(row.payload.event_name))
+    ehReenvioDeOutroConsumidor(row.payload.event_name)
   )
     return ok("skipped", "outro_evento");
   if (!row.entity_id) return ok("skipped", "sem_entidade");

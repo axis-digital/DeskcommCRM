@@ -120,4 +120,29 @@ describe("fallback sem origem no handler da venda", () => {
     expect(r).toMatchObject({ status: "skipped", detail: "ja_enviada_sem_origem" });
     expect(estado.enviar).not.toHaveBeenCalled();
   });
+
+  it("o reenvio pedido para a venda sem origem volta ao fallback", async () => {
+    estado.settings = { conversions: { enviar_sem_origem: true } };
+    estado.registros["SemOrigem:meta_ads:Purchase"] = { status: "error", platform: "meta_ads" };
+    const r = await conversaoDeVendaHandler.handle(
+      reenvio("SemOrigem:meta_ads:Purchase"),
+    );
+    expect(r.status).toBe("ok");
+    expect(estado.reportar).toHaveBeenCalledOnce();
+  });
+
+  it.each(["GA4:Venda", "GA4Etapa:44444444-4444-4444-8444-444444444444"])(
+    "o reenvio de %s é do consumidor do GA4: a venda não é reprocessada aqui",
+    async (evento) => {
+      estado.settings = { conversions: { enviar_sem_origem: true } };
+      const r = await conversaoDeVendaHandler.handle(reenvio(evento));
+      expect(r).toMatchObject({ status: "skipped", detail: "outro_evento" });
+      expect(estado.reportar).not.toHaveBeenCalled();
+      expect(estado.enviar).not.toHaveBeenCalled();
+    },
+  );
 });
+
+function reenvio(evento: string): EventRow {
+  return { ...ganho(), event_type: "ad_conversion.retry_requested", payload: { event_name: evento } };
+}
