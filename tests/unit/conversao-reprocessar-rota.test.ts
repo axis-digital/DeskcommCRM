@@ -67,6 +67,36 @@ describe("reprocessamento autorizado", () => {
       p_event: etapa,
     });
   });
+  it.each([
+    "GA4:Venda",
+    "GA4Etapa:11111111-1111-4111-8111-111111111111",
+    "SemOrigem:meta_ads:Purchase",
+    "SemOrigem:google_ads:Purchase",
+  ])("aceita o reenvio de %s (GA4 e venda sem origem, 0902)", async (evento) => {
+    const resposta = await POST(
+      new Request(`https://example.test?event_name=${encodeURIComponent(evento)}`, {
+        method: "POST",
+      }),
+      { params: Promise.resolve({ id }) },
+    );
+    expect(resposta.status).toBe(200);
+    expect(rpc).toHaveBeenCalledWith("fn_solicitar_reenvio_conversao", {
+      p_org: "org-da-sessao",
+      p_lead: id,
+      p_event: evento,
+    });
+  });
+  it.each(["GA4:Compra", "GA4Etapa:1%27%3B--", "SemOrigem:ga4:Purchase", "SemOrigem:meta_ads:Lead"])(
+    "recusa a variação desconhecida %s",
+    async (evento) => {
+      const resposta = await POST(
+        new Request(`https://example.test?event_name=${evento}`, { method: "POST" }),
+        { params: Promise.resolve({ id }) },
+      );
+      expect(resposta.status).toBe(400);
+      expect(rpc).not.toHaveBeenCalled();
+    },
+  );
   it("recusa etapa com identificador malformado", async () => {
     expect(
       (

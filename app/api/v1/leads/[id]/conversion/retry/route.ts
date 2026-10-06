@@ -10,12 +10,14 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
   const requestId = randomUUID();
   const parsed = z.object({ id: z.uuid() }).safeParse(await ctx.params);
   if (!parsed.success) return fail("validation_failed", "Negócio inválido.", 400, { requestId });
-  // Compra, a qualificação legada (0402) e as etapas configuradas do Google
-  // (0436) e da Meta (0524).
+  // Compra, a qualificação legada (0402), as etapas configuradas do Google
+  // (0436) e da Meta (0524), e as linhas da 0902: venda e etapas do GA4 e a
+  // venda sem origem de cada plataforma do fallback.
   const evento = z
     .union([
-      z.enum(["Purchase", "QualifiedLead"]),
-      z.string().regex(/^(Meta)?Etapa:[0-9a-f-]{36}$/),
+      z.enum(["Purchase", "QualifiedLead", "GA4:Venda"]),
+      z.string().regex(/^(Meta|GA4)?Etapa:[0-9a-f-]{36}$/),
+      z.string().regex(/^SemOrigem:(meta_ads|google_ads):Purchase$/),
     ])
     .safeParse(new URL(req.url).searchParams.get("event_name") ?? "Purchase");
   if (!evento.success) return fail("validation_failed", "Evento inválido.", 400, { requestId });
