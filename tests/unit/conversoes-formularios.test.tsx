@@ -92,6 +92,61 @@ describe("FormularioDoGa4", () => {
     );
   });
 });
+describe("FormularioDoGa4 — evento enviado no ganho", () => {
+  const base = {
+    configurada: true,
+    enabled: true,
+    measurementId: "G-ABC123",
+    temSegredo: true,
+  } as const;
+
+  it("oferece os dois eventos e carrega o valor gravado", () => {
+    render(<FormularioDoGa4 estado={{ ...base, wonEvent: "purchase" }} idioma="pt-BR" />);
+    const select = screen.getByLabelText("Evento enviado na venda");
+    expect(select).toHaveValue("purchase");
+    const opcoes = Array.from((select as HTMLSelectElement).options).map((o) => o.value);
+    expect(opcoes).toEqual(["close_convert_lead", "purchase"]);
+  });
+
+  it("padrão close_convert_lead sugere purchase para loja ou funil de pedidos", () => {
+    render(<FormularioDoGa4 estado={{ ...base, wonEvent: "close_convert_lead" }} idioma="pt-BR" />);
+    expect(screen.getByLabelText("Evento enviado na venda")).toHaveValue("close_convert_lead");
+    expect(screen.getByLabelText("Evento enviado na venda")).toHaveAccessibleDescription(
+      "Loja ou funil de pedidos? Escolha Compra (purchase): a venda entra nos relatórios de e-commerce do GA4.",
+    );
+  });
+
+  it("trocar para purchase salva o evento escolhido e explica o transaction_id", async () => {
+    render(<FormularioDoGa4 estado={{ ...base, wonEvent: "close_convert_lead" }} idioma="pt-BR" />);
+    fireEvent.change(screen.getByLabelText("Evento enviado na venda"), {
+      target: { value: "purchase" },
+    });
+    expect(screen.getByLabelText("Evento enviado na venda")).toHaveAccessibleDescription(
+      "O id do negócio vai como transaction_id, e o GA4 não conta a mesma venda duas vezes.",
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Salvar" }));
+    await waitFor(() =>
+      expect(mock.salvarGa4).toHaveBeenCalledWith({
+        measurement_id: "G-ABC123",
+        won_event: "purchase",
+        enabled: true,
+      }),
+    );
+  });
+
+  it("em espanhol, rótulo, opções e ajuda vêm traduzidos", () => {
+    render(<FormularioDoGa4 estado={{ ...base, wonEvent: "purchase" }} idioma="es" />);
+    const select = screen.getByLabelText("Evento enviado en la venta") as HTMLSelectElement;
+    expect(Array.from(select.options).map((o) => o.textContent)).toEqual([
+      "Lead convertido (embudo de leads) (close_convert_lead)",
+      "Compra (e-commerce) (purchase)",
+    ]);
+    expect(select).toHaveAccessibleDescription(
+      "El id del negocio va como transaction_id, y GA4 no cuenta la misma venta dos veces.",
+    );
+  });
+});
+
 describe("formulários de conversão", () => {
   it("a captura Google salva destino e referência na plataforma certa", async () => {
     render(

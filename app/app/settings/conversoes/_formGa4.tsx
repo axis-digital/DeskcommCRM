@@ -109,6 +109,7 @@ export function FormularioDoGa4({
         <Label htmlFor="ga4-won-event">{t("Evento enviado na venda")}</Label>
         <select
           id="ga4-won-event"
+          aria-describedby="ga4-won-event-ajuda"
           className="rounded-md border bg-background p-2 text-sm"
           value={wonEvent}
           onChange={(e) => setWonEvent(e.target.value as EventoDeVendaGa4)}
@@ -119,6 +120,20 @@ export function FormularioDoGa4({
             </option>
           ))}
         </select>
+        {/*
+          A ajuda acompanha a escolha. Com purchase, o handler manda o id do
+          negócio como transaction_id; no padrão, o funil de e-commerce mandaria
+          close_convert_lead e a venda ficaria fora dos relatórios de compra.
+        */}
+        <p id="ga4-won-event-ajuda" className="text-xs text-muted-foreground">
+          {wonEvent === "purchase"
+            ? t(
+                "O id do negócio vai como transaction_id, e o GA4 não conta a mesma venda duas vezes.",
+              )
+            : t(
+                "Loja ou funil de pedidos? Escolha Compra (purchase): a venda entra nos relatórios de e-commerce do GA4.",
+              )}
+        </p>
       </div>
 
       <div className="flex items-center gap-2">
