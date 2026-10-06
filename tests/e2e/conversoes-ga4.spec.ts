@@ -411,3 +411,67 @@ test("dono liga e desliga o envio de vendas sem origem, e a escolha sobrevive ao
       .eq("id", org);
   }
 });
+
+test("dono troca o evento do ganho para purchase pela tela, e a escolha é gravada e auditada", async ({
+  page,
+}) => {
+  await loginComoAdmin(page, lerCreds());
+  const org = credsDoNascimento().org_id;
+  const { data: conexaoAnterior } = await admin
+    .from("ad_platform_connections")
+    .select("*")
+    .eq("organization_id", org)
+    .eq("platform", "ga4")
+    .maybeSingle();
+  try {
+    await page.goto("/app/settings/conversoes");
+    const ga4 = page.getByTestId("conexao-ga4");
+    await ga4.getByLabel("Measurement ID", { exact: true }).fill(MEASUREMENT_ID);
+    await ga4.getByLabel("API secret", { exact: true }).fill("segredo-de-prova-123");
+    const evento = ga4.getByLabel("Evento enviado na venda", { exact: true });
+    await evento.selectOption("purchase");
+    await expect(
+      ga4.getByText(
+        "O id do negócio vai como transaction_id, e o GA4 não conta a mesma venda duas vezes.",
+        { exact: true },
+      ),
+    ).toBeVisible();
+    await ga4.getByRole("button", { name: "Salvar", exact: true }).click();
+    await expect(page.getByText("Conexão com o GA4 salva.", { exact: true })).toBeVisible();
+
+    await page.reload();
+    await expect(evento, "a escolha sobrevive ao recarregar").toHaveValue("purchase");
+    await evento.scrollIntoViewIfNeeded();
+    await page.screenshot({
+      path: path.join(EVIDENCIA, "04-evento-do-ganho-purchase.png"),
+      fullPage: true,
+    });
+
+    const { data: depois } = await admin
+      .from("ad_platform_connections")
+      .select("ga4_won_event")
+      .eq("organization_id", org)
+      .eq("platform", "ga4")
+      .single();
+    expect(depois?.ga4_won_event).toBe("purchase");
+    const { data: auditoria } = await admin
+      .from("api_audit_log")
+      .select("metadata")
+      .eq("organization_id", org)
+      .eq("action", "ad_platform_connection.updated");
+    expect(
+      (auditoria ?? []).some(
+        (a) => (a.metadata as { won_event?: string } | null)?.won_event === "purchase",
+      ),
+      "a troca é auditada com o evento escolhido",
+    ).toBe(true);
+  } finally {
+    if (conexaoAnterior) await admin.from("ad_platform_connections").upsert(conexaoAnterior);
+    else
+      await admin
+        .from("ad_platform_connections")
+        .delete()
+        .eq("organization_id", org)
+        .eq("platform", "ga4");
+  }
+});
