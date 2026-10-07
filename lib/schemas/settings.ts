@@ -11,6 +11,7 @@ import { z } from "zod";
 import { ehHexValido } from "@/lib/branding/rampa";
 import { IDIOMAS } from "@/lib/i18n/idiomas";
 import { MOEDAS_SERVIDAS } from "@/lib/money";
+import { objetivoDoNegocioSchema } from "@/lib/onboarding/perfil-de-negocio";
 
 import { conversationTagSchema } from "./messaging";
 
@@ -256,6 +257,13 @@ export const pipelineConfigPatchSchema = z.object({
   reabertura: z.enum(["mesmo_registro", "novo_negocio"]).optional(),
   /** O que a retomada copia da origem; ausente é o piso (`custom_fields` e tags). */
   reabertura_campos: z.array(z.enum(CAMPOS_COPIAVEIS_NA_RETOMADA)).max(8).optional(),
+  /**
+   * O OBJETIVO DO FUNIL (Entrega 1): o que a conversa deste quadro deve virar —
+   * é ele que escolhe o evento de conversão de cada passo. `null` é "Sem
+   * objetivo" (tira a chave); ausente é "não mexa". Lido só por
+   * `lerObjetivoDoFunil` (`lib/onboarding/perfil-de-negocio.ts`).
+   */
+  objetivo: objetivoDoNegocioSchema.nullable().optional(),
 });
 export type PipelineConfigPatch = z.infer<typeof pipelineConfigPatchSchema>;
 

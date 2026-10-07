@@ -6,10 +6,16 @@ import { useT } from "@/hooks/i18n/useT";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { aplicarQuadro, pularQuadro, type QuadroAtual } from "@/app/actions/onboarding/montarQuadro";
+import {
+  aplicarQuadro,
+  pularQuadro,
+  type FunilExtraOferecido,
+  type QuadroAtual,
+} from "@/app/actions/onboarding/montarQuadro";
 import { explicacaoDoPasso } from "@/lib/leads/agent-mapping";
 import { MAX_ETAPAS, MIN_ETAPAS, type PropostaDeFunil } from "@/lib/onboarding/proposta-de-funil";
 import { PACOTES } from "@/lib/onboarding/pacotes-de-funil";
+import { OBJETIVOS_DO_NEGOCIO, type ObjetivoDoNegocio } from "@/lib/onboarding/perfil-de-negocio";
 import type { Sugestao } from "@/lib/onboarding/sugerir-funil";
 
 /**
@@ -22,9 +28,12 @@ import type { Sugestao } from "@/lib/onboarding/sugerir-funil";
 export function QuadroClient({
   atual,
   sugestao,
+  extras = [],
 }: {
   atual: QuadroAtual | null;
   sugestao: Sugestao;
+  /** Um funil por objetivo do perfil além do primeiro — pré-marcados. */
+  extras?: FunilExtraOferecido[];
 }) {
   const t = useT();
   const inicial: PropostaDeFunil =
@@ -33,6 +42,7 @@ export function QuadroClient({
   const [quadro, setQuadro] = useState<PropostaDeFunil>(inicial);
   const [origem, setOrigem] = useState<"ia" | "pacote">(sugestao.origem);
   const [trocando, setTrocando] = useState(false);
+  const [marcados, setMarcados] = useState<ObjetivoDoNegocio[]>(() => extras.map((e) => e.objetivo));
   const [pending, startTransition] = useTransition();
 
   // Coluna sem nome é DESCARTADA por `normalizarProposta` — e descartar em
@@ -65,6 +75,12 @@ export function QuadroClient({
       etapas.splice(onde, 0, { nome: "", passo: null });
       return { ...q, etapas };
     });
+  }
+
+  function alternarExtra(objetivo: ObjetivoDoNegocio, ligado: boolean) {
+    setMarcados((atuais) =>
+      ligado ? [...atuais.filter((o) => o !== objetivo), objetivo] : atuais.filter((o) => o !== objetivo),
+    );
   }
 
   function usarPacote(id: string) {
@@ -185,6 +201,35 @@ export function QuadroClient({
         </div>
       </div>
 
+      {/*
+        Os outros objetivos do perfil. Um funil tem UM objetivo — é ele que
+        escolhe o evento de conversão de cada passo —, então quem marcou mais de
+        um ganha um quadro por objetivo. Pré-marcados: foi o que a pessoa disse
+        querer duas telas atrás; desmarcar é a exceção.
+      */}
+      {extras.length > 0 ? (
+        <fieldset className="space-y-2 rounded-lg border bg-background p-4">
+          <legend className="px-1 text-sm font-medium">{t("Outros quadros do seu negócio")}</legend>
+          <p className="text-xs text-muted-foreground">
+            {t(
+              "Você marcou mais de um objetivo. Cada um ganha um quadro próprio, com colunas prontas que dá para ajustar depois em Configurações › Funis.",
+            )}
+          </p>
+          {OBJETIVOS_DO_NEGOCIO.map((o) =>
+            extras.some((e) => e.objetivo === o.valor) ? (
+              <label key={o.valor} className="flex items-center gap-2 text-sm">
+                <input
+                  type="checkbox"
+                  checked={marcados.includes(o.valor)}
+                  onChange={(ev) => alternarExtra(o.valor, ev.target.checked)}
+                />
+                {t("Também criar funil de")} {t(o.rotulo)}
+              </label>
+            ) : null,
+          )}
+        </fieldset>
+      ) : null}
+
       {/* O que a instalação trouxe, para a troca não parecer mágica. */}
       {atual && atual.colunas.length > 0 ? (
         <details className="rounded-md border p-3 text-sm">
@@ -255,6 +300,7 @@ export function QuadroClient({
               const fd = new FormData();
               fd.set("quadro", JSON.stringify(quadro));
               fd.set("origem", origem);
+              fd.set("extras", JSON.stringify(marcados));
               const res = await aplicarQuadro(fd);
               // Sucesso redireciona no servidor; só o desfecho ruim volta.
               if (res && !res.ok) toast.error(res.erro);

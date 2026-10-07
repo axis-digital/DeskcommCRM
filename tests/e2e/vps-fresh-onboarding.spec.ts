@@ -350,6 +350,14 @@ test.describe("J1 — onboarding do dono numa instalação fresca", () => {
     expect(colunas.length).toBeGreaterThan(0);
     await snap(page, "j1.26-funil-sem-ia");
 
+    // Entrega 1 / workstream B: as boas-vindas (J1.4) marcaram "Vender
+    // produtos" e depois "Agendar horários". O 1º é o objetivo do quadro de
+    // cima; o 2º vira um funil a mais, oferecido PRÉ-MARCADO abaixo do quadro.
+    const extra = page.getByRole("checkbox", { name: /também criar funil de agendar horários/i });
+    await expect(extra).toBeVisible();
+    await expect(extra).toBeChecked();
+    await snap(page, "j1.26-funil-com-extra");
+
     await page.getByRole("button", { name: /usar este quadro/i }).click();
     await page.waitForURL(/\/onboarding\/testar/, { timeout: 20_000 });
 
@@ -371,6 +379,29 @@ test.describe("J1 — onboarding do dono numa instalação fresca", () => {
     for (const coluna of colunas) {
       expect(etapas?.map((e) => e.name), `a coluna "${coluna}" da tela foi gravada`).toContain(coluna.trim());
     }
+
+    // O quadro de cima recebeu o 1º objetivo; o extra nasceu com o seu, com
+    // etapas e passo (é o passo que move o card e escolhe o evento do GA4).
+    const { data: funis } = await svc
+      .from("crm_pipelines")
+      .select("id, is_default, settings")
+      .eq("organization_id", org.id)
+      .eq("is_archived", false);
+    const objetivoDe = (f: { settings: unknown }) => (f.settings as { objetivo?: string } | null)?.objetivo;
+    const padrao = funis?.find((f) => f.id === funil?.pipeline_id);
+    expect(padrao && objetivoDe(padrao)).toBe("vender_produto");
+    const agendar = funis?.filter((f) => objetivoDe(f) === "agendar") ?? [];
+    expect(agendar, "um funil de agendamento, e um só").toHaveLength(1);
+    expect(agendar[0]?.is_default).toBe(false);
+    const { data: etapasDoExtra } = await svc
+      .from("crm_stages")
+      .select("agent_stage_hint, is_won, is_lost")
+      .eq("organization_id", org.id)
+      .eq("pipeline_id", agendar[0]?.id ?? "");
+    expect(etapasDoExtra?.length).toBeGreaterThanOrEqual(5);
+    expect(etapasDoExtra?.filter((e) => e.is_won)).toHaveLength(1);
+    expect(etapasDoExtra?.filter((e) => e.is_lost)).toHaveLength(1);
+    expect(etapasDoExtra?.some((e) => e.agent_stage_hint === "qualified")).toBe(true);
   });
 
   test("J1.24 ver ele atender: o wizard não termina sem mostrar o funcionário", async ({ page }) => {

@@ -14356,6 +14356,19 @@ export const DICIONARIO: Traducoes = {
   "Por onde vocês vendem e o que a conversa deve virar. É daqui que saem os quadros de clientes sugeridos e o evento de conversão de cada etapa.": { es: "Por dónde venden y en qué debe convertirse la conversación. De aquí salen los tableros de clientes sugeridos y el evento de conversión de cada etapa." },
   "Salvar perfil do negócio": { es: "Guardar perfil del negocio" },
 
+  // ---- Entrega 1 / workstream B ----
+  // Funis por objetivo no passo "funil" do onboarding e objetivo no editor de funil.
+  // Os rótulos dos objetivos ("Vender produtos"…) são do bloco do workstream A.
+  "Outros quadros do seu negócio": { es: "Otros tableros de tu negocio" },
+  "Você marcou mais de um objetivo. Cada um ganha um quadro próprio, com colunas prontas que dá para ajustar depois em Configurações › Funis.": {
+    es: "Marcaste más de un objetivo. Cada uno recibe un tablero propio, con columnas listas que puedes ajustar después en Configuración › Embudos.",
+  },
+  "Também criar funil de": { es: "También crear embudo de" },
+  "Objetivo do funil": { es: "Objetivo del embudo" },
+  "Sem objetivo": { es: "Sin objetivo" },
+  "É o que a conversa deste funil deve virar. Escolhe o evento de conversão de cada etapa.": {
+    es: "Es en lo que debe convertirse la conversación de este embudo. Elige el evento de conversión de cada etapa.",
+  },
 };
 
 /**
