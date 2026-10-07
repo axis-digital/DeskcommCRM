@@ -50,7 +50,10 @@ function semRepeticao<T>(lista: readonly T[]): T[] {
 export const objetivoDoNegocioSchema = z.enum(VALORES_DE_OBJETIVO);
 
 export const perfilDeNegocioSchema = z.object({
-  canais: z.array(z.enum(VALORES_DE_CANAL)).max(VALORES_DE_CANAL.length * 2).transform(semRepeticao),
+  canais: z
+    .array(z.enum(VALORES_DE_CANAL))
+    .max(VALORES_DE_CANAL.length * 2)
+    .transform(semRepeticao),
   objetivos: z
     .array(objetivoDoNegocioSchema)
     .min(1)
