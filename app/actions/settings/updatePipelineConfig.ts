@@ -69,6 +69,9 @@ export async function updatePipelineConfig(
   if (parsed.data.reabertura_campos !== undefined) {
     nextSettings.reabertura_campos = parsed.data.reabertura_campos;
   }
+  // "Sem objetivo" tira só a chave — as demais de `settings` ficam como estão.
+  if (parsed.data.objetivo === null) delete nextSettings.objetivo;
+  else if (parsed.data.objetivo !== undefined) nextSettings.objetivo = parsed.data.objetivo;
 
   const { error } = await supabase
     .from("crm_pipelines")
@@ -90,6 +93,8 @@ export async function updatePipelineConfig(
       won_reasons_count: parsed.data.won_reasons?.length ?? null,
       won_reason_required: parsed.data.won_reason_required ?? null,
       reabertura: parsed.data.reabertura ?? null,
+      // Só quando o patch mexeu no objetivo; `null` aqui é "tirou o objetivo".
+      ...(parsed.data.objetivo !== undefined ? { objetivo: parsed.data.objetivo } : {}),
     },
   });
 

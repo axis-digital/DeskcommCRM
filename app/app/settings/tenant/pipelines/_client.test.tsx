@@ -343,3 +343,28 @@ describe("retomada de negócio encerrado (#1538)", () => {
     expect(vi.mocked(updatePipelineConfig).mock.calls.at(-1)![1].reabertura).toBe("mesmo_registro");
   });
 });
+
+describe("objetivo do funil (Entrega 1)", () => {
+  beforeEach(() => vi.mocked(updatePipelineConfig).mockClear());
+  const salvar = () =>
+    fireEvent.click(screen.getByRole("button", { name: "Salvar vocabulário e campos" }));
+
+  it("funil com objetivo abre mostrando-o e o save leva o MESMO objetivo na porta única de escrita", () => {
+    const comObjetivo: PipelineRow = { ...FUNIL, settings: { ...FUNIL.settings, objetivo: "agendar" } };
+    render(<PipelinesClient pipelines={[comObjetivo]} etapas={{}} podeEditarConfig />);
+    expect(screen.getByLabelText("Objetivo do funil")).toHaveTextContent("Agendar horários");
+
+    salvar();
+
+    expect(vi.mocked(updatePipelineConfig).mock.calls.at(-1)![1].objetivo).toBe("agendar");
+  });
+
+  it("funil sem objetivo mostra 'Sem objetivo' e grava null — nunca inventa um", () => {
+    render(<PipelinesClient pipelines={[FUNIL]} etapas={{}} podeEditarConfig />);
+    expect(screen.getByLabelText("Objetivo do funil")).toHaveTextContent("Sem objetivo");
+
+    salvar();
+
+    expect(vi.mocked(updatePipelineConfig).mock.calls.at(-1)![1].objetivo).toBeNull();
+  });
+});

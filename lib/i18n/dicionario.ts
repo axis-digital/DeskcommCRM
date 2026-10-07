@@ -14323,6 +14323,19 @@ export const DICIONARIO: Traducoes = {
   "Opção de histórico salva.": { es: "Opción de historial guardada." },
   "Não foi possível guardar esta opção.": { es: "No fue posible guardar esta opción." },
 
+  // ---- Entrega 1 / workstream B ----
+  // Funis por objetivo no passo "funil" do onboarding e objetivo no editor de funil.
+  // Os rótulos dos objetivos ("Vender produtos"…) são do bloco do workstream A.
+  "Outros quadros do seu negócio": { es: "Otros tableros de tu negocio" },
+  "Você marcou mais de um objetivo. Cada um ganha um quadro próprio, com colunas prontas que dá para ajustar depois em Configurações › Funis.": {
+    es: "Marcaste más de un objetivo. Cada uno recibe un tablero propio, con columnas listas que puedes ajustar después en Configuración › Embudos.",
+  },
+  "Também criar funil de": { es: "También crear embudo de" },
+  "Objetivo do funil": { es: "Objetivo del embudo" },
+  "Sem objetivo": { es: "Sin objetivo" },
+  "É o que a conversa deste funil deve virar. Escolhe o evento de conversão de cada etapa.": {
+    es: "Es en lo que debe convertirse la conversación de este embudo. Elige el evento de conversión de cada etapa.",
+  },
 };
 
 /**
