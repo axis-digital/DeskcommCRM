@@ -16,6 +16,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { FUSO_PADRAO, FUSOS_DO_ONBOARDING } from "@/lib/tempo/fusos";
+import { CamposDoPerfil, type ValorDoPerfil } from "@/components/perfil-de-negocio/CamposDoPerfil";
 
 
 export function WelcomeForm({
@@ -30,6 +31,8 @@ export function WelcomeForm({
   const [oQueFaz, setOQueFaz] = useState("");
   const [timezone, setTimezone] = useState(FUSO_PADRAO);
   const [accepted, setAccepted] = useState(false);
+  const [perfil, setPerfil] = useState<ValorDoPerfil>({ canais: [], objetivos: [] });
+  const semObjetivo = perfil.objetivos.length === 0;
   const [pending, startTransition] = useTransition();
 
   return (
@@ -38,6 +41,10 @@ export function WelcomeForm({
       action={(formData) => {
         if (!accepted) {
           toast.error(t("Aceite os termos para continuar."));
+          return;
+        }
+        if (semObjetivo) {
+          toast.error(t("Marque ao menos um objetivo para continuar."));
           return;
         }
         startTransition(async () => {
@@ -88,6 +95,13 @@ export function WelcomeForm({
         </p>
       </div>
 
+      {/*
+        O PERFIL DO NEGÓCIO (Entrega 1): por onde vende e o que a conversa deve
+        virar. É daqui que sai o quadro de clientes de cada objetivo e o evento
+        de conversão de cada etapa. Grava em `settings.perfil_de_negocio`.
+      */}
+      <CamposDoPerfil valor={perfil} onChange={setPerfil} disabled={pending} />
+
       <div className="space-y-2">
         <Label htmlFor="timezone">{t("Onde você atende")}</Label>
         <Select value={timezone} onValueChange={setTimezone}>
@@ -114,6 +128,7 @@ export function WelcomeForm({
 
       <label className="flex items-start gap-2 text-sm">
         <input
+          id="aceite_termos"
           type="checkbox"
           checked={accepted}
           onChange={(e) => setAccepted(e.target.checked)}
@@ -134,7 +149,7 @@ export function WelcomeForm({
       </label>
 
       <div className="flex sm:justify-end">
-        <Button type="submit" disabled={pending || !accepted} className="w-full sm:w-auto">
+        <Button type="submit" disabled={pending || !accepted || semObjetivo} className="w-full sm:w-auto">
           {pending ? t("Salvando...") : t("Continuar")}
         </Button>
       </div>

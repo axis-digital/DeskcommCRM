@@ -4,6 +4,8 @@
  */
 import { z } from "zod";
 
+import { perfilDeNegocioSchema } from "@/lib/onboarding/perfil-de-negocio";
+
 export const welcomeSchema = z.object({
   display_name: z.string().min(2).max(120),
   /**
@@ -20,6 +22,14 @@ export const welcomeSchema = z.object({
    * o próprio negócio em uma linha. Quem pula recebe o quadro genérico.
    */
   o_que_faz: z.string().max(280).optional(),
+  /**
+   * Por onde o negócio vende e o que ele quer que a conversa vire (Entrega 1).
+   * Obrigatório, com ao menos um objetivo: é dele que sai o funil padrão e o
+   * evento de conversão por etapa. Canais podem ficar vazios. Grava em
+   * `organizations.settings.perfil_de_negocio` — schema central em
+   * `lib/onboarding/perfil-de-negocio.ts`.
+   */
+  perfil_de_negocio: perfilDeNegocioSchema,
   timezone: z.string().min(1).default("America/Sao_Paulo"),
   accepted_terms_at: z.string().datetime().optional(),
 });

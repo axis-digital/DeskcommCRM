@@ -104,7 +104,13 @@ export async function loadOnboardingState(orgId: string): Promise<{
 export async function patchOnboardingState(
   orgId: string,
   patch: Partial<OnboardingState>,
-  extra?: { display_name?: string; timezone?: string },
+  /**
+   * `settings`: chaves de topo a MESCLAR em `organizations.settings` (jsonb
+   * compartilhado com branding, política de MFA e conversões). Cada chave
+   * passada substitui só a si mesma; as demais são relidas e preservadas, e a
+   * gravação sai no MESMO UPDATE do passo — com a mesma guarda do `soNoWizard`.
+   */
+  extra?: { display_name?: string; timezone?: string; settings?: Record<string, unknown> },
   /**
    * `soNoWizard`: grava só se a organização ainda NÃO terminou o onboarding
    * e recusa com `org_ja_configurada` caso contrário. Só as boas-vindas pedem
@@ -121,6 +127,17 @@ export async function patchOnboardingState(
   const update: Record<string, unknown> = { onboarding_state: merged };
   if (extra?.display_name) update.display_name = extra.display_name;
   if (extra?.timezone) update.timezone = extra.timezone;
+  if (extra?.settings) {
+    const { data: atual, error: erroLeitura } = await admin
+      .from("organizations")
+      .select("settings")
+      .eq("id", orgId)
+      .maybeSingle();
+    if (erroLeitura) throw new OnboardingError("db_error", erroLeitura.message);
+    const bruto = (atual as { settings?: unknown } | null)?.settings;
+    const settings = bruto && typeof bruto === "object" && !Array.isArray(bruto) ? (bruto as Record<string, unknown>) : {};
+    update.settings = { ...settings, ...extra.settings };
+  }
   if (!opcoes?.soNoWizard) {
     const { error } = await admin.from("organizations").update(update).eq("id", orgId);
     if (error) throw new OnboardingError("db_error", error.message);
