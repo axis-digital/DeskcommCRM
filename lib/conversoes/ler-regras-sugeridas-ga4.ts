@@ -57,23 +57,19 @@ export async function lerSugestoesDeRegrasGa4(
   }
 
   return sugerirRegrasGa4({
-    funis: ((funis.data ?? []) as LinhaDoFunil[]).map(
-      (f): FunilParaSugestao => ({
-        id: f.id,
-        nome: f.name,
-        settings: f.settings,
-        arquivado: f.is_archived,
-      }),
-    ),
-    etapas: ((etapas.data ?? []) as LinhaDaEtapa[]).map(
-      (e): EtapaParaSugestao => ({
-        id: e.id,
-        pipelineId: e.pipeline_id,
-        nome: e.name,
-        passo: e.agent_stage_hint,
-        arquivada: e.is_archived,
-      }),
-    ),
+    funis: ((funis.data ?? []) as LinhaDoFunil[]).map((f): FunilParaSugestao => ({
+      id: f.id,
+      nome: f.name,
+      settings: f.settings,
+      arquivado: f.is_archived,
+    })),
+    etapas: ((etapas.data ?? []) as LinhaDaEtapa[]).map((e): EtapaParaSugestao => ({
+      id: e.id,
+      pipelineId: e.pipeline_id,
+      nome: e.name,
+      passo: e.agent_stage_hint,
+      arquivada: e.is_archived,
+    })),
     regras: ((regras.data ?? []) as Array<{ stage_id: string }>).map((r) => ({
       stageId: r.stage_id,
     })),

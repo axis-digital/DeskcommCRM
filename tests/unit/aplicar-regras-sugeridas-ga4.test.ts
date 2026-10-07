@@ -41,9 +41,7 @@ function consulta(tabela: string) {
       const atuais = banco[tabela] ?? [];
       const novas = linhas.filter(
         (n) =>
-          !atuais.some(
-            (a) => a.organization_id === n.organization_id && a.stage_id === n.stage_id,
-          ),
+          !atuais.some((a) => a.organization_id === n.organization_id && a.stage_id === n.stage_id),
       );
       banco[tabela] = [...atuais, ...novas];
       return {

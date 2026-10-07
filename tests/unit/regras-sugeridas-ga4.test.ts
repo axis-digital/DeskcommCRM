@@ -37,7 +37,11 @@ describe("sugerirRegrasGa4 — funis × etapas × regras existentes", () => {
       regras: [],
     });
     expect(r).toHaveLength(1);
-    expect(r[0]).toMatchObject({ pipelineId: "p-produto", funil: "Loja", objetivo: "vender_produto" });
+    expect(r[0]).toMatchObject({
+      pipelineId: "p-produto",
+      funil: "Loja",
+      objetivo: "vender_produto",
+    });
     expect(r[0]!.propostas.map((p) => [p.stageId, p.evento])).toEqual([
       ["s1", "generate_lead"],
       ["s2", "view_item"],

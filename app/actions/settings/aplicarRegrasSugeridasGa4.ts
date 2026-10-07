@@ -93,9 +93,7 @@ export async function aplicarRegrasSugeridasGa4(
   const propostaPorEtapa = new Map(
     sugestoes.flatMap((f) => f.propostas.map((p) => [p.stageId, p] as const)),
   );
-  const divergentes = pedidas.filter(
-    (p) => propostaPorEtapa.get(p.stageId)?.evento !== p.evento,
-  );
+  const divergentes = pedidas.filter((p) => propostaPorEtapa.get(p.stageId)?.evento !== p.evento);
   if (divergentes.length > 0) {
     return {
       ok: false,
