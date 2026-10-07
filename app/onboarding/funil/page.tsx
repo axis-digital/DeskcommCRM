@@ -25,7 +25,7 @@ export default async function FunilPage() {
   if (!activeOrg) redirect("/login");
   const idioma = user.idioma;
 
-  const { atual, sugestao } = await dadosDoPasso(activeOrg.orgId, activeOrg.name);
+  const { atual, sugestao, extras } = await dadosDoPasso(activeOrg.orgId, activeOrg.name);
 
   return (
     <div className="space-y-6">
@@ -40,7 +40,7 @@ export default async function FunilPage() {
           )}
         </p>
       </header>
-      <QuadroClient atual={atual} sugestao={sugestao} />
+      <QuadroClient atual={atual} sugestao={sugestao} extras={extras} />
     </div>
   );
 }
