@@ -475,3 +475,158 @@ test("dono troca o evento do ganho para purchase pela tela, e a escolha é grava
         .eq("platform", "ga4");
   }
 });
+
+test("painel de regras sugeridas cria só as regras marcadas e nunca troca a que já existe", async ({
+  page,
+}) => {
+  await loginComoAdmin(page, lerCreds());
+  const org = credsDoNascimento().org_id;
+  const sufixo = String(Date.now()).slice(-7);
+  const { data: conexaoAnterior } = await admin
+    .from("ad_platform_connections")
+    .select("*")
+    .eq("organization_id", org)
+    .eq("platform", "ga4")
+    .maybeSingle();
+
+  // Um funil de produto só deste teste: as sugestões saem do objetivo do funil
+  // e do passo (`agent_stage_hint`) de cada etapa.
+  const { data: funil, error: erroFunil } = await admin
+    .from("crm_pipelines")
+    .insert({
+      organization_id: org,
+      name: `Loja E2E ${sufixo}`,
+      slug: `loja-e2e-${sufixo}`,
+      settings: { fields: [], canonical_tags: [], lost_reasons: [], objetivo: "vender_produto" },
+    })
+    .select("id")
+    .single();
+  if (erroFunil) throw erroFunil;
+  const etapa = (nome: string, passo: string, posicao: number) => ({
+    organization_id: org,
+    pipeline_id: funil.id,
+    name: nome,
+    slug: `${passo}-${sufixo}`,
+    position: posicao,
+    agent_stage_hint: passo,
+    is_lost: passo === "lost",
+  });
+
+  try {
+    const { data: etapas, error: erroEtapas } = await admin
+      .from("crm_stages")
+      .insert([
+        etapa("Novo", "new", 1),
+        etapa("Respondido", "contacted", 2),
+        etapa("Escolhendo", "qualifying", 3),
+        etapa("Vai levar", "qualified", 4),
+        etapa("Desistiu", "lost", 5),
+      ])
+      .select("id, agent_stage_hint");
+    if (erroEtapas) throw erroEtapas;
+    const id = (passo: string) => etapas.find((e) => e.agent_stage_hint === passo)!.id;
+
+    // Regra escolhida à mão antes: o painel não pode trocá-la.
+    await admin.from("ga4_conversion_rules").insert({
+      organization_id: org,
+      stage_id: id("new"),
+      event_name: `GA4Etapa:${id("new")}`,
+      ga4_event: "qualify_lead",
+      enabled: false,
+    });
+
+    // O painel só aparece com a conexão GA4 configurada.
+    await page.goto("/app/settings/conversoes");
+    const ga4 = page.getByTestId("conexao-ga4");
+    await ga4.getByLabel("Measurement ID", { exact: true }).fill(MEASUREMENT_ID);
+    await ga4.getByLabel("API secret", { exact: true }).fill("segredo-de-prova-123");
+    await ga4.getByRole("button", { name: "Salvar", exact: true }).click();
+    await expect(page.getByText("Conexão com o GA4 salva.", { exact: true })).toBeVisible();
+    await page.reload();
+
+    const painel = page.getByTestId(`sugestoes-ga4-${funil.id}`);
+    await expect(painel).toContainText("Vender produtos");
+    await expect(painel.getByTestId(`sugestao-ga4-${id("new")}`)).toContainText("já configurada");
+    await expect(painel.getByTestId(`sugestao-ga4-${id("new")}`).getByRole("checkbox")).toHaveCount(
+      0,
+    );
+    await expect(
+      painel.getByTestId(`sugestao-ga4-${id("contacted")}`),
+      "respondido não sugere",
+    ).toHaveCount(0);
+    await expect(painel.getByTestId(`sugestao-ga4-${id("qualifying")}`)).toContainText("view_item");
+    await expect(painel.getByTestId(`sugestao-ga4-${id("lost")}`)).toContainText(
+      "close_unconvert_lead",
+    );
+
+    const vaiLevar = painel.getByTestId(`sugestao-ga4-${id("qualified")}`).getByRole("checkbox");
+    await expect(vaiLevar, "vem pré-marcada").toBeChecked();
+    await vaiLevar.uncheck();
+    await painel.scrollIntoViewIfNeeded();
+    await page.screenshot({
+      path: path.join(EVIDENCIA, "05-regras-sugeridas.png"),
+      fullPage: true,
+    });
+
+    await page.getByRole("button", { name: "Aplicar sugestões", exact: true }).click();
+    await expect(page.getByText("2 regra(s) criada(s).", { exact: true })).toBeVisible();
+
+    const { data: regras } = await admin
+      .from("ga4_conversion_rules")
+      .select("stage_id, ga4_event, enabled")
+      .eq("organization_id", org)
+      .in(
+        "stage_id",
+        etapas.map((e) => e.id),
+      );
+    const porEtapa = new Map((regras ?? []).map((r) => [r.stage_id, r]));
+    expect(porEtapa.get(id("qualifying"))).toMatchObject({ ga4_event: "view_item", enabled: true });
+    expect(porEtapa.get(id("lost"))).toMatchObject({
+      ga4_event: "close_unconvert_lead",
+      enabled: true,
+    });
+    expect(porEtapa.has(id("qualified")), "desmarcada não vira regra").toBe(false);
+    expect(porEtapa.get(id("new")), "a regra existente não é trocada").toMatchObject({
+      ga4_event: "qualify_lead",
+      enabled: false,
+    });
+
+    const { data: auditoria } = await admin
+      .from("api_audit_log")
+      .select("metadata")
+      .eq("organization_id", org)
+      .eq("action", "ga4_conversion_rules.updated");
+    expect(
+      (auditoria ?? []).some((a) => {
+        const m = a.metadata as { origem?: string; criadas?: number } | null;
+        return m?.origem === "regras_sugeridas" && m.criadas === 2;
+      }),
+      "aplicar é auditado com a contagem criada",
+    ).toBe(true);
+
+    await page.reload();
+    await expect(
+      page.getByTestId(`sugestao-ga4-${id("qualifying")}`).getByText("já configurada"),
+    ).toBeVisible();
+  } finally {
+    await admin
+      .from("ga4_conversion_rules")
+      .delete()
+      .eq("organization_id", org)
+      .in(
+        "stage_id",
+        ((await admin.from("crm_stages").select("id").eq("pipeline_id", funil.id)).data ?? []).map(
+          (e) => e.id,
+        ),
+      );
+    await admin.from("crm_stages").delete().eq("organization_id", org).eq("pipeline_id", funil.id);
+    await admin.from("crm_pipelines").delete().eq("organization_id", org).eq("id", funil.id);
+    if (conexaoAnterior) await admin.from("ad_platform_connections").upsert(conexaoAnterior);
+    else
+      await admin
+        .from("ad_platform_connections")
+        .delete()
+        .eq("organization_id", org)
+        .eq("platform", "ga4");
+  }
+});

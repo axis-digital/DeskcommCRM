@@ -88,6 +88,8 @@ import {
 } from "@/lib/conversoes/regras-ga4";
 import { FormularioDoGa4 } from "./_formGa4";
 import { RegrasDeConversaoGa4 } from "./_regrasGa4";
+import { RegrasSugeridasGa4 } from "./_regrasSugeridasGa4";
+import { lerSugestoesDeRegrasGa4 } from "@/lib/conversoes/ler-regras-sugeridas-ga4";
 
 export const metadata = { title: "Conversões" };
 export const dynamic = "force-dynamic";
@@ -181,6 +183,11 @@ export default async function ConversoesPage({
     })),
     { eventName: EVENTO_DE_VENDA_GA4, label: "Venda (GA4)" },
   ];
+  // As sugestões só existem com o GA4 configurado — sem conexão, não há a quem
+  // informar. Falhar aqui não derruba a tela: o painel some e o resto fica.
+  const sugestoesGa4 = estadoGa4?.configurada
+    ? await lerSugestoesDeRegrasGa4(admin, activeOrg.orgId).catch(() => null)
+    : null;
   const linhaDaOrganizacao = organizacao.data as { slug: string | null; settings?: unknown } | null;
   const slug = linhaDaOrganizacao?.slug ?? null;
   // Página / WABA gravadas pela tela (#2098) — a MESMA leitura que a credencial
@@ -375,8 +382,19 @@ export default async function ConversoesPage({
               {t("Google Analytics 4")}
             </h2>
             {estadoGa4 && <FormularioDoGa4 estado={estadoGa4} idioma={idioma} />}
+            {estadoGa4?.configurada && sugestoesGa4 && (
+              <RegrasSugeridasGa4 sugestoes={sugestoesGa4} idioma={idioma} />
+            )}
             {estadoGa4?.configurada && !etapas.error && regrasGa4 && (
-              <RegrasDeConversaoGa4 etapas={etapasAbertas} regras={regrasGa4} idioma={idioma} />
+              // A chave muda quando as regras mudam (ex.: "Aplicar sugestões"):
+              // o editor guarda rascunho em estado, e um rascunho velho salvo
+              // depois desligaria as regras recém-criadas.
+              <RegrasDeConversaoGa4
+                key={regrasGa4.map((r) => `${r.stageId}:${r.enabled}:${r.ga4Event}`).join("|")}
+                etapas={etapasAbertas}
+                regras={regrasGa4}
+                idioma={idioma}
+              />
             )}
           </section>
           <FormularioDeConversoesGoogle
