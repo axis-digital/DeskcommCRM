@@ -177,7 +177,18 @@ test.describe("J1 — onboarding do dono numa instalação fresca", () => {
 
     // J1.4 — preenche e avança
     await page.locator("#display_name").fill("Loja QA VPS");
-    await page.locator('input[type="checkbox"]').check();
+    await page.locator("#aceite_termos").check();
+
+    // Perfil do negócio (Entrega 1): sem objetivo marcado o passo não avança.
+    await expect(continuar).toBeDisabled();
+    const canais = page.getByRole("group", { name: /por onde vocês vendem/i });
+    const objetivos = page.getByRole("group", { name: /o que vocês querem que a conversa vire/i });
+    await canais.getByRole("checkbox", { name: /whatsapp/i }).check();
+    await canais.getByRole("checkbox", { name: /instagram/i }).check();
+    await objetivos.getByRole("checkbox", { name: /vender produtos/i }).check();
+    await objetivos.getByRole("checkbox", { name: /agendar horários/i }).check();
+    await snap(page, "j1.4-perfil-do-negocio");
+
     await expect(continuar).toBeEnabled();
     await continuar.click();
     await page.waitForURL(/\/onboarding\/connect-whatsapp/, { timeout: 20_000 });
@@ -187,6 +198,18 @@ test.describe("J1 — onboarding do dono numa instalação fresca", () => {
     expect(org.display_name).toBe("Loja QA VPS");
     expect(org.timezone).toBe("America/Sao_Paulo");
     expect((org.onboarding_state as { welcome?: unknown })?.welcome).toBeTruthy();
+
+    // O perfil foi MESCLADO em `settings`, na ordem em que a pessoa marcou.
+    const { data: comSettings, error: erroSettings } = await svc
+      .from("organizations")
+      .select("settings")
+      .eq("id", org.id)
+      .single();
+    if (erroSettings) throw erroSettings;
+    expect((comSettings.settings as { perfil_de_negocio?: unknown }).perfil_de_negocio).toEqual({
+      canais: ["whatsapp", "instagram"],
+      objetivos: ["vender_produto", "agendar"],
+    });
   });
 
   test("J1.5 WAHA ativo → QR code aparece de verdade", async ({ page }) => {

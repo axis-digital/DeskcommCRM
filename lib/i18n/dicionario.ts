@@ -14323,6 +14323,27 @@ export const DICIONARIO: Traducoes = {
   "Opção de histórico salva.": { es: "Opción de historial guardada." },
   "Não foi possível guardar esta opção.": { es: "No fue posible guardar esta opción." },
 
+  // ---- Entrega 1 / workstream A ----
+  // Perfil do negócio: boas-vindas do onboarding e Configurações › Organização.
+  "Por onde vocês vendem?": { es: "¿Por dónde venden?" },
+  "Marque todos os que valem. Pode deixar em branco se ainda não vende.": { es: "Marca todos los que apliquen. Puedes dejarlo en blanco si todavía no vendes." },
+  "O que vocês querem que a conversa vire?": { es: "¿En qué quieren que se convierta la conversación?" },
+  "Marque ao menos um. Cada objetivo pode virar um quadro de clientes próprio.": { es: "Marca al menos uno. Cada objetivo puede convertirse en un tablero de clientes propio." },
+  "Loja online (site)": { es: "Tienda en línea (sitio web)" },
+  "WhatsApp": { es: "WhatsApp" },
+  "Instagram": { es: "Instagram" },
+  "Loja física": { es: "Tienda física" },
+  "Vender produtos": { es: "Vender productos" },
+  "Vender serviços": { es: "Vender servicios" },
+  "Captar contatos interessados": { es: "Captar contactos interesados" },
+  "Agendar horários": { es: "Agendar citas" },
+  "Marque ao menos um objetivo para continuar.": { es: "Marca al menos un objetivo para continuar." },
+  "Perfil do negócio": { es: "Perfil del negocio" },
+  "Perfil do negócio salvo.": { es: "Perfil del negocio guardado." },
+  "Não foi possível salvar o perfil do negócio.": { es: "No fue posible guardar el perfil del negocio." },
+  "Por onde vocês vendem e o que a conversa deve virar. É daqui que saem os quadros de clientes sugeridos e o evento de conversão de cada etapa.": { es: "Por dónde venden y en qué debe convertirse la conversación. De aquí salen los tableros de clientes sugeridos y el evento de conversión de cada etapa." },
+  "Salvar perfil do negócio": { es: "Guardar perfil del negocio" },
+
 };
 
 /**

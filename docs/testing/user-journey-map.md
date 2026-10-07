@@ -38,6 +38,7 @@ fonte só (`lib/onboarding/passos.ts`) — eram três listas que discordavam. Ga
 | J1.2 | Login com senha errada | mensagem clara "Email ou senha incorretos", sem stack |
 | J1.3 | Welcome: termos não aceitos | botão avança desabilitado |
 | J1.4 | Welcome: nome da org + timezone salvos | grava `display_name`/`timezone`, avança pro WhatsApp |
+| J1.4a | Welcome: perfil do negócio (canais + objetivos) | sem objetivo o "Continuar" fica desabilitado; marcados, grava `settings.perfil_de_negocio` por merge (branding/segurança intactos) na ordem em que a pessoa marcou · editável em Configurações › Organização · **ESCRITO, não rodado** (`tests/e2e/vps-fresh-onboarding.spec.ts` J1.4; unit `tests/unit/onboarding-welcome-perfil-de-negocio.test.ts`, `tests/unit/settings-update-perfil-de-negocio.test.ts`) |
 | J1.5 | Connect WhatsApp: WAHA ativo → QR aparece | sessão criada, QR renderiza via proxy, poll de status roda |
 | J1.6 | Connect WhatsApp: "Pular por enquanto" | avança pro step correto (setup-ai quando Nuvemshop off) |
 | J1.7 | Setup IA: criar agente default | `ai_agents` criado **e a versão publicada aponta para o provedor que a instalação escolheu**, com o modelo curado DAQUELE provedor; avança. **Sem chave de IA** (o `install.sh` deixa pular, e é o ambiente da VPS fresca no CI): o agente nasce rascunho, sem versão, o aviso nomeia o provedor e "Continuar sem publicar" avança para "Onde ele organiza" (`tests/e2e/vps-fresh-onboarding.spec.ts`) |
