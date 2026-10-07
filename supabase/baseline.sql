@@ -47356,3 +47356,17 @@ comment on column public.ai_router_members.pipeline_id is
   'Funil de DESTINO quando esta intenção casa (#2155). NULL = só roteia o agente, como antes.';
 comment on column public.ai_router_members.stage_id is
   'Etapa de destino dentro de pipeline_id (#2155). NULL = a primeira etapa aberta do funil.';
+
+-- ---- GA4: eventos de etapa da jornada do comprador (migration 0904) ----
+-- Racional inteiro na migration 0904 (forward-fix da 0902). O CHECK da regra por
+-- etapa do GA4 passa a aceitar view_item, add_to_cart, schedule e
+-- close_unconvert_lead, que o mapa jornada × evento sugere por objetivo do funil.
+-- O conjunto novo contém o antigo: nenhuma linha existente viola. Idempotente.
+alter table public.ga4_conversion_rules
+  drop constraint if exists ga4_conversion_rules_evento_conhecido;
+alter table public.ga4_conversion_rules
+  add constraint ga4_conversion_rules_evento_conhecido
+  check (ga4_event in (
+    'generate_lead', 'qualify_lead', 'working_lead', 'begin_checkout',
+    'view_item', 'add_to_cart', 'schedule', 'close_unconvert_lead'
+  ));
