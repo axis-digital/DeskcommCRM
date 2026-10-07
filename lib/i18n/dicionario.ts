@@ -14323,6 +14323,18 @@ export const DICIONARIO: Traducoes = {
   "Opção de histórico salva.": { es: "Opción de historial guardada." },
   "Não foi possível guardar esta opção.": { es: "No fue posible guardar esta opción." },
 
+  // ---- Entrega 1 / workstream D ----
+  "Regras sugeridas": { es: "Reglas sugeridas" },
+  "Pelo objetivo de cada funil e pelo passo de cada etapa, o CRM sugere o evento que a etapa informa ao GA4. Aplicar cria só as regras que ainda não existem — nenhuma regra configurada é trocada.": { es: "Según el objetivo de cada embudo y el paso de cada etapa, el CRM sugiere el evento que la etapa informa a GA4. Aplicar crea solo las reglas que aún no existen: ninguna regla configurada se reemplaza." },
+  "Nenhuma sugestão por enquanto: as sugestões saem do passo de cada etapa (novo, em qualificação, qualificado, negociando, perdido). Confira as etapas dos seus funis.": { es: "Ninguna sugerencia por ahora: las sugerencias salen del paso de cada etapa (nuevo, en calificación, calificado, negociando, perdido). Revisa las etapas de tus embudos." },
+  "Sem objetivo — tratado como funil de leads": { es: "Sin objetivo: tratado como embudo de leads" },
+  "já configurada": { es: "ya configurada" },
+  "Todas as etapas sugeridas já têm regra.": { es: "Todas las etapas sugeridas ya tienen regla." },
+  "Aplicar sugestões": { es: "Aplicar sugerencias" },
+  "regra(s) criada(s).": { es: "regla(s) creada(s)." },
+  "Nenhuma regra criada: essas etapas já estavam configuradas.": { es: "Ninguna regla creada: esas etapas ya estaban configuradas." },
+  "Uma das sugestões mudou ou não vale mais. Atualize a página.": { es: "Una de las sugerencias cambió o ya no es válida. Actualiza la página." },
+  "Não consegui aplicar agora.": { es: "No pude aplicar ahora." },
 };
 
 /**
