@@ -15,6 +15,10 @@ export const EVENTOS_DE_ETAPA_DO_GA4 = [
   { valor: "qualify_lead", rotulo: "Lead qualificado" },
   { valor: "working_lead", rotulo: "Lead em atendimento" },
   { valor: "begin_checkout", rotulo: "Início de compra (orçamento)" },
+  { valor: "view_item", rotulo: "Viu o produto" },
+  { valor: "add_to_cart", rotulo: "Vai levar (carrinho)" },
+  { valor: "schedule", rotulo: "Agendou" },
+  { valor: "close_unconvert_lead", rotulo: "Não comprou (lead perdido)" },
 ] as const;
 
 export type EventoDeEtapaGa4 = (typeof EVENTOS_DE_ETAPA_DO_GA4)[number]["valor"];
