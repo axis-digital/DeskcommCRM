@@ -373,4 +373,13 @@ describe("aplicarQuadro com perfil do negócio", () => {
     expect(daOrg()).toHaveLength(1);
     expect(daOrg()[0]!.settings.objetivo).toBe("vender_servico");
   });
+
+  it("objetivo já escolhido no editor de funil sobrevive à reaplicação do passo", async () => {
+    db.pipelines[0]!.settings = { ...db.pipelines[0]!.settings, objetivo: "vender_servico" };
+    db.orgSettings = {
+      perfil_de_negocio: { canais: ["whatsapp"], objetivos: ["agendar"] },
+    };
+    await aplicar(form());
+    expect(daOrg().find((p) => p.id === PADRAO_ID)!.settings.objetivo).toBe("vender_servico");
+  });
 });

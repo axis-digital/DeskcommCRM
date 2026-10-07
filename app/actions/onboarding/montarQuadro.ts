@@ -24,6 +24,7 @@ import {
 } from "@/lib/onboarding/proposta-de-funil";
 import { escolherPacote, sugerirFunil, type Sugestao } from "@/lib/onboarding/sugerir-funil";
 import {
+  lerObjetivoDoFunil,
   lerPerfilDeNegocio,
   rotuloDoObjetivo,
   type ObjetivoDoNegocio,
@@ -37,7 +38,12 @@ import {
   type FunilAPlanejar,
   type FunilExistente,
 } from "@/lib/onboarding/funis-por-objetivo";
-import { requireOnboardingCtx, patchOnboardingState, loadOnboardingState, OnboardingError } from "./_shared";
+import {
+  requireOnboardingCtx,
+  patchOnboardingState,
+  loadOnboardingState,
+  OnboardingError,
+} from "./_shared";
 
 /** O funil que o gatilho semeou — o que a pessoa tem antes deste passo. */
 export interface QuadroAtual {
@@ -264,7 +270,8 @@ export async function aplicarQuadro(formData: FormData): Promise<ResultadoDoQuad
   try {
     ctx = await requireOnboardingCtx();
   } catch (err) {
-    if (err instanceof OnboardingError) return { ok: false, erro: "Sua sessão expirou. Entre de novo." };
+    if (err instanceof OnboardingError)
+      return { ok: false, erro: "Sua sessão expirou. Entre de novo." };
     throw err;
   }
 
@@ -333,10 +340,19 @@ export async function aplicarQuadro(formData: FormData): Promise<ResultadoDoQuad
   }
 
   // O funil padrão é o do 1º objetivo. Sem perfil, `settings` fica intocado.
-  const objetivo = perfil?.objetivos[0] ?? null;
+  // Objetivo já escolhido no editor de funil vence: reaplicar o passo não o
+  // devolve ao 1º objetivo do perfil.
   const padrao = funis.find((f) => f.id === atual.pipelineId);
-  if (objetivo) {
-    const gravado = await gravarObjetivo(admin, ctx.orgId, atual.pipelineId, padrao?.settings, objetivo);
+  const objetivoJaEscolhido = lerObjetivoDoFunil(padrao?.settings);
+  const objetivo = objetivoJaEscolhido ?? perfil?.objetivos[0] ?? null;
+  if (objetivo && !objetivoJaEscolhido) {
+    const gravado = await gravarObjetivo(
+      admin,
+      ctx.orgId,
+      atual.pipelineId,
+      padrao?.settings,
+      objetivo,
+    );
     if (!gravado.ok) return gravado;
   }
 
@@ -371,7 +387,13 @@ export async function aplicarQuadro(formData: FormData): Promise<ResultadoDoQuad
       organizationId: ctx.orgId,
       resourceType: "crm_pipeline",
       resourceId: criado.pipelineId,
-      metadata: { name: plano.nome, slug: plano.slug, is_default: false, objetivo: plano.objetivo, origem: "onboarding" },
+      metadata: {
+        name: plano.nome,
+        slug: plano.slug,
+        is_default: false,
+        objetivo: plano.objetivo,
+        origem: "onboarding",
+      },
     });
   }
 
@@ -381,7 +403,11 @@ export async function aplicarQuadro(formData: FormData): Promise<ResultadoDoQuad
       funil: { pipeline_id: atual.pipelineId, origem, etapas: proposta.etapas.length },
     });
   } catch (err) {
-    if (err instanceof OnboardingError) return { ok: false, erro: "Salvei o quadro, mas não consegui registrar o passo. Tente continuar de novo." };
+    if (err instanceof OnboardingError)
+      return {
+        ok: false,
+        erro: "Salvei o quadro, mas não consegui registrar o passo. Tente continuar de novo.",
+      };
     throw err;
   }
 
@@ -424,7 +450,11 @@ async function gravarObjetivo(
     .update({ settings: { ...base, objetivo } })
     .eq("id", pipelineId)
     .eq("organization_id", orgId);
-  if (error) return { ok: false, erro: `Salvei o quadro, mas não consegui gravar o objetivo: ${error.message}` };
+  if (error)
+    return {
+      ok: false,
+      erro: `Salvei o quadro, mas não consegui gravar o objetivo: ${error.message}`,
+    };
   return { ok: true };
 }
 

@@ -14324,6 +14324,9 @@ export const DICIONARIO: Traducoes = {
   "Não foi possível guardar esta opção.": { es: "No fue posible guardar esta opción." },
 
   // ---- Entrega 1 / workstream D ----
+  "Funil com objetivo decide sozinho: produtos enviam Compra (purchase); serviços, contatos e agenda enviam Lead convertido. Esta escolha vale para funil sem objetivo.": {
+    es: "El embudo con objetivo decide solo: productos envían Compra (purchase); servicios, contactos y agenda envían Lead convertido. Esta elección vale para el embudo sin objetivo.",
+  },
   "Regras sugeridas": { es: "Reglas sugeridas" },
   "Pelo objetivo de cada funil e pelo passo de cada etapa, o CRM sugere o evento que a etapa informa ao GA4. Aplicar cria só as regras que ainda não existem — nenhuma regra configurada é trocada.": { es: "Según el objetivo de cada embudo y el paso de cada etapa, el CRM sugiere el evento que la etapa informa a GA4. Aplicar crea solo las reglas que aún no existen: ninguna regla configurada se reemplaza." },
   "Nenhuma sugestão por enquanto: as sugestões saem do passo de cada etapa (novo, em qualificação, qualificado, negociando, perdido). Confira as etapas dos seus funis.": { es: "Ninguna sugerencia por ahora: las sugerencias salen del paso de cada etapa (nuevo, en calificación, calificado, negociando, perdido). Revisa las etapas de tus embudos." },

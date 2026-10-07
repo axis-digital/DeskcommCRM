@@ -134,6 +134,11 @@ export function FormularioDoGa4({
                 "Loja ou funil de pedidos? Escolha Compra (purchase): a venda entra nos relatórios de e-commerce do GA4.",
               )}
         </p>
+        <p className="text-xs text-muted-foreground">
+          {t(
+            "Funil com objetivo decide sozinho: produtos enviam Compra (purchase); serviços, contatos e agenda enviam Lead convertido. Esta escolha vale para funil sem objetivo.",
+          )}
+        </p>
       </div>
 
       <div className="flex items-center gap-2">
