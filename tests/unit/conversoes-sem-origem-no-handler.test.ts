@@ -126,7 +126,11 @@ describe("fallback sem origem no handler da venda", () => {
     estado.registros["SemOrigem:meta_ads:Purchase"] = { status: "error", platform: "meta_ads" };
     const r = await conversaoDeVendaHandler.handle(reenvio("SemOrigem:meta_ads:Purchase"));
     expect(r.status).toBe("ok");
-    expect(estado.reportar).toHaveBeenCalledOnce();
+    expect(estado.reportar).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({ leadId: LEAD }),
+      "meta_ads",
+    );
   });
 
   it.each(["GA4:Venda", "GA4Etapa:44444444-4444-4444-8444-444444444444"])(
