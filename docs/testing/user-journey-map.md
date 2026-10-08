@@ -38,7 +38,7 @@ fonte só (`lib/onboarding/passos.ts`) — eram três listas que discordavam. Ga
 | J1.2 | Login com senha errada | mensagem clara "Email ou senha incorretos", sem stack |
 | J1.3 | Welcome: termos não aceitos | botão avança desabilitado |
 | J1.4 | Welcome: nome da org + timezone salvos | grava `display_name`/`timezone`, avança pro WhatsApp |
-| J1.4a | Welcome: perfil do negócio (canais + objetivos) | sem objetivo o "Continuar" fica desabilitado; marcados, grava `settings.perfil_de_negocio` por merge (branding/segurança intactos) na ordem em que a pessoa marcou · editável em Configurações › Organização · **ESCRITO, não rodado** (`tests/e2e/vps-fresh-onboarding.spec.ts` J1.4; unit `tests/unit/onboarding-welcome-perfil-de-negocio.test.ts`, `tests/unit/settings-update-perfil-de-negocio.test.ts`) |
+| J1.4a | Welcome: perfil do negócio (canais + objetivos) | sem objetivo o "Continuar" fica desabilitado; marcados, grava `settings.perfil_de_negocio` por merge (branding/segurança intactos) na ordem em que a pessoa marcou · editável em Configurações › Organização · **PASS pela tela no staging** (2026-10-08, ver J41.P1) · e2e **ESCRITO, não rodado** (`tests/e2e/vps-fresh-onboarding.spec.ts` J1.4; unit `tests/unit/onboarding-welcome-perfil-de-negocio.test.ts`, `tests/unit/settings-update-perfil-de-negocio.test.ts`) |
 | J1.5 | Connect WhatsApp: WAHA ativo → QR aparece | sessão criada, QR renderiza via proxy, poll de status roda |
 | J1.6 | Connect WhatsApp: "Pular por enquanto" | avança pro step correto (setup-ai quando Nuvemshop off) |
 | J1.7 | Setup IA: criar agente default | `ai_agents` criado **e a versão publicada aponta para o provedor que a instalação escolheu**, com o modelo curado DAQUELE provedor; avança. **Sem chave de IA** (o `install.sh` deixa pular, e é o ambiente da VPS fresca no CI): o agente nasce rascunho, sem versão, o aviso nomeia o provedor e "Continuar sem publicar" avança para "Onde ele organiza" (`tests/e2e/vps-fresh-onboarding.spec.ts`) |
@@ -3318,3 +3318,20 @@ GA4 de verdade o que a J41 provou com receptor local.
 | J41.S4 | Mover para «Aguardando pagamento» e depois para «Pago» | `begin_checkout` e a venda saem e aparecem no Realtime do GA4 · **PASS pela tela** — `evidence/conversoes-ga4-staging/07-movido-aguardando-pagamento.png`, `evidence/conversoes-ga4-staging/08-movido-pago-ganho.png` |
 | J41.S5 | Histórico antes e depois do reenvio de linha entregue | linha «Entregue» não oferece reenvio · **PASS pela tela** — `evidence/conversoes-ga4-staging/09-historico-antes-reenvio.png`, `evidence/conversoes-ga4-staging/10-historico-depois-reenvio.png` |
 | J41.S6 | Envio GA4 com falha → «Verificar ou tentar novamente» | toast «Reprocessamento agendado», linha vira «Entregue», a venda do Google não sai de carona · **PASS pela tela** — `evidence/conversoes-ga4-staging/11-falha-antes-do-reenvio.png`, `evidence/conversoes-ga4-staging/12-reenvio-agendado.png` |
+
+### Perfil do negócio e eventos do GA4 por funil, no staging (2026-10-08)
+
+Ambiente: staging isolado, imagens da branch `feat/perfil-de-negocio-ga4` (`1f3699aca`), migration
+0904 aplicada. Conta nova criada por `scripts/bootstrap-owner.ts` (o caminho do `install.sh`, e-mail
+confirmado), org "[TESTE] Loja e Agenda E1"; onboarding percorrido pela tela e o resto pulado pelos
+botões «Pular». Conferido no banco: `settings.perfil_de_negocio` = canais `whatsapp`, `loja_online`
+e objetivos `vender_produto`, `agendar`; funis `Vendas` (padrão, `vender_produto`) e `Agendamentos`
+(`agendar`); 10 linhas em `ga4_conversion_rules`, 5 por funil, etapas perdidas incluídas.
+
+| # | Caso | Resultado |
+|---|------|-----------|
+| J41.P1 | Welcome sem objetivo → marcar canais e objetivos | «Continuar» desabilitado sem objetivo; marcados, avança · **PASS pela tela** — `evidence/perfil-de-negocio-ga4/cadastro-02-welcome-sem-objetivo.png`, `evidence/perfil-de-negocio-ga4/cadastro-03-welcome-preenchido.png` |
+| J41.P2 | Passo do quadro com dois objetivos | «Também criar funil de Agendar horários» aparece marcado; «Usar este quadro» cria os dois funis · **PASS pela tela** — `evidence/perfil-de-negocio-ga4/cadastro-04-funil-com-extra.png`, `evidence/perfil-de-negocio-ga4/cadastro-05-depois-do-quadro.png` |
+| J41.P3 | Perfil em Configurações › Organização e objetivo em cada funil | **PASS pela tela** — `evidence/perfil-de-negocio-ga4/ga4-02-configuracoes-perfil.png`, `evidence/perfil-de-negocio-ga4/ga4-03-funis-com-objetivo.png` |
+| J41.P4 | Conectar GA4 → «Regras sugeridas» → «Aplicar sugestões» → recarregar | painel agrupa por funil com o objetivo de cada um; depois de aplicar, toda sugestão aparece «já configurada» e sobrevive ao recarregar · **PASS pela tela** — `evidence/perfil-de-negocio-ga4/ga4-04-regras-sugeridas.png`, `evidence/perfil-de-negocio-ga4/ga4-05-sugestoes-aplicadas.png`, `evidence/perfil-de-negocio-ga4/ga4-06-depois-de-recarregar.png` |
+| J41.P5 | Venda e etapa perdida chegando ao GA4 real | **sem prova pela tela** — coberto em unit (`tests/unit/conversoes-ga4-regra-em-etapa-perdida.test.ts`, handler) |
