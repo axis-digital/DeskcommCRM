@@ -63,6 +63,7 @@ import {
   eventoSemOrigem,
   lerContatoSemOrigem,
   lerEnviarSemOrigem,
+  plataformaSemOrigemDoEvento,
   reportarVendaSemOrigem,
 } from "./reportar-sem-origem";
 
@@ -147,6 +148,13 @@ export async function processarConversao(
     closed_at: string | null;
     contact_id: string | null;
   };
+
+  const plataformaDoReenvioSemOrigem =
+    row.event_type === "ad_conversion.retry_requested"
+      ? plataformaSemOrigemDoEvento(row.payload.event_name)
+      : null;
+  if (plataformaDoReenvioSemOrigem)
+    return reportarSemOrigem(admin, row, lead, plataformaDoReenvioSemOrigem);
 
   // O filtro que faz `lead.stage_changed` valer a pena escutar: a grande maioria
   // das mudanças de etapa não é fechamento, e sai por aqui sem tocar no banco de
@@ -522,6 +530,7 @@ async function reportarSemOrigem(
     closed_at: string | null;
     contact_id: string | null;
   },
+  apenasPlataforma?: Parameters<typeof reportarVendaSemOrigem>[2],
 ): Promise<HandlerResult> {
   if (!(await lerEnviarSemOrigem(admin, row.organization_id)))
     return ok("skipped", "sem_atribuicao");
@@ -530,7 +539,7 @@ async function reportarSemOrigem(
     : null;
   if (!contato) return ok("skipped", "sem_contato");
 
-  const desfechos = await reportarVendaSemOrigem(admin, {
+  const venda = {
     organizationId: row.organization_id,
     leadId: lead.id,
     valorCentavos: lead.value_cents !== null && lead.value_cents > 0 ? lead.value_cents : null,
@@ -538,7 +547,10 @@ async function reportarSemOrigem(
     ocorridoEm: new Date(lead.closed_at ?? row.created_at ?? Date.now()),
     telefone: contato.telefone,
     email: contato.email,
-  });
+  };
+  const desfechos = apenasPlataforma
+    ? await reportarVendaSemOrigem(admin, venda, apenasPlataforma)
+    : await reportarVendaSemOrigem(admin, venda);
 
   const reenviar = desfechos.find((d) => d.status === "retry");
   if (reenviar)

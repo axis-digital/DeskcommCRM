@@ -36,9 +36,18 @@ import type {
 /** As plataformas que recebem a venda sem origem. A ordem é a do registro. */
 export const PLATAFORMAS_SEM_ORIGEM: readonly PlataformaDeAnuncio[] = ["meta_ads", "google_ads"];
 
+export type PlataformaSemOrigem = (typeof PLATAFORMAS_SEM_ORIGEM)[number];
+
 /** A chave do livro-razão de uma plataforma para a venda sem origem. */
 export function eventoSemOrigem(plataforma: PlataformaDeAnuncio): NomeDoEvento {
   return `SemOrigem:${plataforma}:Purchase`;
+}
+
+/** Recupera a plataforma dona de um pedido de reenvio, sem aceitar variantes. */
+export function plataformaSemOrigemDoEvento(evento: unknown): PlataformaSemOrigem | null {
+  return (
+    PLATAFORMAS_SEM_ORIGEM.find((plataforma) => evento === eventoSemOrigem(plataforma)) ?? null
+  );
 }
 
 /** Lê o opt-in. LANÇA quando a leitura falha: quem chama espera e tenta de novo. */
@@ -75,9 +84,11 @@ export type DesfechoSemOrigem = {
 export async function reportarVendaSemOrigem(
   admin: SupabaseClient,
   venda: VendaSemOrigem,
+  apenasPlataforma?: PlataformaSemOrigem,
 ): Promise<DesfechoSemOrigem[]> {
   const desfechos: DesfechoSemOrigem[] = [];
-  for (const plataforma of PLATAFORMAS_SEM_ORIGEM) {
+  const plataformas = apenasPlataforma ? [apenasPlataforma] : PLATAFORMAS_SEM_ORIGEM;
+  for (const plataforma of plataformas) {
     desfechos.push(await umaPlataforma(admin, venda, plataforma));
   }
   return desfechos;
