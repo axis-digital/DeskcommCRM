@@ -1,7 +1,7 @@
 # Iconografia Axis/Lucide — plano e pendências
 
-**Status:** implementação concluída na branch `feat/axis-iconografia-lucide`; aguardando
-validações de ambiente e autorização para publicar.
+**Status:** concluído. PR #8 aberto no fork (`axis-digital/DeskcommCRM`, base `axis`):
+https://github.com/axis-digital/DeskcommCRM/pull/8.
 
 **Objetivo:** alinhar a iconografia do produto ao catálogo privado do Axis Design System,
 preservando os nomes semânticos usados pelo código e evitando que as telas importem ícones
@@ -56,12 +56,13 @@ Commits da implementação:
   não feita (não há baseline visual versionada do showcase ainda).
 - [x] Executar build de produção e medir o bundle para confirmar o benefício de tree-shaking do
   barrel.
-- [ ] Fazer revisão final do diff e obter autorização explícita para `push`/PR. Nenhuma alteração
-  foi publicada remotamente nesta etapa.
-- [ ] **Novo (2026-10-09):** staging ficou com o merge de `feat/axis-iconografia-lucide` aplicado
-  sobre `feat/perfil-de-negocio-ga4` para esta prova. Decidir: manter assim (staging passa a
-  refletir as duas branches) ou reverter o staging para o estado anterior (só GA4) depois do PR
-  de ícones — conferir com o dono antes de nova rodada de testes do GA4 no mesmo staging.
+- [x] Fazer revisão final do diff e obter autorização explícita para `push`/PR. **Feito
+  (2026-10-09):** autorizado pelo dono; branch atualizada contra `origin/axis` (1423 commits,
+  8 conflitos resolvidos preservando a arquitetura do barrel), typecheck/lint verdes, push feito,
+  PR aberto no fork: https://github.com/axis-digital/DeskcommCRM/pull/8.
+- [x] **(2026-10-09):** staging ficou com o merge de `feat/axis-iconografia-lucide` aplicado sobre
+  `feat/perfil-de-negocio-ga4`. Decisão do dono: manter assim — staging vai refletir as duas
+  branches até ele conferir e aplicar em produção.
 
 ## Decisões que não são pendências
 
