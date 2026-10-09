@@ -1,6 +1,6 @@
 -- manifest: **Nuvemshop sincroniza pedidos (E1).** Cria `integration_sync_state` (estado, trava e cursor da sincronização por organização/provedor/recurso; leitura pela org, escrita só pelo servidor), a função `fn_gravar_pedido_externo` (upsert em `orders` onde o pedido MAIS NOVO vence e o anonimizado nunca é reescrito; `security definer` só para `service_role`) e o kind `integracao_desautorizada` na Central, com um aviso aberto por integração. Idempotente e auto-curativa: a lista do kind só cresce e o dedupe roda antes do índice.
 
--- 0611 — sincronização de pedidos da Nuvemshop
+-- 0621 — sincronização de pedidos da Nuvemshop
 --
 -- Por quê: o EPIC-07 entregou OAuth e recepção de webhook, mas nenhum consumidor
 -- gravava `orders` (spec 2026-10-08-nuvemshop-sync-e1-design.md §1).
@@ -123,6 +123,7 @@ alter table public.agent_inbox_items
     'proposal_acceptance_rate_drop', 'proposal_promised_not_created',
     'proposta_travada', 'proposta_pronta_para_revisao', 'org_reativada',
     'jev_pedido_de_humano', 'jev_parar_de_receber', 'canal_pausado',
+    'cobranca', 'email_de_login_trocado',
     'integracao_desautorizada',
     'other'
   ));
@@ -145,4 +146,4 @@ create unique index if not exists agent_inbox_integracao_desautorizada_aberto_un
 
 notify pgrst, 'reload schema';
 
--- 0611
+-- 0621
