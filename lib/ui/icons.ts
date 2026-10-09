@@ -294,8 +294,14 @@ export const Funnel = /* @__PURE__ */ axisIcon(FunnelLucide, "Funnel");
 export const BookOpen = /* @__PURE__ */ axisIcon(BookOpenLucide, "BookOpen");
 export const Key = /* @__PURE__ */ axisIcon(KeyRoundLucide, "Key");
 export const UserCircle = /* @__PURE__ */ axisIcon(CircleUserRoundLucide, "UserCircle");
-export const ClockCounterClockwise = /* @__PURE__ */ axisIcon(HistoryLucide, "ClockCounterClockwise");
-export const IdentificationCard = /* @__PURE__ */ axisIcon(ContactRoundLucide, "IdentificationCard");
+export const ClockCounterClockwise = /* @__PURE__ */ axisIcon(
+  HistoryLucide,
+  "ClockCounterClockwise",
+);
+export const IdentificationCard = /* @__PURE__ */ axisIcon(
+  ContactRoundLucide,
+  "IdentificationCard",
+);
 export const CalendarBlank = /* @__PURE__ */ axisIcon(CalendarLucide, "CalendarBlank");
 export const CalendarDots = /* @__PURE__ */ axisIcon(CalendarDaysLucide, "CalendarDots");
 export const CalendarPlus = /* @__PURE__ */ axisIcon(CalendarPlusLucide, "CalendarPlus");
