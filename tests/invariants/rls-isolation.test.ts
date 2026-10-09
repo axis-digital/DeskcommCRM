@@ -88,6 +88,12 @@ function seedOrg(org: string, user: string, sess: string, tag: string): string {
 }
 
 beforeAll(() => {
+  // O módulo financeiro INSTALADO antes de semear (#1907, item 3): as cinco
+  // tabelas da comanda saíram do `baseline.sql` e nascem na provisionadora
+  // (ADR-0002 D2/D3). Sem esta chamada as linhas de `sales`/`sale_items` do
+  // seed morrem com `relation "sales" does not exist` — e a D8 manda a
+  // varredura rodar num banco COM o módulo, não perder a cobertura.
+  sql("select public.fn_financeiro_provisionar();");
   sql(seedOrg(ORG_A, USER_A, SESS_A, "a") + seedOrg(ORG_B, USER_B, SESS_B, "b"));
   // Contact → conversation → message + pipeline → stage → lead, per org.
   sql(`
@@ -498,7 +504,7 @@ beforeAll(() => {
                     '\\x00000000000000000000000000000000'::bytea);
         end if;
 
-        -- migration 0611 — estado da sincronização da Nuvemshop. Escrita é só do
+        -- migration 0621 — estado da sincronização da Nuvemshop. Escrita é só do
         -- servidor; a semente entra como superusuário e o caso mede a LEITURA.
         if not exists (select 1 from public.integration_sync_state where organization_id = v_org) then
           insert into public.integration_sync_state (organization_id, provider, resource)
@@ -702,7 +708,7 @@ export const TABLES = [
   // provar isso pediria um usuário abaixo de admin escrevendo. Fica declarado
   // em vez de parecer coberto.
   "external_db_connections",
-  // migration 0611 — estado da sincronização da Nuvemshop (cursor, contagens,
+  // migration 0621 — estado da sincronização da Nuvemshop (cursor, contagens,
   // último erro). Leitura org-flat por qualquer membro; escrita só service_role.
   "integration_sync_state",
   // ⚠️ `webhook_lead_captures` (migration 0174) NÃO entra nesta lista, e a

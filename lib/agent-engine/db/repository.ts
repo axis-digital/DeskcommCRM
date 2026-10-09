@@ -34,7 +34,7 @@ export type InboxKind =
   // `channel.disabled` e se resolve sozinho no `channel.enabled`/arquivamento,
   // sem clique (laço do canal-mudo, só que instantâneo).
   | 'canal_pausado'
-  // (0611) loja Nuvemshop revogou o acesso; resolve na reconexão
+  // (0621) loja Nuvemshop revogou o acesso; resolve na reconexão
   | 'integracao_desautorizada'
   | 'appointment_outcome_required'
   | 'appointment_recovery_review'
@@ -114,6 +114,13 @@ export type InboxKind =
   // receberam mensagem enquanto ela estava parada. A IA não respondeu e não vai
   // responder sozinha, então quem abre o Inbox é uma pessoa. Nasce sem referência.
   | 'org_reativada'
+  // (migration 0601) Cobrança do revendedor: os avisos da régua ao admin da
+  // empresa (sem referência) e o de 80% do teto de IA do plano (ref_kind plano).
+  | 'cobranca'
+  // (migration 0614) O admin da plataforma trocou o e-mail de login de uma
+  // pessoa da equipe. O aviso leva o nome e a data, nunca o endereço — é
+  // gravado pela rota `PATCH /api/v1/admin/tenants/[id]/members/[userId]/email`.
+  | 'email_de_login_trocado'
   | 'other';
 
 export interface InboxItemRow {

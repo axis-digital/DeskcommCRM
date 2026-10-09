@@ -20,8 +20,8 @@ describe("nuvemshopApiBase", () => {
     expect(nuvemshopApiBase()).toBe("https://api.tiendanube.com/v1");
   });
   it("aceita receptor local e apara a barra", () => {
-    vi.stubEnv("NUVEMSHOP_API_BASE_URL", "http://127.0.0.1:3995/v1/");
-    expect(nuvemshopApiBase()).toBe("http://127.0.0.1:3995/v1");
+    vi.stubEnv("NUVEMSHOP_API_BASE_URL", "http://127.0.0.1:3994/v1/");
+    expect(nuvemshopApiBase()).toBe("http://127.0.0.1:3994/v1");
   });
   it("recusa esquema estranho e cai no host real", () => {
     vi.stubEnv("NUVEMSHOP_API_BASE_URL", "file:///etc/passwd");
