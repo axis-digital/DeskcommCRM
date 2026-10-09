@@ -2,7 +2,7 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import pg from "pg";
 
 /**
- * `fn_gravar_pedido_externo` (migration 0621): o pedido MAIS NOVO vence, o
+ * `fn_gravar_pedido_externo` (migration 0622): o pedido MAIS NOVO vence, o
  * anonimizado nunca é reescrito, contato de outra organização não é aceito, e
  * só `service_role` executa. `integration_sync_state` é lida pela org e escrita
  * só pelo servidor.
