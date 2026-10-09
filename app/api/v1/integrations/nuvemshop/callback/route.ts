@@ -13,11 +13,15 @@ import { randomBytes, randomUUID } from "node:crypto";
 import { NextResponse, type NextRequest } from "next/server";
 import { env } from "@/lib/env";
 import { audit } from "@/lib/audit";
+import { logger } from "@/lib/logger";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getConfig, SUBSCRIBED_EVENTS, eventToSlug } from "@/lib/nuvemshop/config";
 import { exchangeCodeForToken } from "@/lib/nuvemshop/oauth";
 import { NuvemshopApiClient } from "@/lib/nuvemshop/api-client";
 import { verifyState } from "@/lib/nuvemshop/state";
+import { resolverAvisoDeDesautorizacao } from "@/lib/nuvemshop/sync/desautorizada";
+import { depsReais } from "@/lib/nuvemshop/sync/deps";
+import { iniciarSincronizacao } from "@/lib/nuvemshop/sync/iniciar";
 
 export const dynamic = "force-dynamic";
 
@@ -56,6 +60,30 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
 
   if (!(await supportCallbackWriteAllowed(state.orgId, state.userId, state.authSessionId))) return redirectTo("/app/integrations/nuvemshop?error=invalid_state");
 
+  const admin = createAdminClient();
+
+  // O retorno vale UMA vez: o nonce do `state` é queimado ANTES da troca, na
+  // mesma tabela e pela mesma razão do callback do Google Agenda
+  // (`app/api/v1/agenda/google/callback/route.ts`). Todo `state` emitido hoje
+  // carrega a pessoa (`connectNuvemshop`); sem ela não há linha a gravar, e
+  // sem gravar não há uso único a garantir — recusa, como qualquer outro erro.
+  const { error: erroDoNonce } = state.userId
+    ? await admin.from("calendar_oauth_nonces").insert({
+        nonce: state.nonce,
+        organization_id: state.orgId,
+        user_id: state.userId,
+        expira_em: new Date(state.expMs).toISOString(),
+      })
+    : { error: { code: "sem_pessoa" } };
+  if (erroDoNonce) {
+    await audit({
+      action: "nuvemshop.oauth_failed",
+      organizationId: state.orgId,
+      metadata: { reason: erroDoNonce.code === "23505" ? "state_reused" : "nonce_unavailable" },
+    });
+    return redirectTo(`/app/integrations/nuvemshop?error=invalid_state`);
+  }
+
   // Exchange code for access token.
   const tokenRes = await exchangeCodeForToken(code, cfg);
   if (!tokenRes.ok) {
@@ -68,7 +96,6 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
   }
 
   const { accessToken, scope, storeId } = tokenRes;
-  const admin = createAdminClient();
 
   // Encrypt access token + webhook secret (we keep the client_secret in env, but
   // tenant_integrations.webhook_secret_encrypted is NOT NULL — we store the
@@ -151,6 +178,21 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
     .eq("organization_id", state.orgId)
     .eq("provider", "nuvemshop");
 
+  // A conexão é o gatilho do backfill de 12 meses (spec §4.2). Reconexão depois
+  // de acesso revogado também passa por aqui: o aviso da Central se resolve e o
+  // run recomeça do cursor. Falha aqui não desfaz a conexão — a reconciliação
+  // de 30 min tenta de novo.
+  let sync: { iniciado: boolean; motivo?: string } = { iniciado: false };
+  try {
+    if (integration?.id) await resolverAvisoDeDesautorizacao(admin, state.orgId, integration.id);
+    const inicio = await iniciarSincronizacao(depsReais(admin), state.orgId, "conexao");
+    sync = inicio.ok ? { iniciado: true } : { iniciado: false, motivo: inicio.motivo };
+  } catch (err) {
+    const motivo = err instanceof Error ? err.message.slice(0, 200) : "erro_desconhecido";
+    logger.warn("[nuvemshop.sync] início pela conexão falhou", { organization_id: state.orgId, motivo });
+    sync = { iniciado: false, motivo: "excecao" };
+  }
+
   await audit({
     actorUserId: state.userId,
     actorAuthSessionId: state.authSessionId,
@@ -162,6 +204,8 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
     metadata: {
       store_id: storeId,
       scopes,
+      sync_iniciado: sync.iniciado,
+      ...(sync.motivo ? { sync_motivo: sync.motivo } : {}),
       webhooks_registered: Object.entries(subscriptions)
         .filter(([, v]) => v.id !== null)
         .map(([k]) => k),
