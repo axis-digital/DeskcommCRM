@@ -2,7 +2,7 @@
  * NUVEMSHOP SINCRONIZA PEDIDOS — a jornada de quem conectou a loja (DoD 12, P1).
  *
  * Prova pela tela, com um receptor HTTP que IMITA a API da Nuvemshop (o app fala
- * com ele por `NUVEMSHOP_API_BASE_URL`, porta 3995 — ver `scripts/gerar-env-e2e.sh`):
+ * com ele por `NUVEMSHOP_API_BASE_URL`, porta 3994 — ver `scripts/gerar-env-e2e.sh`):
  *
  * 1. "Sincronizar agora" inicia o run e a tela avisa ("Sincronização iniciada.").
  * 2. O dreno do `event_log` (o MESMO endpoint do cron) percorre as janelas até o
@@ -25,7 +25,7 @@ import { createClient } from "@supabase/supabase-js";
 import { test, expect, type Page } from "./helpers/test";
 import { carregarEnvLocal, credenciaisSupabaseDeTeste } from "../../scripts/lib/env-de-teste";
 
-const PORTA_DO_RECEPTOR = 3995;
+const PORTA_DO_RECEPTOR = 3994;
 const LOJA = "e2e-loja";
 const TOKEN_DA_LOJA = `tok-${randomUUID()}`;
 const TELEFONE_DO_CONTATO = "+5511987654321";
