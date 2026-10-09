@@ -126,6 +126,7 @@ import {
   TriangleAlert as TriangleAlertLucide,
   Upload as UploadLucide,
   Users as UsersLucide,
+  Video as VideoLucide,
   Webhook as WebhookLucide,
   Wifi as WifiLucide,
   WifiOff as WifiOffLucide,
@@ -319,3 +320,7 @@ export const ChevronDown = CaretDown;
 export const ChevronUp = CaretUp;
 export const ChevronRight = CaretRight;
 export const Circle = /* @__PURE__ */ axisIcon(CircleLucide, "Circle");
+
+// videochamada (#2440): ícone de câmera, não logo de marca — junto do Phone
+// do DialButton, a família é a mesma.
+export const VideoCamera = /* @__PURE__ */ axisIcon(VideoLucide, "VideoCamera");
