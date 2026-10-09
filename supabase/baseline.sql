@@ -10182,7 +10182,7 @@ alter table public.agent_inbox_items
     -- pessoa da equipe (PATCH .../members/[userId]/email): a empresa fica
     -- sabendo pela Central — com o nome e a data, nunca o endereço.
     'email_de_login_trocado',
-    -- (migration 0622) A loja Nuvemshop revogou o acesso do app (401/403 na API):
+    -- (migration 9005) A loja Nuvemshop revogou o acesso do app (401/403 na API):
     -- os pedidos param de sincronizar. Um aviso por integração, resolvido na
     -- reconexão. NESTA lista pelas razões de sempre (#159).
     'integracao_desautorizada',
@@ -50028,7 +50028,7 @@ create trigger trg_ligar_funil_pulado
 revoke execute on function public.fn_ligar_funil_pulado() from public, anon, authenticated;
 grant execute on function public.fn_ligar_funil_pulado() to service_role;
 
--- ---- nuvemshop sync de pedidos (migration 0622) ----
+-- ---- nuvemshop sync de pedidos (migration 9005) ----
 create table if not exists public.integration_sync_state (
   id uuid primary key default gen_random_uuid(),
   organization_id uuid not null references public.organizations(id) on delete cascade,

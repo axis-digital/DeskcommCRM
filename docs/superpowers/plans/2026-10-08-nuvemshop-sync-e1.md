@@ -14,7 +14,7 @@
 
 ## Global Constraints
 
-- Migration: `supabase/migrations/20261009150000_0622_nuvemshop_sync_de_pedidos.sql` (NNNN 0622. Nasceu 0611 — teto medido em 08/10 = 0600 na main, 0610 no PR #2584 aberto —, e foi renumerada em 09/10 ao integrar a upstream, que trouxe a sua própria 0611, `modulo_de_dados_compilador`, e foi até a 0620). Reconfirmar com `pnpm checar:colisao-de-migration` antes do commit da Task 1; se colidir, renumerar para o próximo livre e trocar em todo o plano.
+- Migration: `supabase/migrations/20261009150000_9005_nuvemshop_sync_de_pedidos.sql` (NNNN 9005, faixa 9000–9999 reservada a migrations exclusivas do fork. Foi 0622 até 09/10, quando a upstream trouxe a sua 0621 e ficou claro que seguir o próximo número da upstream colide toda semana. Nasceu 0611 — teto medido em 08/10 = 0600 na main, 0610 no PR #2584 aberto —, e foi renumerada em 09/10 ao integrar a upstream, que trouxe a sua própria 0611, `modulo_de_dados_compilador`, e foi até a 0620). Reconfirmar com `pnpm checar:colisao-de-migration` antes do commit da Task 1; se colidir, renumerar para o próximo livre e trocar em todo o plano.
 - Toda mudança de schema: migration **+** bloco idempotente no apêndice do `baseline.sql` **+** linha `-- manifest:` no cabeçalho do `.sql`. Nunca linha nova no `MANIFEST.md`.
 - `agent_inbox_items_kind_check`: o valor novo entra no **bloco único** do baseline (lista que termina em `'canal_pausado', 'other'`) e a migration reconstrói a constraint com a lista **completa** (40 valores). Nenhum bloco novo de `add constraint` dessa constraint no baseline.
 - Função `security definer` nova em `public`: `revoke execute ... from public, anon, authenticated; grant execute ... to service_role;` e `set search_path = public, pg_temp`.
@@ -43,7 +43,7 @@
 
 | Arquivo | Responsabilidade |
 |---|---|
-| `supabase/migrations/20261009150000_0622_nuvemshop_sync_de_pedidos.sql` | tabela `integration_sync_state`, `fn_gravar_pedido_externo`, kind `integracao_desautorizada`, índice de aviso único |
+| `supabase/migrations/20261009150000_9005_nuvemshop_sync_de_pedidos.sql` | tabela `integration_sync_state`, `fn_gravar_pedido_externo`, kind `integracao_desautorizada`, índice de aviso único |
 | `supabase/baseline.sql` | mesmo schema no apêndice + valor no bloco único do kind |
 | `lib/database.types.ts` | tipos da tabela e da função |
 | `lib/nuvemshop/config.ts` | `nuvemshopApiBase()` (override por env) |
@@ -107,7 +107,7 @@ git commit -m "docs(nuvemshop): plano da E1 — sincronização de pedidos"
 ### Task 1: Schema — `integration_sync_state`, `fn_gravar_pedido_externo`, kind da Central
 
 **Files:**
-- Create: `supabase/migrations/20261009150000_0622_nuvemshop_sync_de_pedidos.sql`
+- Create: `supabase/migrations/20261009150000_9005_nuvemshop_sync_de_pedidos.sql`
 - Modify: `supabase/baseline.sql` (bloco único do kind ~linha 10170; apêndice no fim)
 - Modify: `lib/database.types.ts`
 - Modify: `tests/invariants/rls-isolation.test.ts` (seed + `TABLES`)
@@ -125,7 +125,7 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import pg from "pg";
 
 /**
- * `fn_gravar_pedido_externo` (migration 0622): o pedido MAIS NOVO vence, o
+ * `fn_gravar_pedido_externo` (migration 9005): o pedido MAIS NOVO vence, o
  * anonimizado nunca é reescrito, contato de outra organização não é aceito, e
  * só `service_role` executa. `integration_sync_state` é lida pela org e escrita
  * só pelo servidor.
@@ -284,12 +284,12 @@ Expected: FAIL com `function public.fn_gravar_pedido_externo(uuid, jsonb) does n
 
 - [ ] **Step 3: Escrever a migration**
 
-`supabase/migrations/20261009150000_0622_nuvemshop_sync_de_pedidos.sql` — a primeira linha é o manifest (uma linha só):
+`supabase/migrations/20261009150000_9005_nuvemshop_sync_de_pedidos.sql` — a primeira linha é o manifest (uma linha só):
 
 ```sql
 -- manifest: **Nuvemshop sincroniza pedidos (E1).** Cria `integration_sync_state` (estado, trava e cursor da sincronização por organização/provedor/recurso; leitura pela org, escrita só pelo servidor), a função `fn_gravar_pedido_externo` (upsert em `orders` onde o pedido MAIS NOVO vence e o anonimizado nunca é reescrito; `security definer` só para `service_role`) e o kind `integracao_desautorizada` na Central, com um aviso aberto por integração. Idempotente e auto-curativa: a lista do kind só cresce e o dedupe roda antes do índice.
 
--- 0622 — sincronização de pedidos da Nuvemshop
+-- 9005 — sincronização de pedidos da Nuvemshop
 --
 -- Por quê: o EPIC-07 entregou OAuth e recepção de webhook, mas nenhum consumidor
 -- gravava `orders` (spec 2026-10-08-nuvemshop-sync-e1-design.md §1).
@@ -438,7 +438,7 @@ create unique index if not exists agent_inbox_integracao_desautorizada_aberto_un
 
 notify pgrst, 'reload schema';
 
--- 0622
+-- 9005
 ```
 
 Antes de colar a lista: conferir que ela é a da **última** migration que reconstrói a constraint (`grep -ln agent_inbox_items_kind_check supabase/migrations/*.sql | sort | tail -1`) **+** o valor novo. Se outra migration entrou depois da 0589, partir da lista dela.
@@ -448,20 +448,20 @@ Antes de colar a lista: conferir que ela é a da **última** migration que recon
 (a) No bloco único (procure `'canal_pausado',` seguido de `'other'` dentro do `add constraint agent_inbox_items_kind_check` — **o último** do arquivo), inserir antes de `'other'`:
 
 ```sql
-    -- (migration 0622) A loja Nuvemshop revogou o acesso do app (401/403 na API):
+    -- (migration 9005) A loja Nuvemshop revogou o acesso do app (401/403 na API):
     -- os pedidos param de sincronizar. Um aviso por integração, resolvido na
     -- reconexão. NESTA lista pelas razões de sempre (#159).
     'integracao_desautorizada',
 ```
 
-(b) No fim do arquivo, bloco rotulado `-- ---- nuvemshop sync de pedidos (migration 0622) ----` com **todo** o SQL da migration **exceto** o `drop/add constraint agent_inbox_items_kind_check` (que já está no bloco único). Inclui: `create table if not exists`, RLS, policy, revokes, trigger, função + revoke/grant, dedupe + índice, `notify pgrst`.
+(b) No fim do arquivo, bloco rotulado `-- ---- nuvemshop sync de pedidos (migration 9005) ----` com **todo** o SQL da migration **exceto** o `drop/add constraint agent_inbox_items_kind_check` (que já está no bloco único). Inclui: `create table if not exists`, RLS, policy, revokes, trigger, função + revoke/grant, dedupe + índice, `notify pgrst`.
 
 - [ ] **Step 5: Registrar a tabela no isolamento RLS**
 
 Em `tests/invariants/rls-isolation.test.ts`, dentro do bloco de seed por organização (ao lado do `external_db_connections`):
 
 ```sql
-        -- migration 0622 — estado da sincronização da Nuvemshop. Escrita é só do
+        -- migration 9005 — estado da sincronização da Nuvemshop. Escrita é só do
         -- servidor; a semente entra como superusuário e o caso mede a LEITURA.
         if not exists (select 1 from public.integration_sync_state where organization_id = v_org) then
           insert into public.integration_sync_state (organization_id, provider, resource)
@@ -472,7 +472,7 @@ Em `tests/invariants/rls-isolation.test.ts`, dentro do bloco de seed por organiz
 e em `TABLES`, antes do `] as const;`:
 
 ```ts
-  // migration 0622 — estado da sincronização da Nuvemshop (cursor, contagens,
+  // migration 9005 — estado da sincronização da Nuvemshop (cursor, contagens,
   // último erro). Leitura org-flat por qualquer membro; escrita só service_role.
   "integration_sync_state",
 ```
@@ -491,8 +491,8 @@ Expected: exit 0 nos três; `checar` sem colisão.
 - [ ] **Step 8: Commit**
 
 ```bash
-git add supabase/migrations/20261009150000_0622_nuvemshop_sync_de_pedidos.sql supabase/baseline.sql lib/database.types.ts tests/invariants/nuvemshop-gravar-pedido.test.ts tests/invariants/rls-isolation.test.ts
-git commit -m "feat(nuvemshop): schema da sincronização de pedidos (0622)"
+git add supabase/migrations/20261009150000_9005_nuvemshop_sync_de_pedidos.sql supabase/baseline.sql lib/database.types.ts tests/invariants/nuvemshop-gravar-pedido.test.ts tests/invariants/rls-isolation.test.ts
+git commit -m "feat(nuvemshop): schema da sincronização de pedidos (9005)"
 ```
 
 ---
@@ -1857,7 +1857,7 @@ describe("iniciarSincronizacao", () => {
 
 ```ts
 /**
- * `integration_sync_state` (migration 0622). Toda escrita filtra
+ * `integration_sync_state` (migration 9005). Toda escrita filtra
  * `organization_id` + `provider` + `resource`, e as de um run também `run_id`:
  * um evento de run antigo nunca escreve sobre o run novo.
  */
@@ -2106,7 +2106,7 @@ export async function resolverAvisoDeDesautorizacao(admin: SupabaseClient, orgId
 ```
 
 Registro do kind (o compilador cobra os três por `satisfies Record<InboxKind, …>`):
-- `lib/agent-engine/db/repository.ts`: acrescentar `| 'integracao_desautorizada'` na union `InboxKind` (ao lado de `'canal_pausado'`, com comentário de uma linha "(0622) loja Nuvemshop revogou o acesso; resolve na reconexão").
+- `lib/agent-engine/db/repository.ts`: acrescentar `| 'integracao_desautorizada'` na union `InboxKind` (ao lado de `'canal_pausado'`, com comentário de uma linha "(9005) loja Nuvemshop revogou o acesso; resolve na reconexão").
 - `lib/ai/agent-inbox-copy.ts`: `integracao_desautorizada: "A loja Nuvemshop revogou o acesso — os pedidos pararam de sincronizar",`
 - `lib/ai/inbox-destino.ts`: em `REFERENCIAS_DE_AVISO`, `tenant_integration: { tabela: "tenant_integrations", papel: "admin", rotulo: "Revisar integração", href: () => "/app/integrations/nuvemshop" },` (sem `ativo`: a tabela não tem `archived_at`); em `POLITICAS_DE_AVISO`, `integracao_desautorizada: { refs: ["tenant_integration"], orientacao: "Abra a integração, desconecte e conecte de novo para devolver o acesso à loja." },`
 - `lib/i18n/dicionario.ts`: entradas `es` para as três frases novas acima e para o título/corpo do aviso, se a Central os traduz (conferir `lib/ai/inbox-destino.test.ts:157` e `i18n-espanhol-cobre-a-tela`).

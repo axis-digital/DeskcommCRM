@@ -1,5 +1,5 @@
 /**
- * `integration_sync_state` (migration 0622). Toda escrita filtra
+ * `integration_sync_state` (migration 9005). Toda escrita filtra
  * `organization_id` + `provider` + `resource`, e as de um run também `run_id`:
  * um evento de run antigo nunca escreve sobre o run novo.
  */
