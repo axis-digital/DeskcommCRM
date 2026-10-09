@@ -186,6 +186,10 @@ export default async function ConversoesPage({
   // Página / WABA gravadas pela tela (#2098) — a MESMA leitura que a credencial
   // faz no caminho do envio, para a tela e o envio nunca divergirem.
   const identidadeMeta = identidadeDaMeta(linhaDaOrganizacao?.settings);
+  // As regras de etapa da Meta têm dois destinos: a conexão direta OU a ponte
+  // do canal da conversa (a mesma chave da venda). Escondê-las sem a conexão
+  // direta deixava quem só tem o canal com regras que enviam e que ninguém vê.
+  const vendaPeloCanal = vendaPeloCanalLigada(linhaDaOrganizacao?.settings);
   // Etapas abertas agrupadas por funil, na ordem do funil; a primeira de cada
   // funil é onde o lead nasce (a sugestão "Novo lead" do recomendado).
   const vistosOsFunis = new Set<string>();
@@ -352,10 +356,7 @@ export default async function ConversoesPage({
           )}
 
           <FormularioDeConversoes estado={estado} idioma={idioma} />
-          <VendaPeloCanal
-            ligada={vendaPeloCanalLigada(linhaDaOrganizacao?.settings)}
-            idioma={idioma}
-          />
+          <VendaPeloCanal ligada={vendaPeloCanal} idioma={idioma} />
           <EnviarSemOrigem
             ligada={enviarSemOrigemLigado(linhaDaOrganizacao?.settings)}
             idioma={idioma}
@@ -367,7 +368,7 @@ export default async function ConversoesPage({
               idioma={idioma}
             />
           )}
-          {estado.conectada && !etapas.error && regrasMeta && (
+          {(estado.conectada || vendaPeloCanal) && !etapas.error && regrasMeta && (
             <RegrasDeConversaoMeta etapas={etapasAbertas} regras={regrasMeta} idioma={idioma} />
           )}
           <section className="flex flex-col gap-4" aria-labelledby="titulo-ga4">
