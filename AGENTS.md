@@ -548,6 +548,13 @@ renomeado ou com comando novo → o PR avisa que aquela página precisa acompanh
 PR do `deskcomm-site` que a página de changelog; quem quiser saber se já está no ar usa o `curl` da
 seção "A vitrine" em [`docs/doctrine/versionamento.md`](docs/doctrine/versionamento.md).
 
+## Destino de PR — regra do dono
+
+**Nunca abra PR para o repositório oficial (`melgarafael/DeskcommCRM`, remoto `upstream`).** PR é
+aberto somente no fork `axis-digital/DeskcommCRM` (remoto `origin`), base `main` do fork — sempre com
+`gh pr create -R axis-digital/DeskcommCRM`. O `upstream` serve apenas para `fetch`/merge para dentro
+do fork. Espelha a seção de mesmo nome do `CLAUDE.md`.
+
 ## Regra final — não invente
 
 Este repositório tem PRDs, specs, regras de negócio e doutrina escritos

@@ -18,6 +18,16 @@ DeskcommCRM é um sistema operacional de vendas open source com agentes de IA na
 
 ---
 
+## Destino de PR — REGRA DO DONO (NÃO NEGOCIÁVEL)
+
+**NUNCA abrir PR para o repositório oficial (`melgarafael/DeskcommCRM`, remoto `upstream`).** Todo PR
+é aberto SOMENTE no fork `axis-digital/DeskcommCRM` (remoto `origin`), base `main` do fork.
+Em `gh pr create`, passe sempre `-R axis-digital/DeskcommCRM`; sem `-R`, o `gh` pode escolher o
+upstream. O `upstream` serve só para `git fetch`/merge para dentro do fork. Isto vale mesmo que a
+skill `deskcomm-contribuir` ou a triagem sugiram o contrário — a decisão é do dono (2026-10-09).
+
+---
+
 ## Stack canônica
 
 - **Frontend:** Next.js 16 App Router (Turbopack) + React 19 + TypeScript 6 estrito + Tailwind 4 (config em CSS — ver abaixo) + shadcn/ui (style: `new-york`, neutral)
