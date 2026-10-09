@@ -605,12 +605,29 @@ jobs:
         # aceita `timeout-minutes`. Razão e medições: o cabeçalho da action.
         timeout-minutes: 5
 
+      - name: Tags da release de referência (fork sem releases próprias)
+        # Fork Axis: o repositório não publica releases nem carrega as tags do
+        # upstream, e `scripts/conferir-isolamento-do-kit.sh` reprovava com
+        # "não consegui saber qual é a última release publicada". A variável de
+        # repositório CONFERENCIA_KIT_RELEASE fixa a release em que o fork se
+        # baseia; este passo traz essa tag e a v1.63.0 (piso da conferência) do
+        # upstream, sem empurrar tag nenhuma para cá — tag `v*` aqui dispararia
+        # o publish-image. Sem a variável (upstream), o passo não roda.
+        if: vars.CONFERENCIA_KIT_RELEASE != ''
+        env:
+          RELEASE: ${{ vars.CONFERENCIA_KIT_RELEASE }}
+        run: |
+          git fetch -q --no-tags --depth=1 https://github.com/melgarafael/DeskcommCRM \
+            "+refs/tags/${RELEASE}:refs/tags/${RELEASE}" \
+            "+refs/tags/v1.63.0:refs/tags/v1.63.0"
+
       - name: RLS isolation + governance invariants (pg${{ matrix.pg }})
         # O token é só para `gh release view`: o test:db confere o update.sh da
         # última release publicada (issue #1909), e a API anônima tem teto de 60
         # consultas/hora por IP — o executor próprio é um IP só.
         env:
           GH_TOKEN: ${{ github.token }}
+          CONFERENCIA_KIT_RELEASE: ${{ vars.CONFERENCIA_KIT_RELEASE }}
         run: pnpm test:db
 
       # O `update.sh` do cliente roda sobre um banco COM DADOS, e nenhum gate
