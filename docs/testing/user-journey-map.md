@@ -3497,7 +3497,7 @@ partir da lápide, com o 500 que não diz "nada foi apagado": medida por unidade
 `lib/tenants/exclusao.test.ts` e `…/delete/route.test.ts`, e o inventário da lápide em
 `tests/invariants/gestao-de-tenants.test.ts`.
 
-## J44 — Conectar a Nuvemshop e ver os pedidos na integração e no contato `[P1]` (2026-10-08)
+## J45 — Conectar a Nuvemshop e ver os pedidos na integração e no contato `[P1]` (2026-10-08)
 
 **Origem:** sincronização de pedidos da Nuvemshop (E1). A prova é pela tela, com um receptor HTTP
 que imita a API da Nuvemshop (`NUVEMSHOP_API_BASE_URL`, porta 3994); as credenciais do ambiente
