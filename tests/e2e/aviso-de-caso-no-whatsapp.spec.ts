@@ -218,7 +218,9 @@ test.describe("aviso de caso no WhatsApp", () => {
 
     // ─── 6. o seletor fala de CAPACIDADE, nunca de provedor ───────────────
     await expect(
-      page.getByText("Só aparecem aqui os números que conseguem mandar uma mensagem a qualquer hora."),
+      page.getByText(
+        "Só aparecem aqui os números que conseguem mandar uma mensagem a qualquer hora.",
+      ),
     ).toBeVisible();
     await page.locator("#conexao").click();
     const opcoes = page.getByRole("option");
@@ -276,8 +278,12 @@ test.describe("aviso de caso no WhatsApp", () => {
     expect(m.salvar.visivel, "o botão Salvar não está alcançável").toBe(true);
     expect(m.salvar.altura).toBeGreaterThanOrEqual(32);
     expect(m.salvar.x + m.salvar.largura).toBeLessThanOrEqual(m.janela);
-    expect(m.rolagemHorizontal, "a tela do aviso não pode rolar para o lado").toBeLessThanOrEqual(0);
-    expect(m.salvar.fonte).toMatch(/Atkinson/i);
+    expect(m.rolagemHorizontal, "a tela do aviso não pode rolar para o lado").toBeLessThanOrEqual(
+      0,
+    );
+    // Este fork carrega o tema Axis (axis-theme.css, app/layout.tsx), que redefine
+    // a tipografia para Inter/axisBody — não Atkinson, o default genérico do produto.
+    expect(m.salvar.fonte).toMatch(/axisBody|Atkinson/i);
     expect(m.salvar.fundo).not.toBe("rgba(0, 0, 0, 0)");
 
     // Em largura de telefone continua sem rolagem lateral.
@@ -286,7 +292,9 @@ test.describe("aviso de caso no WhatsApp", () => {
     const noTelefone = await page.evaluate(
       () => document.documentElement.scrollWidth - document.documentElement.clientWidth,
     );
-    expect(noTelefone, "em 390px a tela do aviso não pode rolar para o lado").toBeLessThanOrEqual(0);
+    expect(noTelefone, "em 390px a tela do aviso não pode rolar para o lado").toBeLessThanOrEqual(
+      0,
+    );
     await captura(page, "50-telefone");
     await page.setViewportSize({ width: 1440, height: 1000 });
 
@@ -344,8 +352,12 @@ test.describe("aviso de caso no WhatsApp", () => {
       .select("channel_session_id")
       .eq("organization_id", creds.org_id)
       .single();
-    const canalId = (configuracao as { channel_session_id: string | null } | null)?.channel_session_id;
-    expect(canalId, "a configuração salva pela tela não tem conexão — o passo anterior não pegou").toBeTruthy();
+    const canalId = (configuracao as { channel_session_id: string | null } | null)
+      ?.channel_session_id;
+    expect(
+      canalId,
+      "a configuração salva pela tela não tem conexão — o passo anterior não pegou",
+    ).toBeTruthy();
     const { data: canalAntes } = await admin
       .from("channel_sessions")
       .select("id, status")
@@ -406,10 +418,7 @@ test.describe("aviso de caso no WhatsApp", () => {
       await admin.from("entregas_de_aviso_de_caso").delete().eq("case_id", casoId);
       await admin.from("agent_cases").delete().eq("id", casoId);
       // O canal volta ao estado em que estava — ele é da organização inteira.
-      await admin
-        .from("channel_sessions")
-        .update({ status: canal.status })
-        .eq("id", canal.id);
+      await admin.from("channel_sessions").update({ status: canal.status }).eq("id", canal.id);
     }
   });
 });

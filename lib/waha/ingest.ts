@@ -40,6 +40,13 @@ import type { createAdminClient } from "@/lib/supabase/admin";
 import { ackToStatus } from "@/lib/types/messaging";
 import type { WahaEnvelope, WahaPayload } from "@/lib/waha/envelope";
 import { bareWaMessageId, chatIdFromWaMessageId, wahaEchoExternalIds } from "@/lib/waha/message-id";
+import {
+  conteudoDaMensagem,
+  jidAlternativoDoGows,
+  pushNameDoGows,
+  textoDoConteudo,
+} from "@/lib/waha/gows";
+import { registrarStatusParaHistorico } from "@/lib/waha/historico";
 import { logger } from "@/lib/logger";
 import { nomeDeArquivoLimpo } from "@/lib/messaging/media/nome-de-arquivo";
 import {
@@ -251,7 +258,7 @@ export function parseChatId(chatId: string): ChatIdentity {
 }
 
 /** Só estes dois viram contato no CRM — ver a guarda de `upsertContact`. */
-function ehEnderecavel(parsed: ChatIdentity): boolean {
+export function ehEnderecavel(parsed: ChatIdentity): boolean {
   return parsed.kind === "phone" || parsed.kind === "lid";
 }
 
@@ -295,7 +302,6 @@ async function avisarChatNaoReconhecido(
   }
 }
 
-
 export function verifyHmacSha512(
   rawBody: string,
   signatureHeader: string | null,
@@ -312,8 +318,9 @@ export function verifyHmacSha512(
   }
 }
 
-function previewFromMessage(p: WahaPayload): string {
-  if (p.body) return p.body.slice(0, 280);
+export function previewFromMessage(p: WahaPayload): string {
+  const texto = bodyOf(p);
+  if (texto) return texto.slice(0, 280);
   const t = resolveMessageType(p);
   return t !== "text" ? `[${t}]` : "";
 }
@@ -415,8 +422,9 @@ const NOWEB_MESSAGE_KEY_TYPE: Record<string, string> = {
 
 export function resolveMessageType(p: WahaPayload): string {
   if (p.type) return mapWahaMessageType(p.type);
-  const msg = p._data?.message;
-  if (msg && typeof msg === "object") {
+  // NOWEB (`message`) ou GOWS (`Message`): as chaves de conteúdo são as mesmas.
+  const msg = conteudoDaMensagem(p);
+  if (msg) {
     for (const [key, mapped] of Object.entries(NOWEB_MESSAGE_KEY_TYPE)) {
       if (key in msg) return mapped;
     }
@@ -432,26 +440,18 @@ export function resolveMessageType(p: WahaPayload): string {
   return "text";
 }
 
-function notifyNameOf(p: WahaPayload): string | null {
-  return p._data?.notifyName ?? p._data?.pushName ?? null;
+export function notifyNameOf(p: WahaPayload): string | null {
+  return p._data?.notifyName ?? p._data?.pushName ?? pushNameDoGows(p);
 }
 
-/** Corpo textual: WAHA nem sempre preenche `body` em cartões de contato NOWEB. */
-function bodyOf(p: WahaPayload): string | null {
-  if (p.body) return p.body;
-  const msg = p._data?.message;
-  if (!msg || typeof msg !== "object") return null;
-  // `_data.message` é `unknown` no schema Zod (`lib/waha/envelope.ts`), de
-  // propósito: a forma NOWEB varia por tipo de mensagem e exigi-la aqui só
-  // criaria uma porta nova de descartar a mensagem inteira. O estreitamento é
-  // explícito, no mesmo estilo do `cm as {…}` logo abaixo.
-  const cm = (msg as { contactMessage?: unknown }).contactMessage;
-  if (cm && typeof cm === "object") {
-    const o = cm as { vcard?: string; displayName?: string };
-    if (o.vcard) return o.vcard;
-    if (o.displayName) return o.displayName;
-  }
-  return null;
+/**
+ * Corpo textual. O WAHA nem sempre preenche `body`: cartão de contato NOWEB,
+ * template de empresa e qualquer conteúdo GOWS sem `body` caem no conteúdo
+ * cru — por lista fechada de caminhos (`textoDoConteudo`).
+ */
+export function bodyOf(p: WahaPayload): string | null {
+  if (typeof p.body === "string" && p.body.length > 0) return p.body;
+  return textoDoConteudo(conteudoDaMensagem(p));
 }
 
 /**
@@ -467,7 +467,9 @@ function bodyOf(p: WahaPayload): string | null {
  * estranho.
  */
 export function telefoneAlternativoDe(p: WahaPayload): string | null {
-  return telefoneDoJid(p._data?.key?.remoteJidAlt ?? p._data?.key?.participantAlt ?? null);
+  return telefoneDoJid(
+    p._data?.key?.remoteJidAlt ?? p._data?.key?.participantAlt ?? jidAlternativoDoGows(p),
+  );
 }
 
 /**
@@ -491,7 +493,9 @@ function telefoneDoJid(bruto: string | null | undefined): string | null {
   // opaca, e `@g.us` é grupo — nenhum dos dois é telefone de pessoa.
   if (bruto.length > 128) return null;
   if (!bruto.endsWith("@s.whatsapp.net") && !bruto.endsWith("@c.us")) return null;
-  const semSufixo = bruto.slice(0, bruto.indexOf("@"));
+  // `5511…:12@s.whatsapp.net` — o `:12` é o DISPOSITIVO, não parte do número.
+  const usuario = bruto.slice(0, bruto.indexOf("@"));
+  const semSufixo = usuario.includes(":") ? usuario.slice(0, usuario.indexOf(":")) : usuario;
   let digitos = "";
   for (const ch of semSufixo) {
     if (ch >= "0" && ch <= "9") digitos += ch;
@@ -621,7 +625,8 @@ async function ingerirMensagemDeGrupo(
     logger.error("waha.ingest: mensagem de grupo não gravada", {
       organization_id: session.organization_id,
       direcao: direction,
-      detail: err instanceof Error ? err.message : String((err as { message?: unknown })?.message ?? err),
+      detail:
+        err instanceof Error ? err.message : String((err as { message?: unknown })?.message ?? err),
     });
   }
 }
@@ -657,22 +662,26 @@ async function upsertContact(
   // fronteira com uma RPC que não valida nada. Quem mexer aqui não vai ser
   // avisado por teste nenhum — só por este comentário.
   if (!ehEnderecavel(parsed)) return null;
-  const { data, error } = await admin.rpc("fn_upsert_wa_contact" as never, {
-    p_org: orgId,
-    p_kind: parsed.kind,
-    // O telefone vem de dois lugares e é UM parâmetro: do próprio chatId quando
-    // ele já é um número, ou de `_data.key.remoteJidAlt` quando o chat é `@lid`.
-    // Resolver aqui, e não no SQL, foi o que permitiu manter a assinatura da
-    // função (e portanto os grants e os invariantes de hardening) intacta.
-    p_phone: parsed.kind === "phone"
-      ? canonicalPhoneBR(parsed.phone)
-      : telefoneAlt
-        ? canonicalPhoneBR(telefoneAlt)
-        : null,
-    p_lid: parsed.kind === "lid" ? parsed.lid : null,
-    p_chat_id: chatId,
-    p_notify: notifyName,
-  } as never);
+  const { data, error } = await admin.rpc(
+    "fn_upsert_wa_contact" as never,
+    {
+      p_org: orgId,
+      p_kind: parsed.kind,
+      // O telefone vem de dois lugares e é UM parâmetro: do próprio chatId quando
+      // ele já é um número, ou de `_data.key.remoteJidAlt` quando o chat é `@lid`.
+      // Resolver aqui, e não no SQL, foi o que permitiu manter a assinatura da
+      // função (e portanto os grants e os invariantes de hardening) intacta.
+      p_phone:
+        parsed.kind === "phone"
+          ? canonicalPhoneBR(parsed.phone)
+          : telefoneAlt
+            ? canonicalPhoneBR(telefoneAlt)
+            : null,
+      p_lid: parsed.kind === "lid" ? parsed.lid : null,
+      p_chat_id: chatId,
+      p_notify: notifyName,
+    } as never,
+  );
   if (error) {
     lancarFalhaDeIngestao("fn_upsert_wa_contact", error);
   }
@@ -685,11 +694,14 @@ async function upsertConversation(
   contactId: string,
   sessionId: string,
 ): Promise<string | null> {
-  const { data, error } = await admin.rpc("fn_upsert_wa_conversation" as never, {
-    p_org: orgId,
-    p_contact: contactId,
-    p_session: sessionId,
-  } as never);
+  const { data, error } = await admin.rpc(
+    "fn_upsert_wa_conversation" as never,
+    {
+      p_org: orgId,
+      p_contact: contactId,
+      p_session: sessionId,
+    } as never,
+  );
   if (error) {
     lancarFalhaDeIngestao("fn_upsert_wa_conversation", error);
   }
@@ -936,14 +948,20 @@ async function handleInbound(
   // `estamparAtribuicaoDoContato` só grava na primeira vez — se o
   // contato já tem atribuição, o UPDATE casa zero linhas.
   const atribuicao = extrairAtribuicaoWaha(p._data?.message);
-  if (atribuicao) await estamparAtribuicaoDoContato(admin, session.organization_id, contactId, atribuicao);
+  if (atribuicao)
+    await estamparAtribuicaoDoContato(admin, session.organization_id, contactId, atribuicao);
 
   // Irmão do bloco acima, para o Google: o token vem no PRÓPRIO texto da
   // mensagem (não há payload de ad-reply equivalente para essa plataforma) —
   // ver o cabeçalho de `lib/plataformas-de-anuncio/google/atribuicao.ts`. Best-effort.
   await extrairEEstamparAtribuicaoGoogle(admin, session.organization_id, contactId, texto);
 
-  const conversationId = await upsertConversation(admin, session.organization_id, contactId, session.id);
+  const conversationId = await upsertConversation(
+    admin,
+    session.organization_id,
+    contactId,
+    session.id,
+  );
   if (!conversationId) return;
 
   // A citação da mensagem respondida (issue #2474), resolvida ANTES do insert
@@ -1036,7 +1054,14 @@ async function handleInbound(
     return;
   }
 
-  await markConversation(admin, session.organization_id, conversationId, "inbound", previewFromMessage(p), dataDoTimestamp(p.timestamp, now));
+  await markConversation(
+    admin,
+    session.organization_id,
+    conversationId,
+    "inbound",
+    previewFromMessage(p),
+    dataDoTimestamp(p.timestamp, now),
+  );
 
   await audit({
     action: "message.received",
@@ -1093,16 +1118,20 @@ async function handleInbound(
     const inboundMessageId = insertedMessage.id;
     if (mediaUrlOf(p)) {
       admin
-        .rpc("emit_event" as never, {
-          p_event_type: "media.persist_requested",
-          p_entity_kind: "message",
-          p_entity_id: inboundMessageId,
-          p_payload: { message_id: inboundMessageId, conversation_id: conversationId },
-          p_metadata: { source: "waha_webhook", request_id: requestId },
-          p_organization_id: session.organization_id,
-        } as never)
+        .rpc(
+          "emit_event" as never,
+          {
+            p_event_type: "media.persist_requested",
+            p_entity_kind: "message",
+            p_entity_id: inboundMessageId,
+            p_payload: { message_id: inboundMessageId, conversation_id: conversationId },
+            p_metadata: { source: "waha_webhook", request_id: requestId },
+            p_organization_id: session.organization_id,
+          } as never,
+        )
         .then(({ error }) => {
-          if (error) console.error("[waha.ingest] emit media.persist_requested failed", error.message);
+          if (error)
+            console.error("[waha.ingest] emit media.persist_requested failed", error.message);
         });
     }
   }
@@ -1276,7 +1305,7 @@ async function handleOutboundFromUserPhone(
   // como `fromMe`, e só o dedup por `external_id` a reconhece como nossa.
   const grupo = grupoDoEnvio(p, chatId);
   if (!p.id) return;
-  if (!p.body && !mediaUrlOf(p) && !p.hasMedia) return;
+  if (!bodyOf(p) && !mediaUrlOf(p) && !p.hasMedia) return;
   // Idem inbound. Aqui o caso que mais dói é o chatId vazio: é literalmente o
   // defeito do #108 — mensagem que o dono digitou no celular sem `to`, sem id
   // composto e sem `from`. Se voltar a acontecer por um formato novo, agora sai
@@ -1377,7 +1406,12 @@ async function handleOutboundFromUserPhone(
     telefoneAlternativoDe(p),
   );
   if (!contactId) return;
-  const conversationId = await upsertConversation(admin, session.organization_id, contactId, session.id);
+  const conversationId = await upsertConversation(
+    admin,
+    session.organization_id,
+    contactId,
+    session.id,
+  );
   if (!conversationId) return;
 
   // O operador também usa o "responder em cima" pelo celular (issue #2474):
@@ -1578,16 +1612,20 @@ async function handleOutboundFromUserPhone(
 
   if (insertedOutbound?.id && mediaUrlOf(p)) {
     admin
-      .rpc("emit_event" as never, {
-        p_event_type: "media.persist_requested",
-        p_entity_kind: "message",
-        p_entity_id: insertedOutbound.id,
-        p_payload: { message_id: insertedOutbound.id, conversation_id: conversationId },
-        p_metadata: { source: "waha_webhook", request_id: requestId },
-        p_organization_id: session.organization_id,
-      } as never)
+      .rpc(
+        "emit_event" as never,
+        {
+          p_event_type: "media.persist_requested",
+          p_entity_kind: "message",
+          p_entity_id: insertedOutbound.id,
+          p_payload: { message_id: insertedOutbound.id, conversation_id: conversationId },
+          p_metadata: { source: "waha_webhook", request_id: requestId },
+          p_organization_id: session.organization_id,
+        } as never,
+      )
       .then(({ error }) => {
-        if (error) console.error("[waha.ingest] emit media.persist_requested failed", error.message);
+        if (error)
+          console.error("[waha.ingest] emit media.persist_requested failed", error.message);
       });
   }
 }
@@ -1642,6 +1680,9 @@ async function handleSessionStatus(
   }
   await admin.from("channel_sessions").update(update).eq("id", session.id);
 
+  // Fork Axis: pareamento novo (QR → WORKING) importa o histórico — ver lib/waha/historico.ts.
+  registrarStatusParaHistorico(admin as unknown as SupabaseClient, session, status);
+
   // ─── E agora alguém precisa SABER ────────────────────────────────────────
   //
   // Até aqui esta função gravava o estado numa coluna e não contava a ninguém.
@@ -1682,11 +1723,7 @@ async function handleSessionStatus(
  * "funcionou", que é exatamente o modo de falha que este arquivo já pagou caro
  * em outros lugares.
  */
-async function handleMessageEdited(
-  admin: Admin,
-  session: Session,
-  p: WahaPayload,
-): Promise<void> {
+async function handleMessageEdited(admin: Admin, session: Session, p: WahaPayload): Promise<void> {
   const alvo = bareWaMessageId(p.editedMessageId ?? "");
   const corpo = typeof p.body === "string" ? p.body : null;
   if (!alvo || corpo === null) return;
@@ -1707,11 +1744,7 @@ async function handleMessageEdited(
  * texto no banco impediria o próprio atendente de entender, depois, o que tinha
  * sido combinado antes do arrependimento.
  */
-async function handleMessageRevoked(
-  admin: Admin,
-  session: Session,
-  p: WahaPayload,
-): Promise<void> {
+async function handleMessageRevoked(admin: Admin, session: Session, p: WahaPayload): Promise<void> {
   const alvo = bareWaMessageId(p.revokedMessageId ?? "");
   if (!alvo) return;
 

@@ -51,6 +51,7 @@ de menor precedência e registre.
 | [`prd/04-prd-pipeline-attendance.md`](prd/04-prd-pipeline-attendance.md) | Kanban, atendimento, tickets, handoff |
 | [`prd/05-prd-ai-rag-handoff.md`](prd/05-prd-ai-rag-handoff.md) | IA conversacional, RAG por tenant, sentiment |
 | [`prd/06-prd-nuvemshop-lgpd.md`](prd/06-prd-nuvemshop-lgpd.md) | Integração Nuvemshop + webhooks LGPD |
+| [`integracoes.md`](integracoes.md) | Matriz operacional de serviços, variáveis, telas, dependências e combinações por nicho |
 | [`business-rules/00-business-rules-catalog.md`](business-rules/00-business-rules-catalog.md) | **Catálogo de regras de negócio** — fonte da verdade fora do código |
 | [`presentation/pitch-deck.md`](presentation/pitch-deck.md) | Pitch |
 
@@ -139,6 +140,7 @@ acessibilidade).
 | [`runbooks/custo-e-cota-do-supabase.md`](runbooks/custo-e-cota-do-supabase.md) | **“Meu Supabase estourou a cota”** — como medir a origem do consumo, os dois intervalos da fila e as duas tabelas que só crescem |
 | [`runbooks/waha-hostgator.md`](runbooks/waha-hostgator.md) | Runbook do WAHA em produção |
 | [`runbooks/cloudpanel.md`](runbooks/cloudpanel.md) | **VPS que já tem CloudPanel/Nginx nas portas 80/443** — o modo proxy externo do kit, o endereço fixo para o Nginx do host e o 403 do webhook global |
+| [`saas/coolify.md`](saas/coolify.md) | **VPS com Coolify** — CRM e banco (Supabase self-hosted) na mesma VPS, atrás do proxy do Coolify; painel fechado e acessado por túnel; consumo medido |
 | [`runbooks/ai-credentials-rotation.md`](runbooks/ai-credentials-rotation.md) | Rotação de credenciais de IA |
 | [`runbooks/css-personalizado.md`](runbooks/css-personalizado.md) | **CSS personalizado que trancou a tela** — `?sem_css=1` e o `delete` em `platform_config` |
 | [`../SECURITY.md`](../SECURITY.md) | Política de reporte de vulnerabilidade |

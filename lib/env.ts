@@ -213,6 +213,12 @@ const schema = z.object({
   // (WHATSAPP_HOOK_HMAC_KEY no compose) ou houver um proxy que assine — aí a
   // verificação passa a ser obrigatória.
   WAHA_WEBHOOK_REQUIRE_SIGNATURE: z.string().optional().default("false"),
+  // WAHA compartilhado (opt-in). Lidas por getWahaClient em lib/waha/client.ts.
+  WAHA_ACCEPTED_ENGINES: z.string().optional().default(""),
+  WAHA_SESSION_WEBHOOK: z.string().optional().default(""),
+  WAHA_SESSION_PROXY: z.string().optional().default(""),
+  // Dias de histórico importados ao parear um número (lib/waha/historico.ts). 0 = desligado.
+  WAHA_HISTORY_IMPORT_DAYS: z.string().optional().default("0"),
 
   // ─── Chamada de voz WhatsApp (WaCalls, spec 18) ───
   //
