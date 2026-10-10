@@ -98,6 +98,12 @@ describe("fallback sem origem por plataforma", () => {
     });
   });
 
+  it("reenvia só a plataforma cujo registro foi solicitado", async () => {
+    const desfechos = await reportarVendaSemOrigem(createFakeAdmin(), venda, "meta_ads");
+    expect(desfechos.map((d) => d.plataforma)).toEqual(["meta_ads"]);
+    expect(mocks.gravados.map((g) => g.plataforma)).toEqual(["meta_ads"]);
+  });
+
   it("sem conexão, a plataforma não grava nada: não havia o que reportar", async () => {
     mocks.credenciais = { meta_ads: { ok: false, motivo: "sem_conexao" }, google_ads: conectada };
     const desfechos = await reportarVendaSemOrigem(createFakeAdmin(), venda);

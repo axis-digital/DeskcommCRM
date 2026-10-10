@@ -153,7 +153,10 @@ describe("a estampagem no contato", () => {
   it("devolve false e não lança quando o banco recusa", async () => {
     const { admin } = bancoDeMentira({ message: "permission denied" });
     await expect(
-      estamparOrigemDaPagina(admin, "org-1", "contato-1", { utm: { utm_source: "ig" }, capturadaEm: null }),
+      estamparOrigemDaPagina(admin, "org-1", "contato-1", {
+        utm: { utm_source: "ig" },
+        capturadaEm: null,
+      }),
     ).resolves.toBe(false);
   });
 });
@@ -176,9 +179,7 @@ describe("o teto de tamanho do código", () => {
     // 🚀 ocupa duas, então sobram 100 por chave —, e o código fica com 5535
     // caracteres, muito acima do teto. A página recebe `null` e sabe que não há
     // link — melhor do que um link que a ingestão ignoraria calada.
-    const gigante = Object.fromEntries(
-      CHAVES_DE_UTM.map((chave) => [chave, "🚀".repeat(200)]),
-    );
+    const gigante = Object.fromEntries(CHAVES_DE_UTM.map((chave) => [chave, "🚀".repeat(200)]));
     expect(montarCodigoDeOrigemDoSite(gigante)).toBeNull();
   });
 
@@ -259,10 +260,9 @@ describe("o que o texto do cliente NÃO consegue carregar", () => {
   });
 
   it("colagem longa num valor só é cortada no teto do valor, não aceita inteira", () => {
-    const carga = Buffer.from(
-      JSON.stringify({ utm_campaign: "x".repeat(1000) }),
-      "utf8",
-    ).toString("base64url");
+    const carga = Buffer.from(JSON.stringify({ utm_campaign: "x".repeat(1000) }), "utf8").toString(
+      "base64url",
+    );
     expect(extrairOrigemDaPagina(`[dk1:${carga}]`)?.utm.utm_campaign).toHaveLength(200);
   });
 });
@@ -428,9 +428,9 @@ describe("a origem só vale na primeira mensagem do contato", () => {
       },
     ]);
 
-    await expect(
-      ehAPrimeiraMensagemDoContato(admin, "org-a", "contato-1", "msg-1"),
-    ).resolves.toBe(true);
+    await expect(ehAPrimeiraMensagemDoContato(admin, "org-a", "contato-1", "msg-1")).resolves.toBe(
+      true,
+    );
     expect(filtros.organization_id).toBe("org-a");
   });
 });
