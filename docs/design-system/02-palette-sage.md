@@ -160,4 +160,4 @@ Sage foi escolhida também por segurança em deficiências de visão:
 - **Protanopia** (vermelho-cego): comportamento similar; Sage 500 vira amarelo-oliva.
 - **Tritanopia** (azul-amarelo, raro): menos afetada — Sage permanece reconhecível como verde dessaturado.
 
-Em todos os casos, **nunca dependa só de cor pra comunicar estado**. Use ícone Phosphor + cor + label de texto. Ex: badge de SLA estourado tem cor error, ícone `Warning`, e texto "Vencido há 2h".
+Em todos os casos, **nunca dependa só de cor pra comunicar estado**. Use ícone Axis/Lucide + cor + label de texto. Ex: badge de SLA estourado tem cor error, ícone `Warning`, e texto "Vencido há 2h".

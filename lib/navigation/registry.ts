@@ -1,7 +1,6 @@
-import type { Icon as PhosphorIcon } from "@phosphor-icons/react";
-
 import { type Role } from "@/lib/auth/types";
 import {
+  type AxisIcon,
   Bell,
   BookOpen,
   Brain,
@@ -99,7 +98,7 @@ const ICONS = {
   WebhooksLogo,
 };
 export interface NavDestination extends Omit<NavMetadata, "icon"> {
-  icon: PhosphorIcon;
+  icon: AxisIcon;
 }
 export const NAV_DESTINATIONS: NavDestination[] = NAV_CATALOG.map((d) => ({
   ...d,

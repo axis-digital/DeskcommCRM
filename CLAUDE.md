@@ -18,6 +18,39 @@ DeskcommCRM é um sistema operacional de vendas open source com agentes de IA na
 
 ---
 
+## Destino de PR — REGRA DO DONO (NÃO NEGOCIÁVEL)
+
+**NUNCA abrir PR para o repositório oficial (`melgarafael/DeskcommCRM`, remoto `upstream`).** Todo PR
+é aberto SOMENTE no fork `axis-digital/DeskcommCRM` (remoto `origin`), base `main` do fork.
+Em `gh pr create`, passe sempre `-R axis-digital/DeskcommCRM`; sem `-R`, o `gh` pode escolher o
+upstream. O `upstream` serve só para `git fetch`/merge para dentro do fork. Isto vale mesmo que a
+skill `deskcomm-contribuir` ou a triagem sugiram o contrário — a decisão é do dono (2026-10-09).
+
+### Feature nova — fluxo obrigatório (regra do dono)
+
+Toda vez que uma feature nova for pedida, **antes de escrever qualquer código**, nesta ordem:
+
+1. **Atualizar o fork com a upstream.** `git fetch upstream origin`; se `origin/main` estiver atrás de
+   `upstream/main` (`git rev-list --count origin/main..upstream/main`), fazer o merge da upstream
+   numa branch `merge/upstream-<data>` e abrir PR **no fork**. Push direto na `main` está bloqueado.
+2. **Verificar se a feature já existe**: no código da `upstream/main` (`git grep`), e nas issues e
+   PRs da upstream (`gh pr list -R melgarafael/DeskcommCRM --search ...`, `gh issue list ...`).
+   Se já existe ou está em voo, informar o dono antes de seguir. Não duplicar.
+3. **Só então criar a branch**, a partir de `origin/main` já atualizada.
+
+### Migrations exclusivas do fork — faixa 9000–9999
+
+Migration que nasce no fork usa `NNNN` na faixa **9000–9999**, **nunca** o próximo número da
+upstream. A upstream consome cerca de 7,5 números por dia (0098 em 01/08 → 0621 em 09/10/2026).
+Seguir o número dela fez a migration da Nuvemshop colidir duas vezes em dois dias (0611 e 0621).
+Faixas mais baixas, como 09xx, seriam alcançadas em semanas. O resto da doutrina não muda:
+`-- manifest:`, apêndice no baseline e timestamp único. Ocupadas: 9005 (Nuvemshop sync).
+As 0900–0904 das branches `feat/e1-c` e `feat/perfil-de-negocio-ga4` devem ir para 9000–9004
+antes do merge. Contra `origin/main`, o `checar-colisao-de-migration` dá falso positivo quando
+uma migration renumerada é removida; meça contra `upstream/main`.
+
+---
+
 ## Stack canônica
 
 - **Frontend:** Next.js 16 App Router (Turbopack) + React 19 + TypeScript 6 estrito + Tailwind 4 (config em CSS — ver abaixo) + shadcn/ui (style: `new-york`, neutral)

@@ -835,7 +835,7 @@ Decisões fechadas. Mudar = ADR novo.
 - **ADR-02: Server Actions pra forms simples; API routes pra mutations complexas.** Critério: se a mutation precisa de optimistic UI, retry custom, idempotency-key explícita ou é chamada de múltiplos lugares — vai pra API route. Senão — Server Action.
 - **ADR-03: Zod no boundary de TODA API route.** Não-negociável. Toda `route.ts` faz `schema.safeParse` no body. Se faltar, lint custom (`eslint-plugin-deskcomm`) barra.
 - **ADR-04: Supabase Realtime como mecanismo único de push.** Não usar WebSocket próprio nem SSE custom. Justificativa: RLS aplicada nos eventos, escala gerenciada, custo zero adicional.
-- **ADR-05: Phosphor Icons como pacote único de ícones.** Não misturar com Lucide ou Heroicons. Justificativa: consistência visual, single bundle.
+- **ADR-05 (atualizada): Axis/Lucide como pacote único de ícones.** Toda tela importa de `@/lib/ui/icons`; não misturar famílias nem importar `lucide-react` diretamente. Justificativa: consistência visual e bundle único.
 - **ADR-06: Atalhos de teclado obrigatórios em telas operacionais.** Inbox, Kanban, Audit, Admin Inbox — atendente vira máquina. Mapa em §9 e em `08-accessibility.md`. Ferramenta: `react-hotkeys-hook`.
 - **ADR-07: Sem state management global complexo (Zustand/Redux/Jotai).** TanStack Query cache + React Context onde inevitável (theme, active-org, current-user). Justificativa: cada um adiciona um modelo mental — manter superfície reduzida.
 - **ADR-08: Forms via `react-hook-form` + `@hookform/resolvers/zod`.** Já instalados. Schema único compartilhado entre form e API route.
