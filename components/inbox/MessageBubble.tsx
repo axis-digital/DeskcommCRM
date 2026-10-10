@@ -26,6 +26,22 @@ import {
   isAiGeneratedMessage,
 } from "@/lib/ai/citations/types";
 
+/**
+ * Bolhas no tema escuro. O accent cheio ocupando metade da thread ofusca, e o
+ * `muted` quase some no fundo. O tema declara as cores (`--inbox-bubble-*`);
+ * sem elas, fica um tom da marca afundado na superfície e um degrau acima do
+ * `muted`. Na saída o laranja vira FAIXA de autoria, não preenchimento, e o
+ * `--color-accent-fg` é redeclarado na bolha: quem pinta com
+ * `primary-foreground` dentro dela (documento, áudio, citação, ticks)
+ * acompanha sozinho. Resposta de IA leva faixa roxa (o roxo é IA na Axis).
+ */
+const BOLHA_SAIDA_ESCURO =
+  "dark:bg-[var(--inbox-bubble-out,color-mix(in_oklab,var(--color-accent)_20%,var(--color-surface-elevated)))] dark:[--color-accent-fg:var(--inbox-bubble-out-fg,var(--color-text))] dark:border-r-[3px] dark:border-r-accent";
+const BOLHA_IA_ESCURO =
+  "dark:bg-[var(--inbox-bubble-ai,color-mix(in_oklab,var(--color-accent)_20%,var(--color-surface-elevated)))] dark:border-r-0 dark:border-l-[3px] dark:border-l-[var(--axis-focus,var(--color-accent))]";
+const BOLHA_ENTRADA_ESCURO =
+  "dark:bg-[var(--inbox-bubble-in,var(--color-neutral-600))] dark:border dark:border-[var(--inbox-bubble-in-border,transparent)]";
+
 interface Props {
   message: Message;
   searchMatch?: boolean;
@@ -235,8 +251,12 @@ export function MessageBubble({
                 "rounded-2xl px-3 py-2 shadow-sm",
                 temMenu && "pr-8",
                 isOutbound
-                  ? "rounded-br-sm bg-primary text-primary-foreground"
-                  : "rounded-bl-sm bg-muted text-foreground",
+                  ? cn(
+                      "rounded-br-sm bg-primary text-primary-foreground",
+                      BOLHA_SAIDA_ESCURO,
+                      aiGenerated && BOLHA_IA_ESCURO,
+                    )
+                  : cn("rounded-bl-sm bg-muted text-foreground", BOLHA_ENTRADA_ESCURO),
               ),
           isFailed && "border border-destructive",
           // A marca da busca é ANEL, não cor de fundo: o fundo já diz de quem é

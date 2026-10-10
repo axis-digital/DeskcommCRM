@@ -244,7 +244,16 @@ unset _deskcomm_chamador
 #
 # Todo `docker compose` do kit passa por aqui: com proxy externo, um comando sem
 # o override subiria o Caddy e ele iria bater de frente com o proxy da hospedagem.
+# COMPOSE_EXTRA_FILES (opcional, no .env): overrides locais da instalação,
+# separados por espaço, acrescentados DEPOIS dos do kit em todo comando. Vazio
+# = comportamento de sempre.
+compose_extra_args() {
+  local f
+  for f in ${COMPOSE_EXTRA_FILES:-}; do printf -- '-f\n%s\n' "$f"; done
+}
 dc() {
+  local -a extra=()
+  mapfile -t extra < <(compose_extra_args)
   # Overlay da CA do Supabase (#829): só com a variável declarada, o arquivo da
   # CA existindo no disco (ca_do_supabase_ok) E o overlay no MESMO checkout — o
   # install.sh chama dc() antes do clone, e um -f apontando para arquivo que
@@ -260,16 +269,16 @@ dc() {
     # estava lá. Junta os dois: o overlay do proxy vem DEPOIS do overlay do
     # single-server, e o padrão (sem a variável) continua só o single-server.
     case "${REVERSE_PROXY:-caddy}" in
-    traefik) docker compose -f "$COMPOSE" -f docker-compose.single-server.yml -f "$COMPOSE_TRAEFIK" ${ca[@]+"${ca[@]}"} "$@" ;;
-    npm)     docker compose -f "$COMPOSE" -f docker-compose.single-server.yml -f "$COMPOSE_NPM" ${ca[@]+"${ca[@]}"} "$@" ;;
-    *)       docker compose -f "$COMPOSE" -f docker-compose.single-server.yml ${ca[@]+"${ca[@]}"} "$@" ;;
+    traefik) docker compose -f "$COMPOSE" -f docker-compose.single-server.yml -f "$COMPOSE_TRAEFIK" ${ca[@]+"${ca[@]}"} ${extra[@]+"${extra[@]}"} "$@" ;;
+    npm)     docker compose -f "$COMPOSE" -f docker-compose.single-server.yml -f "$COMPOSE_NPM" ${ca[@]+"${ca[@]}"} ${extra[@]+"${extra[@]}"} "$@" ;;
+    *)       docker compose -f "$COMPOSE" -f docker-compose.single-server.yml ${ca[@]+"${ca[@]}"} ${extra[@]+"${extra[@]}"} "$@" ;;
     esac
     return
   fi
   case "${REVERSE_PROXY:-caddy}" in
-  traefik) docker compose -f "$COMPOSE" -f "$COMPOSE_TRAEFIK" ${ca[@]+"${ca[@]}"} "$@" ;;
-  npm)     docker compose -f "$COMPOSE" -f "$COMPOSE_NPM" ${ca[@]+"${ca[@]}"} "$@" ;;
-  *)       docker compose -f "$COMPOSE" ${ca[@]+"${ca[@]}"} "$@" ;;
+  traefik) docker compose -f "$COMPOSE" -f "$COMPOSE_TRAEFIK" ${ca[@]+"${ca[@]}"} ${extra[@]+"${extra[@]}"} "$@" ;;
+  npm)     docker compose -f "$COMPOSE" -f "$COMPOSE_NPM" ${ca[@]+"${ca[@]}"} ${extra[@]+"${extra[@]}"} "$@" ;;
+  *)       docker compose -f "$COMPOSE" ${ca[@]+"${ca[@]}"} ${extra[@]+"${extra[@]}"} "$@" ;;
   esac
 }
 
@@ -277,6 +286,8 @@ dc() {
 # dono. Se a mensagem omitisse o override numa instalação com proxy externo, o
 # próprio dono derrubaria o site seguindo a instrução do kit.
 dc_files() {
+  local f extra=""
+  for f in ${COMPOSE_EXTRA_FILES:-}; do extra="$extra -f $f"; done
   # Mesma condição do dc() (#829): a mensagem que ensina o comando tem de
   # carregar o overlay da CA quando o kit mesmo o usaria — sem isso o dono
   # refaz o `up -d` sem a CA e o app volta a sem-verificação.
@@ -289,16 +300,16 @@ dc_files() {
     # realmente roda, ou a mensagem ensinaria o dono a omitir o overlay do
     # proxy e o próprio dono derrubaria o site seguindo a instrução do kit.
     case "${REVERSE_PROXY:-caddy}" in
-    traefik) printf -- '-f %s -f %s -f %s%s' "$COMPOSE" docker-compose.single-server.yml "$COMPOSE_TRAEFIK" "$sufixo" ;;
-    npm)     printf -- '-f %s -f %s -f %s%s' "$COMPOSE" docker-compose.single-server.yml "$COMPOSE_NPM" "$sufixo" ;;
-    *)       printf -- '-f %s -f %s%s' "$COMPOSE" docker-compose.single-server.yml "$sufixo" ;;
+    traefik) printf -- '-f %s -f %s -f %s%s' "$COMPOSE" docker-compose.single-server.yml "$COMPOSE_TRAEFIK" "$sufixo$extra" ;;
+    npm)     printf -- '-f %s -f %s -f %s%s' "$COMPOSE" docker-compose.single-server.yml "$COMPOSE_NPM" "$sufixo$extra" ;;
+    *)       printf -- '-f %s -f %s%s' "$COMPOSE" docker-compose.single-server.yml "$sufixo$extra" ;;
     esac
     return
   fi
   case "${REVERSE_PROXY:-caddy}" in
-  traefik) printf -- '-f %s -f %s%s' "$COMPOSE" "$COMPOSE_TRAEFIK" "$sufixo" ;;
-  npm)     printf -- '-f %s -f %s%s' "$COMPOSE" "$COMPOSE_NPM" "$sufixo" ;;
-  *)       printf -- '-f %s%s' "$COMPOSE" "$sufixo" ;;
+  traefik) printf -- '-f %s -f %s%s' "$COMPOSE" "$COMPOSE_TRAEFIK" "$sufixo$extra" ;;
+  npm)     printf -- '-f %s -f %s%s' "$COMPOSE" "$COMPOSE_NPM" "$sufixo$extra" ;;
+  *)       printf -- '-f %s%s' "$COMPOSE" "$sufixo$extra" ;;
   esac
 }
 
@@ -631,6 +642,10 @@ atualizar_supabase_single_server() {
   dir="$(dir_do_supabase)"
   [ -f "$dir/.env" ] || { c_red "⛔ $(t "Modo single-server sem {1}/.env — rode install-single-server.sh." "$dir")"; return 1; }
   cp "$KIT_DIR/supabase-single-server.override.yml" "$dir/docker-compose.deskcomm.yml" || return 1
+  # O terceiro arquivo (Traefik em bridge) só existe em quem instalou com ele.
+  if [ -f "$dir/docker-compose.deskcomm-traefik.yml" ]; then
+    cp "$KIT_DIR/supabase-single-server.traefik.yml" "$dir/docker-compose.deskcomm-traefik.yml" || return 1
+  fi
   set_env_var "$dir/.env" COMPOSE_PROJECT_NAME "$(projeto_do_supabase)"
   atual="$(sed -n 's/^ref=//p' "$dir/.supabase-version" 2>/dev/null | tail -1)"
   if [ "$atual" != "$SUPABASE_REF" ]; then
@@ -768,11 +783,16 @@ REGRAS_FALTANDO="${REGRAS_FALTANDO:-}"
 # antes do banco e a volta usa o endereço da imagem NOVA — gravado antes de
 # tentar baixá-la. Sem imagem, ele não volta. O susto virou queda.
 #
-# ⚠️ SÓ A IMAGEM DO APP. O worker e o scheduler têm `build:` ao lado do `image:`
-# no compose, então o `up -d` os constrói localmente quando falta imagem — mais
-# lento, mesmo resultado. O app não tem essa rede de segurança, e essa
-# assimetria já está escrita no update.sh, onde as duas mensagens são
-# diferentes de propósito.
+# ⚠️ SÓ A IMAGEM DO APP, de propósito. Worker, scheduler e voice-agent têm
+# `build:` ao lado do `image:` e o Compose os constrói sozinho em QUALQUER falha
+# de pull (medido); o `app` não tem (#1060), então quando falta a imagem dele o
+# `up -d` FALHA e quem responde é a guarda do update.sh — com o registro
+# respondendo ela constrói aqui (mais lento, mesmo resultado), sem resposta do
+# registro ela recusa. O que não dá para construir é a decisão de OFERECER a
+# atualização, e é isso que este veredito pergunta. As duas mensagens do
+# update.sh sobre pull que falhou continuam diferentes de propósito: a saída é
+# a mesma quando o registro responde, mas o diagnóstico — versão ainda
+# publicando × peça faltando — não é.
 #
 # Ecoa: publicada | ausente | indisponivel
 veredito_da_imagem_do_app() {  # veredito_da_imagem_do_app <versão alvo> <versão instalada>
@@ -916,11 +936,18 @@ restaurar_servicos() {
 # ── Imagem pronta que não serve para esta VPS: constrói a versão aqui ────────
 # Uma VPS cuja arquitetura não é a das imagens publicadas (Oracle Ampere, por
 # exemplo) recebe "no matching manifest for linux/arm64/v8" ao puxá-las. O
-# `up -d` seguinte morre junto: sem imagem no disco e sem `build:` ao lado do
-# `image:` do app, o Compose não tem o que subir. O desfecho visível era o pior
-# possível — a atualização não acontecia, o script terminava como se tivesse
-# dado certo e o dono só descobria pelo CRM velho. Pelo botão "Atualizar" do
-# site, nem isso: o agente roda sozinho no cron e não há ninguém lendo a tela.
+# `up -d` seguinte morre junto: o `app` não tem `build:` ao lado do `image:` no
+# compose de produção, de propósito (#1060) — é a falta da imagem dele que faz
+# o `up -d` falhar e leva quem chamou até esta função. Worker, scheduler e voz,
+# que têm `build:`, o Compose reconstrói sozinho (medido, em qualquer falha de
+# pull) — e é construção barata; o pesado é este. Esta função NÃO decide se
+# pode construir: ela constrói. Quem decide é `build_local_permitido` (o portão
+# da #1955, mais abaixo), e só o update.sh o consulta antes de chamar esta
+# função; o install.sh a chama direto. O
+# desfecho visível antes era o pior possível — a atualização não acontecia, o
+# script terminava como se tivesse dado certo e o dono só descobria pelo CRM
+# velho. Pelo botão "Atualizar" do site, nem isso: o agente roda sozinho no
+# cron e não há ninguém lendo a tela.
 #
 # A saída já existe no repo e é o docker-compose.build.yml: `pull_policy: never`
 # nas três imagens e o build saindo do MESMO commit que o `git checkout` deixou

@@ -1819,6 +1819,7 @@ export type Database = {
           followup: Json
           handoff_keywords: string[]
           handoff_tool_enabled: boolean
+          handoff_legal_enabled: boolean
           proposal_ai_draft_enabled: boolean
           history_message_window: number
           history_token_window: number
@@ -1858,6 +1859,7 @@ export type Database = {
           followup?: Json
           handoff_keywords?: string[]
           handoff_tool_enabled?: boolean
+          handoff_legal_enabled?: boolean
           proposal_ai_draft_enabled?: boolean
           history_message_window?: number
           history_token_window?: number
@@ -1897,6 +1899,7 @@ export type Database = {
           followup?: Json
           handoff_keywords?: string[]
           handoff_tool_enabled?: boolean
+          handoff_legal_enabled?: boolean
           proposal_ai_draft_enabled?: boolean
           history_message_window?: number
           history_token_window?: number
@@ -4346,6 +4349,7 @@ export type Database = {
           cancela_no_fim: boolean
           checkout_expira_em: string | null
           checkout_url: string | null
+          link_de_pagamento: string | null
           created_at: string
           estado: string
           modo: string | null
@@ -4371,6 +4375,7 @@ export type Database = {
           cancela_no_fim?: boolean
           checkout_expira_em?: string | null
           checkout_url?: string | null
+          link_de_pagamento?: string | null
           created_at?: string
           estado?: string
           modo?: string | null
@@ -4396,6 +4401,7 @@ export type Database = {
           cancela_no_fim?: boolean
           checkout_expira_em?: string | null
           checkout_url?: string | null
+          link_de_pagamento?: string | null
           created_at?: string
           estado?: string
           modo?: string | null
@@ -4450,6 +4456,7 @@ export type Database = {
           max_canais: number | null
           moeda: string
           nome: string
+          oferecido_ao_cliente: boolean
           padrao_no_cadastro: boolean
           preco_cents: number
           teto_ia_usd_cents: number | null
@@ -4466,6 +4473,7 @@ export type Database = {
           max_canais?: number | null
           moeda?: string
           nome: string
+          oferecido_ao_cliente?: boolean
           padrao_no_cadastro?: boolean
           preco_cents: number
           teto_ia_usd_cents?: number | null
@@ -4482,6 +4490,7 @@ export type Database = {
           max_canais?: number | null
           moeda?: string
           nome?: string
+          oferecido_ao_cliente?: boolean
           padrao_no_cadastro?: boolean
           preco_cents?: number
           teto_ia_usd_cents?: number | null
@@ -6806,6 +6815,77 @@ export type Database = {
           },
         ]
       }
+      integration_sync_state: {
+        Row: {
+          alvo_fim: string | null
+          created_at: string
+          cursor_updated_at: string | null
+          id: string
+          janela_atual_fim: string | null
+          janela_atual_ini: string | null
+          organization_id: string
+          pedidos_com_erro: number
+          pedidos_gravados: number
+          provider: string
+          resource: string
+          run_id: string | null
+          run_origem: string | null
+          status: string
+          trava_ate: string | null
+          ultimo_erro: string | null
+          ultimo_run_fim: string | null
+          updated_at: string
+        }
+        Insert: {
+          alvo_fim?: string | null
+          created_at?: string
+          cursor_updated_at?: string | null
+          id?: string
+          janela_atual_fim?: string | null
+          janela_atual_ini?: string | null
+          organization_id: string
+          pedidos_com_erro?: number
+          pedidos_gravados?: number
+          provider: string
+          resource: string
+          run_id?: string | null
+          run_origem?: string | null
+          status?: string
+          trava_ate?: string | null
+          ultimo_erro?: string | null
+          ultimo_run_fim?: string | null
+          updated_at?: string
+        }
+        Update: {
+          alvo_fim?: string | null
+          created_at?: string
+          cursor_updated_at?: string | null
+          id?: string
+          janela_atual_fim?: string | null
+          janela_atual_ini?: string | null
+          organization_id?: string
+          pedidos_com_erro?: number
+          pedidos_gravados?: number
+          provider?: string
+          resource?: string
+          run_id?: string | null
+          run_origem?: string | null
+          status?: string
+          trava_ate?: string | null
+          ultimo_erro?: string | null
+          ultimo_run_fim?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "integration_sync_state_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       idempotency_keys: {
         Row: {
           tenant_creation_trusted: boolean
@@ -8624,6 +8704,7 @@ export type Database = {
       }
       platform_branding: {
         Row: {
+          accent_dark_hex: string | null
           accent_hex: string | null
           app_name: string | null
           fallback_at: string | null
@@ -8637,6 +8718,7 @@ export type Database = {
           updated_by: string | null
         }
         Insert: {
+          accent_dark_hex?: string | null
           accent_hex?: string | null
           app_name?: string | null
           fallback_at?: string | null
@@ -8650,6 +8732,7 @@ export type Database = {
           updated_by?: string | null
         }
         Update: {
+          accent_dark_hex?: string | null
           accent_hex?: string | null
           app_name?: string | null
           fallback_at?: string | null
@@ -10710,6 +10793,16 @@ export type Database = {
         }
       }
       fn_cobranca_liberar_suspensoes: { Args: { p_ator: string | null }; Returns: number }
+      fn_cobranca_reconciliaveis: {
+        Args: never
+        Returns: { organization_id: string; relida_em: string | null; precisa_reler: boolean }[]
+      }
+      fn_cobranca_registrar_aviso: {
+        Args: { p_org: string; p_aviso: string; p_desde: string | null; p_titulo: string; p_corpo: string; p_severidade: string }
+        Returns: boolean
+      }
+      fn_cobranca_avisar_teto_de_ia: { Args: { p_org: string; p_titulo: string; p_corpo: string }; Returns: boolean }
+      fn_cobranca_suspender_se_devendo: { Args: { p_org: string; p_motivo: string }; Returns: Json }
       fn_cobranca_ligada: { Args: never; Returns: boolean }
       fn_configurar_pre_go_live_canal: {
         Args: {
@@ -10810,6 +10903,7 @@ export type Database = {
         Args: { p_job: string; p_org: string }
         Returns: boolean
       }
+      fn_gravar_pedido_externo: { Args: { p_organization_id: string; p_pedido: Json }; Returns: string }
       fn_gasto_de_ia_do_mes: { Args: { p_org: string }; Returns: number }
       fn_is_platform_admin: { Args: never; Returns: boolean }
       /** Migration 0502 — mescla campos personalizados no lead DENTRO do banco, numa única instrução atômica. */
@@ -10921,6 +11015,16 @@ export type Database = {
           version_id: string
         }[]
       }
+      fn_push_inscricoes_que_veem_a_conversa: {
+        Args: { p_org: string; p_conversation: string }
+        Returns: {
+          id: string
+          user_id: string
+          endpoint: string
+          p256dh: string
+          auth: string
+        }[]
+      }
       fn_publish_followup_flow_version: {
         Args: {
           p_created_by: string
@@ -10941,6 +11045,32 @@ export type Database = {
       fn_semear_tipos_de_agendamento: {
         Args: { p_organization_id: string }
         Returns: number
+      }
+      fn_arquivos_da_organizacao: {
+        Args: {
+          p_apos_bucket?: string
+          p_apos_nome?: string
+          p_limite?: number
+          p_org: string
+        }
+        Returns: {
+          bucket_id: string
+          name: string
+        }[]
+      }
+      fn_logins_sem_vinculo: {
+        Args: { p_users: string[] }
+        Returns: string[]
+      }
+      fn_excluir_organizacao: {
+        Args: {
+          p_actor: string
+          p_confirmacao: string
+          p_motivo: string
+          p_org: string
+          p_request_id?: string
+        }
+        Returns: Json
       }
       fn_suspender_organizacao: {
         Args: {

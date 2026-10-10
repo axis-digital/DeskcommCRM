@@ -27,6 +27,11 @@ export type Branding = {
   logoDarkUrl?: string | null;
   /** Primeira letra do nome — usada onde só cabe um caractere (sidebar recolhida). */
   initial: string;
+  /**
+   * Ícone da instalação (o arquivo subido em `/admin/marca`, o mesmo da aba),
+   * desenhado no lugar da inicial quando a sidebar está recolhida. Ausente: inicial.
+   */
+  simboloUrl?: string | null;
 };
 
 /**

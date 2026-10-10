@@ -88,6 +88,12 @@ function seedOrg(org: string, user: string, sess: string, tag: string): string {
 }
 
 beforeAll(() => {
+  // O módulo financeiro INSTALADO antes de semear (#1907, item 3): as cinco
+  // tabelas da comanda saíram do `baseline.sql` e nascem na provisionadora
+  // (ADR-0002 D2/D3). Sem esta chamada as linhas de `sales`/`sale_items` do
+  // seed morrem com `relation "sales" does not exist` — e a D8 manda a
+  // varredura rodar num banco COM o módulo, não perder a cobertura.
+  sql("select public.fn_financeiro_provisionar();");
   sql(seedOrg(ORG_A, USER_A, SESS_A, "a") + seedOrg(ORG_B, USER_B, SESS_B, "b"));
   // Contact → conversation → message + pipeline → stage → lead, per org.
   sql(`
@@ -498,6 +504,13 @@ beforeAll(() => {
                     '\\x00000000000000000000000000000000'::bytea);
         end if;
 
+        -- migration 9005 — estado da sincronização da Nuvemshop. Escrita é só do
+        -- servidor; a semente entra como superusuário e o caso mede a LEITURA.
+        if not exists (select 1 from public.integration_sync_state where organization_id = v_org) then
+          insert into public.integration_sync_state (organization_id, provider, resource)
+            values (v_org, 'nuvemshop', 'orders');
+        end if;
+
         -- migrations 0374/0375 -- a campanha e quem ela alcancou. A tabela
         -- campaigns NAO entra na lista de TABLES porque nao tem FK para
         -- contacts; as duas que guardam pessoa, sim. channel_session_id e
@@ -559,6 +572,17 @@ beforeAll(() => {
         insert into public.import_rows (organization_id, batch_id, row_number, raw_data)
           values (v_org, v_lote, 2, '{"nome": "RLS invariant"}'::jsonb)
           on conflict (batch_id, row_number) do nothing;
+
+        -- migration 0626 (#2388): a janela de manutencao de conexoes. Vazar a
+        -- linha entrega ao vizinho os horarios em que o outro vai mexer nas
+        -- conexoes dele e o canal alvo da janela — e a retomada programada
+        -- passaria a ser do vizinho. Select-then-insert, como as irmas acima.
+        if not exists (select 1 from public.channel_schedules where organization_id = v_org) then
+          insert into public.channel_schedules
+            (organization_id, channel_session_id, starts_at, ends_at)
+          values
+            (v_org, v_sess, timestamptz '2030-01-01 03:00:00+00', timestamptz '2030-01-01 05:00:00+00');
+        end if;
       end loop;
     end
     $seed$;
@@ -695,6 +719,9 @@ export const TABLES = [
   // provar isso pediria um usuário abaixo de admin escrevendo. Fica declarado
   // em vez de parecer coberto.
   "external_db_connections",
+  // migration 9005 — estado da sincronização da Nuvemshop (cursor, contagens,
+  // último erro). Leitura org-flat por qualquer membro; escrita só service_role.
+  "integration_sync_state",
   // ⚠️ `webhook_lead_captures` (migration 0174) NÃO entra nesta lista, e a
   // ausência é deliberada: a policy dela exige `manager`, e o usuário semeado
   // aqui é `agent` — o controle positivo falharia por ACERTO, e a "correção"
@@ -724,6 +751,12 @@ export const TABLES = [
   "company_people",
   "import_batches",
   "import_rows",
+  // migration 0626 (#2388) — a janela de manutenção de conexões: horários e
+  // canal alvo. Leitura org-flat (o dono enxerga as próprias janelas na tela
+  // de Conexões); a escrita é do admin e do servidor, e o cron aplica pela
+  // RPC. Vazar a linha entrega ao vizinho quando o outro vai mexer nas
+  // conexões dele — e a retomada programada passaria a ser do vizinho.
+  "channel_schedules",
   // ⚠️ `cobranca_assinaturas` (migration 0583) NÃO entra nesta lista, pelo mesmo
   // motivo de `webhook_lead_captures`: a leitura é só do `admin` e o usuário
   // semeado aqui é `agent`, então o controle positivo falharia por ACERTO. A

@@ -5,6 +5,7 @@ import { describe, expect, it, vi } from "vitest";
 vi.mock("@/lib/audit", () => ({ audit: vi.fn() }));
 
 import {
+  bodyOf,
   mediaMimeOf,
   mediaUrlOf,
   resolveMessageType,
@@ -76,5 +77,30 @@ describe("resolveMessageType", () => {
 
   it("sem type, sem message e sem mídia → text", () => {
     expect(resolveMessageType({ body: "oi" })).toBe("text");
+  });
+});
+
+describe("payload GOWS", () => {
+  it("lê texto e tipo quando o GOWS usa `_data.Message` com M maiúsculo", () => {
+    const p = {
+      id: "false_x@lid_ABC",
+      from: "59782320914646@lid",
+      fromMe: false,
+      _data: { Message: { extendedTextMessage: { text: "mensagem recebida" } } },
+    } as unknown as WahaPayload;
+
+    expect(bodyOf(p)).toBe("mensagem recebida");
+    expect(resolveMessageType(p)).toBe("text");
+  });
+
+  it("reconhece mídia GOWS sem `hasMedia` no envelope", () => {
+    const p = {
+      id: "false_x@lid_DEF",
+      from: "59782320914646@lid",
+      fromMe: false,
+      _data: { Message: { imageMessage: {} } },
+    } as unknown as WahaPayload;
+
+    expect(resolveMessageType(p)).toBe("image");
   });
 });

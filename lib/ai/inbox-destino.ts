@@ -20,6 +20,7 @@ export const REFERENCIAS_DE_AVISO = {
   contact: { tabela: "contacts", papel: "agent", rotulo: "Ver contato", href: (id: string) => `/app/contacts/${id}` },
   lead: { tabela: "crm_leads", papel: "agent", rotulo: "Abrir negócio", href: (id: string, pipelineId?: string) => `/app/pipelines/${pipelineId}?lead=${id}` },
   followup_enrollment: { tabela: "followup_enrollments", papel: "viewer", rotulo: "Abrir acompanhamento", href: (id: string) => `/app/ai/followups/enrollments/${id}` },
+  tenant_integration: { tabela: "tenant_integrations", papel: "admin", rotulo: "Revisar integração", href: () => "/app/integrations/nuvemshop" },
   channel_session: { tabela: "channel_sessions", papel: "admin", rotulo: "Revisar conexão", href: () => "/app/connections", ativo: true },
   ai_knowledge_source: { tabela: "ai_knowledge_sources", papel: "manager", rotulo: "Abrir base de conhecimento", href: () => "/app/ai/knowledge/sources" },
   agent_case: { tabela: "agent_cases", papel: "agent", rotulo: "Abrir atendimento", href: (id: string) => `/app/ai/cases?caso=${id}` },
@@ -91,6 +92,7 @@ export const POLITICAS_DE_AVISO = {
   // pausa, que é o único clique que devolve o canal ao ar. E o aviso fecha
   // sozinho quando isso acontecer.
   canal_pausado: { refs: ["channel_session"], orientacao: "Se este canal precisar voltar a operar, retome a pausa em Conexões — este aviso se resolve sozinho quando a pausa for desfeita." },
+  integracao_desautorizada: { refs: ["tenant_integration"], orientacao: "Abra a integração, desconecte e conecte de novo para devolver o acesso à loja." },
   promise_unfulfilled: { refs: ["conversation"], orientacao: "Confira o compromisso descrito e defina quem fica responsável." },
   contact_proposal_expired: { refs: ["organization"], orientacao: "A sugestão venceu. Se a informação ainda for relevante, confirme com o cliente antes de editar sua ficha." },
   conhecimento_nao_indexado: { refs: ["ai_knowledge_source"], orientacao: "Peça ao gestor para conferir o material e o motivo da falha na base de conhecimento." },
@@ -147,6 +149,25 @@ export const POLITICAS_DE_AVISO = {
     refs: [],
     orientacao: "A IA não respondeu nem vai responder sozinha às conversas que chegaram durante a suspensão: abra o Inbox e procure-as nas abas Fila e Automático. Os agendamentos e os passos de follow-up que este aviso cita também não voltam sozinhos: confira em IA › Follow-ups.",
     geral: { papel: "agent", href: "/app/inbox", rotulo: "Abrir o Inbox" },
+  },
+  // A cobrança do revendedor (spec cobrança §2.5). Os avisos da régua nascem
+  // SEM referência e vão pelo `geral`; o de 80% do teto de IA nasce com
+  // `ref_kind='plano'` e usa o ramo de `plano` do resolvedor. Os dois levam ao
+  // mesmo lugar — Plano e cobrança, onde está o "Pagar agora" — e só quem
+  // administra a empresa chega lá (a entrada do menu é `minRole: "admin"`).
+  cobranca: {
+    refs: ["plano"],
+    orientacao:
+      "Abra Plano e cobrança: lá estão o link para pagar, a troca do cartão e a troca de plano. Só quem administra a empresa vê essa tela.",
+    geral: { papel: "admin", href: "/app/settings/billing", rotulo: "Abrir plano e cobrança" },
+  },
+  // A troca do e-mail de login pelo admin da plataforma. Sem referência: o
+  // aviso não leva o id da pessoa (a Central é lida por toda a empresa), e
+  // quem precisa conferir é quem administra a equipe.
+  email_de_login_trocado: {
+    refs: [],
+    orientacao: "Confirme com a pessoa que ela reconhece a troca. Se não reconhece, fale com quem administra o servidor.",
+    geral: { papel: "admin", href: "/app/team", rotulo: "Abrir a equipe" },
   },
   other: { refs: ["lead", "channel_session", "appointment", "ai_agent", "ai_provider_credential", "agent_case"], orientacao: "Confira a situação descrita neste aviso com a pessoa responsável." },
 } satisfies Record<InboxKind, Politica>;

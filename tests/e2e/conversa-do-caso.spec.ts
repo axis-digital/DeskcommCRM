@@ -170,7 +170,12 @@ async function definirVisibilidade(modo: "all" | "own_and_unassigned" | "own" | 
     .eq("id", creds.org_id)
     .single();
   if (error) throw new Error(`não consegui ler settings da org: ${error.message}`);
-  const settings = { ...(((data as { settings: Record<string, unknown> }).settings ?? {}) as Record<string, unknown>) };
+  const settings = {
+    ...(((data as { settings: Record<string, unknown> }).settings ?? {}) as Record<
+      string,
+      unknown
+    >),
+  };
   if (modo === null) delete settings.visibility_mode;
   else settings.visibility_mode = modo;
   const { error: erroEscrita } = await admin
@@ -240,9 +245,7 @@ test.describe("conversar com a IA que abriu o caso", () => {
 
     // O aviso permanente que impede o pior modo de falha de leitura — alguém
     // achar que perguntar aqui manda mensagem ao cliente.
-    await expect(
-      chat.getByText(/Conversa interna\. O cliente não vê nada disto/),
-    ).toBeVisible();
+    await expect(chat.getByText(/Conversa interna\. O cliente não vê nada disto/)).toBeVisible();
 
     // O AVISO DE PERSONA. O caso do cenário nasce por `openCase` sem agente
     // ligado, então quem responde é o assistente padrão da organização — e a
@@ -253,9 +256,7 @@ test.describe("conversar com a IA que abriu o caso", () => {
       chat.getByText(/A IA que abriu este caso não está mais no ar/),
       "o painel tem de declarar QUEM está respondendo quando não é o agente do caso",
     ).toBeVisible();
-    await expect(
-      chat.getByText(/assistente padrão da organização/),
-    ).toBeVisible();
+    await expect(chat.getByText(/assistente padrão da organização/)).toBeVisible();
 
     // ─── 2. a sugestão PREENCHE, nunca envia ──────────────────────────────
     const campo = chat.getByTestId("case-chat-campo");
@@ -301,8 +302,12 @@ test.describe("conversar com a IA que abriu o caso", () => {
     // ─── 5. MEDIDA POR FERRAMENTA, não a olho ─────────────────────────────
     const medida = await page.evaluate(() => {
       const painel = document.querySelector('[data-testid="case-chat"]') as HTMLElement | null;
-      const botao = document.querySelector('[data-testid="case-chat-enviar"]') as HTMLElement | null;
-      const campoEl = document.querySelector('[data-testid="case-chat-campo"]') as HTMLElement | null;
+      const botao = document.querySelector(
+        '[data-testid="case-chat-enviar"]',
+      ) as HTMLElement | null;
+      const campoEl = document.querySelector(
+        '[data-testid="case-chat-campo"]',
+      ) as HTMLElement | null;
       if (!painel || !botao || !campoEl) return null;
       const r = painel.getBoundingClientRect();
       const rb = botao.getBoundingClientRect();
@@ -336,8 +341,9 @@ test.describe("conversar com a IA que abriu o caso", () => {
     expect(m.rolagemHorizontal, "página com rolagem horizontal").toBeLessThanOrEqual(0);
     // A fonte e a cor são as do PRODUTO, não as do sistema: um botão em
     // Helvetica cinza é o sintoma de tema não carregado, e ele passa
-    // despercebido em screenshot.
-    expect(m.botao.fonte).toMatch(/Atkinson/i);
+    // despercebido em screenshot. Este fork carrega o tema Axis (axis-theme.css,
+    // app/layout.tsx) que redefine a tipografia para Inter/axisBody — não Atkinson.
+    expect(m.botao.fonte).toMatch(/axisBody|Atkinson/i);
     expect(m.botao.fundo).toMatch(/^rgba?\(/);
     expect(m.botao.fundo).not.toBe("rgba(0, 0, 0, 0)");
 

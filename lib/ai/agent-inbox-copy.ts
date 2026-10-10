@@ -57,6 +57,7 @@ export const KIND_LABEL = {
   // mensagens" é o que muda para quem estava esperando mensagem neste canal —
   // e é a frase que faz quem lê no outro turno abrir o item.
   canal_pausado: "Um canal foi pausado — não recebe nem envia mensagens",
+  integracao_desautorizada: "A loja Nuvemshop revogou o acesso — os pedidos pararam de sincronizar",
   // Diz o que o CLIENTE está esperando, não o que o sistema deixou de gravar.
   // "Promessa não cumprida" é a única frase que faz o dono do negócio agir: do
   // lado de lá existe uma pessoa que ouviu um compromisso e está aguardando.
@@ -111,6 +112,9 @@ export const KIND_LABEL = {
   // "há agendamentos e follow-ups para revisar"), e o rótulo não promete nenhum
   // dos dois: o que parou está no corpo; o que fazer, na orientação.
   org_reativada: "A conta foi reativada — há o que revisar",
+  // Régua de cobrança ou teto de IA do plano: quem resolve é o admin, em Plano e cobrança.
+  cobranca: "Plano e cobrança da empresa precisam de atenção",
+  email_de_login_trocado: "O e-mail de login de uma pessoa da equipe foi trocado",
   other: "Aviso do assistente",
 } as const satisfies Record<InboxKind, string>;
 
