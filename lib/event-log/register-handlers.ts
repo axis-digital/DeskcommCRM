@@ -29,6 +29,7 @@ import { conversaoDeEtapaMetaHandler } from "@/lib/conversoes/etapa-meta.handler
 import { conversaoGa4Handler } from "@/lib/conversoes/ga4.handler";
 import { conversaoDeVendaHandler } from "@/lib/conversoes/envio.handler";
 import { avisoDeEtapaHandler } from "@/lib/leads/aviso-de-etapa.handler";
+import { avisoAoDonoDaCarteira } from "@/lib/carteira/aviso-ao-dono";
 import { comandaDoGanhoHandler } from "@/lib/financeiro/comanda-do-ganho.handler";
 import { avisoDeCasoAoSuporteHandler } from "@/lib/escalacao/aviso-ao-suporte.handler";
 import { avisoDePropostaNoWhatsAppHandler } from "@/lib/propostas/aviso-no-whatsapp.handler";
@@ -64,6 +65,10 @@ export function ensureHandlersRegistered(): void {
   // Escrita curta no banco (um item na Central), vizinha do gatilho de etapa
   // que consome o mesmo evento.
   registerHandler(avisoDeEtapaHandler);
+  // Aviso ao vendedor dono (#2591): escrita curta no banco (uma tarefa com
+  // push ao responsável), ao lado do outro consumidor que só escreve, e antes
+  // de tudo que sai por rede de terceiro.
+  registerHandler(avisoAoDonoDaCarteira);
   registerHandler(followupGatilhoLeadHandler);
   registerHandler(followupGatilhoCasoHandler);
   // O caso aberto na Central, na hora — escrita curta no banco (um item), ao
