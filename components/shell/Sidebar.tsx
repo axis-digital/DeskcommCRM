@@ -179,7 +179,12 @@ export function SidebarContent({
         ) : (
           <span className={cn("font-semibold tracking-tight", collapsed && "sr-only")}>{nome}</span>
         )}
-        {collapsed && !marcaDoProduto && (
+        {collapsed && !marcaDoProduto && brand.simboloUrl ? (
+          // O símbolo da marca (o ícone subido em /admin/marca) no lugar da inicial.
+          // eslint-disable-next-line @next/next/no-img-element
+          <img src={brand.simboloUrl} alt="" aria-hidden className="h-8 w-8 rounded-md object-contain" />
+        ) : null}
+        {collapsed && !marcaDoProduto && !brand.simboloUrl && (
           <span aria-hidden className="text-lg font-bold text-primary">
             {/* Spread e não `[0]`: nome começando com emoji ou acento composto
                 quebraria no meio do code point. Mesma regra de `resolveBranding`

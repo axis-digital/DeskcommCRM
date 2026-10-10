@@ -244,7 +244,16 @@ unset _deskcomm_chamador
 #
 # Todo `docker compose` do kit passa por aqui: com proxy externo, um comando sem
 # o override subiria o Caddy e ele iria bater de frente com o proxy da hospedagem.
+# COMPOSE_EXTRA_FILES (opcional, no .env): overrides locais da instalação,
+# separados por espaço, acrescentados DEPOIS dos do kit em todo comando. Vazio
+# = comportamento de sempre.
+compose_extra_args() {
+  local f
+  for f in ${COMPOSE_EXTRA_FILES:-}; do printf -- '-f\n%s\n' "$f"; done
+}
 dc() {
+  local -a extra=()
+  mapfile -t extra < <(compose_extra_args)
   # Overlay da CA do Supabase (#829): só com a variável declarada, o arquivo da
   # CA existindo no disco (ca_do_supabase_ok) E o overlay no MESMO checkout — o
   # install.sh chama dc() antes do clone, e um -f apontando para arquivo que
@@ -260,16 +269,16 @@ dc() {
     # estava lá. Junta os dois: o overlay do proxy vem DEPOIS do overlay do
     # single-server, e o padrão (sem a variável) continua só o single-server.
     case "${REVERSE_PROXY:-caddy}" in
-    traefik) docker compose -f "$COMPOSE" -f docker-compose.single-server.yml -f "$COMPOSE_TRAEFIK" ${ca[@]+"${ca[@]}"} "$@" ;;
-    npm)     docker compose -f "$COMPOSE" -f docker-compose.single-server.yml -f "$COMPOSE_NPM" ${ca[@]+"${ca[@]}"} "$@" ;;
-    *)       docker compose -f "$COMPOSE" -f docker-compose.single-server.yml ${ca[@]+"${ca[@]}"} "$@" ;;
+    traefik) docker compose -f "$COMPOSE" -f docker-compose.single-server.yml -f "$COMPOSE_TRAEFIK" ${ca[@]+"${ca[@]}"} ${extra[@]+"${extra[@]}"} "$@" ;;
+    npm)     docker compose -f "$COMPOSE" -f docker-compose.single-server.yml -f "$COMPOSE_NPM" ${ca[@]+"${ca[@]}"} ${extra[@]+"${extra[@]}"} "$@" ;;
+    *)       docker compose -f "$COMPOSE" -f docker-compose.single-server.yml ${ca[@]+"${ca[@]}"} ${extra[@]+"${extra[@]}"} "$@" ;;
     esac
     return
   fi
   case "${REVERSE_PROXY:-caddy}" in
-  traefik) docker compose -f "$COMPOSE" -f "$COMPOSE_TRAEFIK" ${ca[@]+"${ca[@]}"} "$@" ;;
-  npm)     docker compose -f "$COMPOSE" -f "$COMPOSE_NPM" ${ca[@]+"${ca[@]}"} "$@" ;;
-  *)       docker compose -f "$COMPOSE" ${ca[@]+"${ca[@]}"} "$@" ;;
+  traefik) docker compose -f "$COMPOSE" -f "$COMPOSE_TRAEFIK" ${ca[@]+"${ca[@]}"} ${extra[@]+"${extra[@]}"} "$@" ;;
+  npm)     docker compose -f "$COMPOSE" -f "$COMPOSE_NPM" ${ca[@]+"${ca[@]}"} ${extra[@]+"${extra[@]}"} "$@" ;;
+  *)       docker compose -f "$COMPOSE" ${ca[@]+"${ca[@]}"} ${extra[@]+"${extra[@]}"} "$@" ;;
   esac
 }
 
@@ -277,6 +286,8 @@ dc() {
 # dono. Se a mensagem omitisse o override numa instalação com proxy externo, o
 # próprio dono derrubaria o site seguindo a instrução do kit.
 dc_files() {
+  local f extra=""
+  for f in ${COMPOSE_EXTRA_FILES:-}; do extra="$extra -f $f"; done
   # Mesma condição do dc() (#829): a mensagem que ensina o comando tem de
   # carregar o overlay da CA quando o kit mesmo o usaria — sem isso o dono
   # refaz o `up -d` sem a CA e o app volta a sem-verificação.
@@ -289,16 +300,16 @@ dc_files() {
     # realmente roda, ou a mensagem ensinaria o dono a omitir o overlay do
     # proxy e o próprio dono derrubaria o site seguindo a instrução do kit.
     case "${REVERSE_PROXY:-caddy}" in
-    traefik) printf -- '-f %s -f %s -f %s%s' "$COMPOSE" docker-compose.single-server.yml "$COMPOSE_TRAEFIK" "$sufixo" ;;
-    npm)     printf -- '-f %s -f %s -f %s%s' "$COMPOSE" docker-compose.single-server.yml "$COMPOSE_NPM" "$sufixo" ;;
-    *)       printf -- '-f %s -f %s%s' "$COMPOSE" docker-compose.single-server.yml "$sufixo" ;;
+    traefik) printf -- '-f %s -f %s -f %s%s' "$COMPOSE" docker-compose.single-server.yml "$COMPOSE_TRAEFIK" "$sufixo$extra" ;;
+    npm)     printf -- '-f %s -f %s -f %s%s' "$COMPOSE" docker-compose.single-server.yml "$COMPOSE_NPM" "$sufixo$extra" ;;
+    *)       printf -- '-f %s -f %s%s' "$COMPOSE" docker-compose.single-server.yml "$sufixo$extra" ;;
     esac
     return
   fi
   case "${REVERSE_PROXY:-caddy}" in
-  traefik) printf -- '-f %s -f %s%s' "$COMPOSE" "$COMPOSE_TRAEFIK" "$sufixo" ;;
-  npm)     printf -- '-f %s -f %s%s' "$COMPOSE" "$COMPOSE_NPM" "$sufixo" ;;
-  *)       printf -- '-f %s%s' "$COMPOSE" "$sufixo" ;;
+  traefik) printf -- '-f %s -f %s%s' "$COMPOSE" "$COMPOSE_TRAEFIK" "$sufixo$extra" ;;
+  npm)     printf -- '-f %s -f %s%s' "$COMPOSE" "$COMPOSE_NPM" "$sufixo$extra" ;;
+  *)       printf -- '-f %s%s' "$COMPOSE" "$sufixo$extra" ;;
   esac
 }
 
@@ -631,6 +642,10 @@ atualizar_supabase_single_server() {
   dir="$(dir_do_supabase)"
   [ -f "$dir/.env" ] || { c_red "⛔ $(t "Modo single-server sem {1}/.env — rode install-single-server.sh." "$dir")"; return 1; }
   cp "$KIT_DIR/supabase-single-server.override.yml" "$dir/docker-compose.deskcomm.yml" || return 1
+  # O terceiro arquivo (Traefik em bridge) só existe em quem instalou com ele.
+  if [ -f "$dir/docker-compose.deskcomm-traefik.yml" ]; then
+    cp "$KIT_DIR/supabase-single-server.traefik.yml" "$dir/docker-compose.deskcomm-traefik.yml" || return 1
+  fi
   set_env_var "$dir/.env" COMPOSE_PROJECT_NAME "$(projeto_do_supabase)"
   atual="$(sed -n 's/^ref=//p' "$dir/.supabase-version" 2>/dev/null | tail -1)"
   if [ "$atual" != "$SUPABASE_REF" ]; then
