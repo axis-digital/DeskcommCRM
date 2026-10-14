@@ -127,6 +127,13 @@ export const GATILHOS_DO_TRIGGER_DE_LEAD = [
  *
  * ponytail: veto inteiro, não detecção de laço. Cai quando o item 5 da #1528
  * existir (GUC `app.caused_by_rule` copiada pelo trigger para `metadata`).
+ *
+ * A EXCEÇÃO é a continuação do ganho (#2769), tratada em
+ * `acoesQueFechamLaco`: em `lead.won` a ação que a regra DECLARA só tem uma
+ * moda — criar o card no funil de pós-venda, sem tocar no negócio que ganhou.
+ * Quem garante isso é a própria ação (`lib/automation/actions/create-or-move-lead.ts`
+ * recusa `lead.won` no MESMO funil); aqui é só a porta que deixa a regra ser
+ * criada e a tela oferecer o passo.
  */
 export const ACOES_QUE_REGRAVAM_O_LEAD = ["assign_owner", "create_or_move_lead"] as const;
 
@@ -167,7 +174,26 @@ export function acoesQueFechamLaco(
   actions: readonly { type: string; config?: Record<string, unknown> }[] | undefined,
 ): string[] {
   if (!triggerEvent || !(GATILHOS_DO_TRIGGER_DE_LEAD as readonly string[]).includes(triggerEvent)) return [];
-  return tiposDeAcao(actions).filter((t) => (ACOES_QUE_REGRAVAM_O_LEAD as readonly string[]).includes(t));
+  const fecham: string[] = [];
+  for (const acao of actions ?? []) {
+    // A EXCEÇÃO #2769: a porta do ganho. Em `lead.won`, `create_or_move_lead`
+    // declarada NA PRÓPRIA regra é a continuação do negócio para o funil de
+    // pós-venda — ela cria um card NOVO e não escreve no negócio ganho, então o
+    // laço que a #1528 vetou não existe aqui. É a ação que recusa `lead.won` no
+    // MESMO funil, então o caminho "mover o recém-ganho" continua fechado.
+    //
+    // O alvo é ESTREITO de propósito: vale quando a regra declara a ação com o
+    // funil visível no editor. `ai_decide` que ESCOLHE mover fica de fora — o
+    // alvo mora dentro de `config.opcoes`, o modelo decide em tempo de execução
+    // e a recusa da #1528 continua valendo para o par. Ampliar é medir antes.
+    const ehContinuacaoDoGanho = acao.type === "create_or_move_lead" && triggerEvent === "lead.won";
+    for (const tipo of tiposDeAcao([acao])) {
+      if (!(ACOES_QUE_REGRAVAM_O_LEAD as readonly string[]).includes(tipo)) continue;
+      if (ehContinuacaoDoGanho && tipo === "create_or_move_lead") continue;
+      fecham.push(tipo);
+    }
+  }
+  return fecham;
 }
 
 function recusarLacoDeLead(
