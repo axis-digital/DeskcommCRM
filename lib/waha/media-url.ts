@@ -12,7 +12,11 @@
  * não pelo host. URL de outro domínio passa intacta, e nada aqui lança — o
  * pior caso é o comportamento de antes.
  */
-export function reescreverOrigemDaMidia(url: string, origemPublica: string, baseInterna: string): string {
+export function reescreverOrigemDaMidia(
+  url: string,
+  origemPublica: string,
+  baseInterna: string,
+): string {
   if (!baseInterna.trim()) return url;
   try {
     const alvo = new URL(url);

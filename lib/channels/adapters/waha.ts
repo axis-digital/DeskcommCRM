@@ -147,7 +147,10 @@ export const wahaAdapter: ChannelAdapter = {
    * `check-exists` nas duas grafias do nono dígito; só JID de telefone serve
    * (ver `phoneJidDigitsFromCheckResult`). Transporte não configurado é `null`.
    */
-  async resolveRegisteredPhone(input: { sessionRef: string; phone: string }): Promise<string | null> {
+  async resolveRegisteredPhone(input: {
+    sessionRef: string;
+    phone: string;
+  }): Promise<string | null> {
     const client = getWahaClient();
     if (!client) return null;
     return resolvePhoneJidDigitsForCall(client, input.sessionRef, input.phone);
