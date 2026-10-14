@@ -3,6 +3,7 @@ import { useMutation } from "@tanstack/react-query";
 
 import { showApiError } from "@/components/feedback/ApiErrorToast";
 import { ApiError, type ApiErrorBody } from "@/lib/api/types";
+import { comprimirImagemParaEnvio } from "@/lib/messaging/media/comprimir-imagem-no-navegador";
 
 export interface UploadedMedia {
   storage_path: string;
@@ -31,11 +32,17 @@ export function useUploadMedia() {
       filename?: string;
       destino?: DestinoDoUpload;
     }) => {
+      // Só a resposta ao cliente é comprimida: nota interna é registro da
+      // equipe e guarda o arquivo como veio. Ver `compressao-de-imagem.ts`.
+      const arquivo =
+        args.destino !== "nota" && args.file instanceof File
+          ? await comprimirImagemParaEnvio(args.file)
+          : args.file;
       const form = new FormData();
       form.append(
         "file",
-        args.file,
-        args.filename ?? (args.file instanceof File ? args.file.name : "audio"),
+        arquivo,
+        args.filename ?? (arquivo instanceof File ? arquivo.name : "audio"),
       );
       const rota = args.destino === "nota" ? "notes/media" : "media";
       const res = await fetch(`/api/v1/conversations/${args.conversationId}/${rota}`, {
