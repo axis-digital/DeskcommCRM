@@ -8922,6 +8922,8 @@ export const DICIONARIO: Traducoes = {
   "convite(s) enviado(s)": { es: "invitación(es) enviada(s)" },
   "falha(s).": { es: "falla(s)." },
   "Enviando…": { es: "Enviando…" },
+  "Não enviada": { es: "No enviada" },
+  "Não foi possível enviar. Verifique a conexão.": { es: "No se pudo enviar. Verifica la conexión." },
   "Enviar convites": { es: "Enviar invitaciones" },
   "Enviados": { es: "Enviados" },
   "Email enviado.": { es: "Correo enviado." },

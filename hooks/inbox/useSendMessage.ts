@@ -4,6 +4,7 @@ import { apiClient } from "@/lib/api/client";
 import { randomId } from "@/lib/random-id";
 import { showApiError } from "@/components/feedback/ApiErrorToast";
 import type { Message } from "@/lib/types/messaging";
+import { colocarMensagemNoCache, type MessagesPage } from "@/hooks/inbox/cacheDasMensagens";
 
 interface SendArgs {
   conversation_id: string;
@@ -24,11 +25,6 @@ interface SendArgs {
   /** A mensagem citada — id da NOSSA linha; o handler traduz para o do canal. */
   reply_to_message_id?: string;
   metadata?: Record<string, unknown>;
-}
-
-interface MessagesPage {
-  data: Message[];
-  meta?: { cursor?: string | null; has_more?: boolean };
 }
 
 export function useSendMessage() {
@@ -95,19 +91,7 @@ export function useSendMessage() {
       return { tempId };
     },
     onSuccess: (result, args, context) => {
-      const real = result.data;
-      const queryKey = ["messages", args.conversation_id];
-      qc.setQueryData<InfiniteData<MessagesPage>>(queryKey, (old) => {
-        if (!old || old.pages.length === 0) return old;
-        // O Realtime pode ter buscado a mensagem real antes da resposta do
-        // POST. Remover ambas as cópias antes de inseri-la evita duplicação.
-        const pages = old.pages.map((page) => ({
-          ...page,
-          data: page.data.filter((m) => m.id !== context?.tempId && m.id !== real.id),
-        }));
-        pages[0] = { ...pages[0]!, data: [...pages[0]!.data, real] };
-        return { ...old, pages };
-      });
+      colocarMensagemNoCache(qc, args.conversation_id, result.data, context?.tempId);
     },
     onError: (err, args, context) => {
       if (context?.tempId) {
