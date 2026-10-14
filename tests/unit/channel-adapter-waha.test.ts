@@ -288,6 +288,43 @@ describe('adapter WAHA', () => {
   });
 
   /**
+   * Hairpin: o WAHA baixa a URL assinada antes de enviar, e num servidor em que
+   * container não alcança o IP público do próprio host o `sendImage` estourava
+   * 30s em TODO envio (VPS medida em 2026-10-14). `WAHA_MEDIA_BASE_URL` dá ao WAHA a
+   * origem interna; só a origem muda, caminho e token seguem iguais.
+   */
+  describe('WAHA_MEDIA_BASE_URL', () => {
+    const PUBLICA = 'https://crm.exemplo.com.br';
+    const ASSINADA = `${PUBLICA}/storage/v1/object/sign/whatsapp-media/o/c/a.png?token=t0k`;
+
+    async function enviarImagem() {
+      const fetchMock = stubWaha({ key: { id: 'IMG1' } });
+      vi.stubEnv('NEXT_PUBLIC_SUPABASE_URL', PUBLICA);
+      await getAdapter('waha').send({
+        organizationId: ORG,
+        sessionRef: 'default',
+        to: '5531999998888@c.us',
+        kind: 'image',
+        media: { url: ASSINADA, mime: 'image/png' },
+      });
+      const call = fetchMock.mock.calls.find(([url]) => String(url).includes('/api/sendImage'));
+      return JSON.parse(String((call![1] as RequestInit).body)).file.url as string;
+    }
+
+    it('configurada: o WAHA recebe a URL pela origem interna, com o mesmo caminho e token', async () => {
+      vi.stubEnv('WAHA_MEDIA_BASE_URL', 'http://caddy');
+      expect(await enviarImagem()).toBe(
+        'http://caddy/storage/v1/object/sign/whatsapp-media/o/c/a.png?token=t0k',
+      );
+    });
+
+    it('vazia: o WAHA recebe a URL assinada como veio', async () => {
+      vi.stubEnv('WAHA_MEDIA_BASE_URL', '');
+      expect(await enviarImagem()).toBe(ASSINADA);
+    });
+  });
+
+  /**
    * ─── O que estes casos custaram ────────────────────────────────────────────
    *
    * Numa VPS de produção, uma segunda cópia do repo recriou o contêiner do WAHA
