@@ -3438,6 +3438,7 @@
   "O evento que disparou a regra não trouxe um lead nem um contato para etiquetar.": "The event that triggered the rule didn't include a lead or a contact to tag.",
   "O evento que disparou a regra não trouxe um lead para criar ou mover.": "The event that triggered the rule didn't include a lead to create or move.",
   "Mover um lead para outro funil está desligado nesta organização.": "Moving a lead to another pipeline is turned off in this organization.",
+  "A continuação de um negócio ganho só nasce em OUTRO funil. Aponte esta ação para o funil de pós-venda — nada foi movido.": "A won deal's continuation is only born in ANOTHER pipeline. Point this action at the post-sale pipeline — nothing was moved.",
   "Outra regra deste mesmo evento já levou o lead para outro funil. Vale a primeira regra; esta não transfere de novo.": "Another rule for this same event already moved the lead to another pipeline. The first rule wins; this one doesn't transfer it again.",
   "O funil escolhido não está ativo, então a inscrição não foi feita. Ative o funil ou escolha outro na automação.": "The chosen pipeline isn't active, so the enrollment wasn't made. Activate the pipeline or choose another one in the automation.",
   "O contato já está em um funil ativo — esta ação não inscreve duas vezes.": "The contact is already in an active pipeline — this action doesn't enroll them twice.",
