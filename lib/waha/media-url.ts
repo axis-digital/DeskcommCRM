@@ -4,9 +4,9 @@
  * A URL assinada do Storage nasce com a base PÚBLICA (`NEXT_PUBLIC_SUPABASE_URL`),
  * e o WAHA precisa baixá-la antes de responder ao `sendImage`/`sendFile`. Num
  * servidor que não faz hairpin — container chamando o IP público do próprio
- * host —, a conexão nunca abre: medido na Axis em 2026-10-14, todo envio de
+ * host —, a conexão nunca abre: medido numa VPS em 2026-10-14, todo envio de
  * mídia pelo CRM estourava o teto de 30s (`waha_timeout`), enquanto o mesmo
- * caminho pelo Caddy interno respondia em 2ms.
+ * caminho pelo proxy interno respondia em 2ms.
  *
  * Só a ORIGEM muda: a assinatura do Storage vale pelo caminho e pelo `token`,
  * não pelo host. URL de outro domínio passa intacta, e nada aqui lança — o

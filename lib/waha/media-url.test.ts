@@ -2,13 +2,13 @@ import { describe, it, expect } from "vitest";
 
 import { reescreverOrigemDaMidia as reescrever } from "./media-url";
 
-const PUBLICA = "https://deskcomm.axisaceleradora.com.br";
+const PUBLICA = "https://crm.exemplo.com.br";
 const ASSINADA = `${PUBLICA}/storage/v1/object/sign/whatsapp-media/org/conv/a.png?token=abc.def-_x`;
 
 describe("reescreverOrigemDaMidia", () => {
   it("troca só a origem e preserva caminho e token byte a byte", () => {
-    expect(reescrever(ASSINADA, PUBLICA, "http://deskcommcrm-caddy-1")).toBe(
-      "http://deskcommcrm-caddy-1/storage/v1/object/sign/whatsapp-media/org/conv/a.png?token=abc.def-_x",
+    expect(reescrever(ASSINADA, PUBLICA, "http://caddy-interno")).toBe(
+      "http://caddy-interno/storage/v1/object/sign/whatsapp-media/org/conv/a.png?token=abc.def-_x",
     );
   });
 
