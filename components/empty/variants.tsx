@@ -1,23 +1,19 @@
 "use client";
 
 import {
-  ChatCircle,
-  Kanban,
-  UsersThree,
-  ListMagnifyingGlass,
-  Funnel,
   ArrowsLeftRight,
-  Key,
+  CalendarBlank,
+  ChatCircle,
   ClockCounterClockwise,
+  Funnel,
   GitBranch,
+  Kanban,
+  Key,
+  MagnifyingGlass,
   Users,
-} from "@phosphor-icons/react";
+  UsersThree,
+} from "@/lib/ui/icons";
 import { useT } from "@/hooks/i18n/useT";
-// Do barril, e não do `@phosphor-icons/react` que as linhas acima usam: a regra
-// (ADR-05) é o barril, e 116 arquivos a seguem. O import de cima é dívida
-// anterior a esta feature — replicá-la para ficar "consistente com o arquivo"
-// espalharia o problema em vez de parar de crescê-lo.
-import { CalendarBlank } from "@/lib/ui/icons";
 import { EmptyState, type EmptyStateAction } from "./EmptyState";
 
 interface VariantProps {
@@ -70,7 +66,7 @@ export function EmptyAudit({ primary, secondary }: VariantProps = {}) {
   const t = useT();
   return (
     <EmptyState
-      icon={ListMagnifyingGlass}
+      icon={MagnifyingGlass}
       headline={t("Sem eventos no período")}
       subcopy={t("Ajuste o filtro de datas ou a busca pra ver eventos.")}
       primary={primary}

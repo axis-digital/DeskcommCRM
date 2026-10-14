@@ -54,7 +54,7 @@ Seção que não responde nenhuma delas sai do plano.
 ## 2. Restrições não-negociáveis
 
 **Do design system** (`09-anti-patterns.md`):
-Atkinson Hyperlegible + IBM Plex Mono · sem Inter/Geist · **sem gradiente roxo/azul/rosa** · botão primário sólido Sage `#67885d` · sem glassmorphism · Phosphor duotone (nunca Lucide, nunca ícone Sparkles para IA — usar `Brain`) · fundo `#faf9f6`, nunca branco puro · sombras `rgba(20,18,14,X)`, nunca preto puro · sem `transition: all`.
+Atkinson Hyperlegible + IBM Plex Mono · sem Inter/Geist · **sem gradiente roxo/azul/rosa** · botão primário sólido Sage `#67885d` · sem glassmorphism · Axis/Lucide outline com traço de 1,75px (para IA, usar `Brain`; `Sparkle` só para sugestão criativa) · fundo `#faf9f6`, nunca branco puro · sombras `rgba(20,18,14,X)`, nunca preto puro · sem `transition: all`.
 
 **Do GEO** (pesquisa de 27/07):
 Renderização no servidor obrigatória — **nenhum crawler de IA executa JavaScript**. Todo o conteúdo textual existe no HTML servido; o scrollytelling é camada por cima. `<html lang="pt-BR">`, `og:locale=pt_BR`, hreflang no `<head>`. Data de atualização visível na página.
