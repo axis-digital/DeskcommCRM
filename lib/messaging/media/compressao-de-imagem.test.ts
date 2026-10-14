@@ -10,7 +10,7 @@ import {
 } from "./compressao-de-imagem";
 
 describe("deveTentarComprimir", () => {
-  it("PNG grande entra — é o caso medido: 1,7 MB, 4,6s no WAHA", () => {
+  it("PNG grande entra — é o caso medido: 1,7 MB, 4,6s no canal", () => {
     expect(deveTentarComprimir("image/png", 1_754_514)).toBe(true);
   });
 

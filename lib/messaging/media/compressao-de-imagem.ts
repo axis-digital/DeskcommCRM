@@ -2,7 +2,7 @@
  * A REGRA da compressão de imagem antes do upload da Inbox — sem canvas.
  *
  * Medido em produção em 2026-10-14: um PNG de 1,7 MB levava 4,6s só no
- * `sendImage` do WAHA (que baixa, decodifica, gera a miniatura e sobe ao CDN do
+ * envio de imagem do canal (que baixa, decodifica, gera a miniatura e sobe ao CDN do
  * WhatsApp), contra 2,2s de um documento de 8 MB, que vai sem processamento. O
  * WhatsApp recomprime a imagem de qualquer jeito, então mandar o original não
  * preserva qualidade nenhuma para quem recebe — só custa tempo a quem atende.
