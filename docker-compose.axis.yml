@@ -14,6 +14,11 @@ x-waha-externo: &waha-externo
   # Docker daqui não faz hairpin ao IP público (firewall): o servidor fala com o
   # Supabase pela rede privada, sem passar pelo Traefik.
   SUPABASE_SERVER_URL: http://supabase-envoy:8000
+  # O `wa-ha` é externo a este compose e só está em network_public — não alcança
+  # supabase-envoy (rede deskcommcrm_supabase). Reescreve a origem da mídia pro
+  # Caddy deste stack, que TAMBÉM está em network_public e já proxia /storage/v1*
+  # pro Envoy (Caddyfile.axis): mesma rede, sem hairpin ao domínio público.
+  WAHA_MEDIA_BASE_URL: http://caddy:80
 
 services:
   app:
