@@ -31,7 +31,8 @@ const fila = criarFilaDeEnvios();
 const PRAZO_DO_ENVIO_MS = 60_000;
 
 const deps: DepsDoEnvio = {
-  subir: ({ conversationId, arquivo }) => subirMidia({ conversationId, file: arquivo, destino: "mensagem" }),
+  subir: ({ conversationId, arquivo }) =>
+    subirMidia({ conversationId, file: arquivo, destino: "mensagem" }),
   enviar: async (corpo, chave) =>
     (
       await apiClient.post<{ data: Message }>("/api/v1/messages", corpo, {
@@ -64,7 +65,11 @@ export function useEnviosDeMidia(conversationId: string | null) {
       fila.atualizar(envio.id, { fase: "enviando", erro: null });
       const desfecho = await executarEnvio(envio, deps);
       if (!desfecho.ok) {
-        fila.atualizar(envio.id, { fase: "falhou", erro: motivoDaFalha(desfecho.erro), subido: desfecho.subido });
+        fila.atualizar(envio.id, {
+          fase: "falhou",
+          erro: motivoDaFalha(desfecho.erro),
+          subido: desfecho.subido,
+        });
         return;
       }
       // A linha real entra no cache e a local sai no MESMO tique: o React
@@ -79,7 +84,9 @@ export function useEnviosDeMidia(conversationId: string | null) {
 
   const enviar = useCallback(
     (args: { conversationId: string; arquivo: File; legenda: string }) => {
-      const previa = /^(image|video)\//.test(args.arquivo.type) ? URL.createObjectURL(args.arquivo) : null;
+      const previa = /^(image|video)\//.test(args.arquivo.type)
+        ? URL.createObjectURL(args.arquivo)
+        : null;
       const envio = novoEnvio({ ...args, id: randomId(), previa, agora: new Date().toISOString() });
       fila.adicionar(envio);
       void rodar(envio);

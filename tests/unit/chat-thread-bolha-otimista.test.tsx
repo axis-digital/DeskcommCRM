@@ -128,8 +128,15 @@ describe("ChatThread — bolha otimista do anexo", () => {
     estado.pendentes = [envio("k-1")];
     render(<ChatThread conversationId="c-1" />, { wrapper });
 
-    const bolhas = [...document.querySelectorAll('[data-testid="message-bubble"], [data-testid="bolha-de-envio-local"]')];
-    expect(bolhas.map((b) => b.getAttribute("data-testid"))).toEqual(["message-bubble", "bolha-de-envio-local"]);
+    const bolhas = [
+      ...document.querySelectorAll(
+        '[data-testid="message-bubble"], [data-testid="bolha-de-envio-local"]',
+      ),
+    ];
+    expect(bolhas.map((b) => b.getAttribute("data-testid"))).toEqual([
+      "message-bubble",
+      "bolha-de-envio-local",
+    ]);
     expect(screen.getByText("proposta.pdf")).toBeInTheDocument();
   });
 
@@ -142,7 +149,9 @@ describe("ChatThread — bolha otimista do anexo", () => {
   });
 
   it("chegou a linha real com a marca da bolha: a local some — o anexo não aparece em dobro", () => {
-    estado.mensagens = [msg("m-real", { type: "document", body: "segue", metadata: { envio_local: "k-1" } })];
+    estado.mensagens = [
+      msg("m-real", { type: "document", body: "segue", metadata: { envio_local: "k-1" } }),
+    ];
     estado.pendentes = [envio("k-1")];
     render(<ChatThread conversationId="c-1" />, { wrapper });
 

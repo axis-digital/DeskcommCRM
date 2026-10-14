@@ -20,7 +20,12 @@ vi.mock("@/lib/api/client", () => ({
 
 import { useEnviosDeMidia } from "./useEnviosDeMidia";
 
-const SUBIDO = { storage_path: "org/conv-1/a.jpg", media_mime: "image/jpeg", media_size_bytes: 3, kind: "image" };
+const SUBIDO = {
+  storage_path: "org/conv-1/a.jpg",
+  media_mime: "image/jpeg",
+  media_size_bytes: 3,
+  kind: "image",
+};
 
 function montar(conversationId = "conv-1") {
   const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
@@ -53,10 +58,16 @@ describe("useEnviosDeMidia", () => {
     subirMock.mockReturnValue(new Promise(() => {}));
     const { result } = montar();
 
-    act(() => result.current.enviar({ conversationId: "conv-1", arquivo: arquivo(), legenda: "oi" }));
+    act(() =>
+      result.current.enviar({ conversationId: "conv-1", arquivo: arquivo(), legenda: "oi" }),
+    );
 
     expect(result.current.pendentes).toHaveLength(1);
-    expect(result.current.pendentes[0]).toMatchObject({ fase: "enviando", legenda: "oi", previa: "blob:previa" });
+    expect(result.current.pendentes[0]).toMatchObject({
+      fase: "enviando",
+      legenda: "oi",
+      previa: "blob:previa",
+    });
     result.current.descartar(result.current.pendentes[0]!.id);
   });
 
@@ -73,20 +84,30 @@ describe("useEnviosDeMidia", () => {
     expect(URL.revokeObjectURL).toHaveBeenCalledWith("blob:previa");
     // A chave do POST é o id da bolha, e o prazo não é o de 30s do apiClient.
     const [, corpo, opts] = postMock.mock.calls[0]!;
-    expect(opts.idempotencyKey).toBe((corpo as { metadata: { envio_local: string } }).metadata.envio_local);
+    expect(opts.idempotencyKey).toBe(
+      (corpo as { metadata: { envio_local: string } }).metadata.envio_local,
+    );
     expect(opts.timeoutMs).toBeGreaterThan(30_000);
   });
 
   it("falha no POST: a bolha fica com o motivo, o arquivo e a legenda; tentar de novo não sobe outra vez", async () => {
     subirMock.mockResolvedValue(SUBIDO);
-    postMock.mockRejectedValueOnce(new ApiError(503, "internal_error", undefined, "", "Servidor indisponível"));
+    postMock.mockRejectedValueOnce(
+      new ApiError(503, "internal_error", undefined, "", "Servidor indisponível"),
+    );
     postMock.mockResolvedValueOnce({ data: { id: "msg-real" } });
     const { result } = montar();
 
-    act(() => result.current.enviar({ conversationId: "conv-1", arquivo: arquivo(), legenda: "orçamento" }));
+    act(() =>
+      result.current.enviar({ conversationId: "conv-1", arquivo: arquivo(), legenda: "orçamento" }),
+    );
     await waitFor(() => expect(result.current.pendentes[0]?.fase).toBe("falhou"));
     const falhou = result.current.pendentes[0]!;
-    expect(falhou).toMatchObject({ erro: "Servidor indisponível", legenda: "orçamento", subido: SUBIDO });
+    expect(falhou).toMatchObject({
+      erro: "Servidor indisponível",
+      legenda: "orçamento",
+      subido: SUBIDO,
+    });
 
     act(() => result.current.tentarDeNovo(falhou.id));
     await waitFor(() => expect(result.current.pendentes).toHaveLength(0));

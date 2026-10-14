@@ -9,7 +9,11 @@ const base = (tipo = "image/jpeg", previa: string | null = "blob:x") =>
   novoEnvio({
     id: "k-1",
     conversationId: "conv-1",
-    arquivo: new File([new Uint8Array([1, 2, 3])], tipo === "image/jpeg" ? "foto.jpg" : "proposta.pdf", { type: tipo }),
+    arquivo: new File(
+      [new Uint8Array([1, 2, 3])],
+      tipo === "image/jpeg" ? "foto.jpg" : "proposta.pdf",
+      { type: tipo },
+    ),
     legenda: "segue a proposta",
     previa,
     agora: "",
@@ -25,7 +29,13 @@ describe("BolhaDeEnvioLocal", () => {
   });
 
   it("documento: nome e tamanho no lugar da prévia", () => {
-    render(<BolhaDeEnvioLocal envio={base("application/pdf", null)} onTentarDeNovo={vi.fn()} onDescartar={vi.fn()} />);
+    render(
+      <BolhaDeEnvioLocal
+        envio={base("application/pdf", null)}
+        onTentarDeNovo={vi.fn()}
+        onDescartar={vi.fn()}
+      />,
+    );
     expect(screen.getByText("proposta.pdf")).toBeInTheDocument();
   });
 
