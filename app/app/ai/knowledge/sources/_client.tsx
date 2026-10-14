@@ -3,7 +3,7 @@
 import { useT } from "@/hooks/i18n/useT";
 import { useCallback, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
-import { Plus, RefreshCw } from "lucide-react";
+import { Plus, RefreshCw } from "@/lib/ui/icons";
 
 import { Button } from "@/components/ui/button";
 import { useRealtimeChannel } from "@/hooks/realtime/useRealtimeChannel";

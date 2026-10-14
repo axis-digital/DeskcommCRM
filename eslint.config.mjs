@@ -18,7 +18,16 @@ export default defineConfig([
   // Cópias compiladas da demonstração e binários baixados pelo Playwright
   // vivem no scratch local. Os scripts escritos à mão em .superpowers seguem
   // sob lint; somente estes dois tipos de artefato gerado ficam de fora.
-  globalIgnores([".next/", "node_modules/", "dist/", "supabase/", "next-env.d.ts", ".claude/worktrees/", ".superpowers/**/bundles/", ".superpowers/**/playwright-browsers/"]),
+  globalIgnores([
+    ".next/",
+    "node_modules/",
+    "dist/",
+    "supabase/",
+    "next-env.d.ts",
+    ".claude/worktrees/",
+    ".superpowers/**/bundles/",
+    ".superpowers/**/playwright-browsers/",
+  ]),
   nextPlugin.configs["core-web-vitals"],
   reactHooks.configs.flat.recommended,
   ...tseslint.configs.recommended,
@@ -30,10 +39,34 @@ export default defineConfig([
       ],
       "@typescript-eslint/consistent-type-imports": ["warn", { prefer: "type-imports" }],
       "no-console": ["warn", { allow: ["warn", "error", "info"] }],
+      "no-restricted-imports": [
+        "error",
+        {
+          paths: [
+            {
+              name: "lucide-react",
+              message: "Importe ícones pelo catálogo canônico @/lib/ui/icons.",
+            },
+            {
+              name: "@phosphor-icons/react",
+              message: "Phosphor foi substituído pelo catálogo Axis/Lucide.",
+            },
+            {
+              name: "@phosphor-icons/react/dist/ssr",
+              message: "Phosphor foi substituído pelo catálogo Axis/Lucide.",
+            },
+          ],
+        },
+      ],
       // react-hooks 7 introduziu esta regra como error; o padrão setState-em-
       // effect é pré-existente em 14 componentes — warn até o mutirão de refactor.
       "react-hooks/set-state-in-effect": "warn",
     },
+  },
+  {
+    // Única fronteira autorizada a depender do pacote de ícones.
+    files: ["lib/ui/icons.ts"],
+    rules: { "no-restricted-imports": "off" },
   },
   {
     // Script CLI do gov-loop (roda via tsx, fora do bundle) — require() ok.
