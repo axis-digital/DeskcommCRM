@@ -18,7 +18,10 @@ x-waha-externo: &waha-externo
   # supabase-envoy (rede deskcommcrm_supabase). Reescreve a origem da mídia pro
   # Caddy deste stack, que TAMBÉM está em network_public e já proxia /storage/v1*
   # pro Envoy (Caddyfile.axis): mesma rede, sem hairpin ao domínio público.
-  WAHA_MEDIA_BASE_URL: http://caddy:80
+  # `deskcomm-caddy`, nunca `caddy`: o Caddy do staging também está em
+  # network_public com o apelido `caddy`, e o DNS do Docker alternava entre os
+  # dois — medido em 2026-10-14, 1 download em 4 caía no staging e voltava 400.
+  WAHA_MEDIA_BASE_URL: http://deskcomm-caddy:80
 
 services:
   app:
@@ -53,7 +56,8 @@ services:
     networks: !override
       internal: {}
       supabase_private: {}
-      axis_public: {}
+      axis_public:
+        aliases: [deskcomm-caddy]
     labels:
       traefik.enable: "true"
       traefik.docker.network: network_public
