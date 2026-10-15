@@ -10,6 +10,7 @@ import { fetchWahaMedia } from "@/lib/messaging/media/waha-source";
 import { getWahaClient } from "@/lib/waha/client";
 import { wahaSendPlanFor } from "@/lib/waha/media-send";
 import { reescreverOrigemDaMidia } from "@/lib/waha/media-url";
+import { baseDoStorage } from "@/lib/branding/logo";
 import {
   resolveCanonicalCusChatId,
   resolvePhoneJidDigitsForCall,
@@ -298,9 +299,13 @@ export const wahaAdapter: ChannelAdapter = {
       await envelope.beforeSend?.();
       const media = {
         ...envelope.media,
+        // A origem pública vem de `baseDoStorage()`, nunca do acesso estático a
+        // `process.env.NEXT_PUBLIC_*`: o Next assa esse acesso com o placeholder
+        // do build, a origem nunca casa, a reescrita não acontece e o WAHA volta
+        // a pendurar 30s no hairpin. Medido no bundle de produção em 2026-10-14.
         url: reescreverOrigemDaMidia(
           envelope.media.url,
-          process.env.NEXT_PUBLIC_SUPABASE_URL ?? "",
+          baseDoStorage(),
           process.env.WAHA_MEDIA_BASE_URL ?? "",
         ),
       };
