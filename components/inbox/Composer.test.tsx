@@ -15,6 +15,7 @@
  *     barrado pela faixa do #2844).
  */
 import { describe, it, expect, vi, beforeEach } from "vitest";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { fireEvent, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 
@@ -142,6 +143,10 @@ function renderComposer(opts?: {
   contactDisplayName?: string | null;
   initialDraft?: string;
 }) {
+  // O Composer do fork lê o QueryClient (bolha otimista do envio). `wrapper`, e
+  // não um provider inline, para o `rerender` do caso da troca de conversa
+  // continuar dentro do provider.
+  const qc = new QueryClient();
   return render(
     <Composer
       conversationId="conv-1"
@@ -149,6 +154,7 @@ function renderComposer(opts?: {
       contactName={opts?.contactName === undefined ? "Rafael Melgaço" : opts.contactName}
       contactDisplayName={opts?.contactDisplayName ?? null}
     />,
+    { wrapper: ({ children }) => <QueryClientProvider client={qc}>{children}</QueryClientProvider> },
   );
 }
 
