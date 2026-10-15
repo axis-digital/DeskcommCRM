@@ -3494,7 +3494,7 @@ GA4 de verdade o que a J46 provou com receptor local.
 ### Perfil do negócio e eventos do GA4 por funil, no staging (2026-10-08)
 
 Ambiente: staging isolado, imagens da branch `feat/perfil-de-negocio-ga4` (`1f3699aca`), migration
-0904 aplicada. Conta nova criada por `scripts/bootstrap-owner.ts` (o caminho do `install.sh`, e-mail
+9004 aplicada. Conta nova criada por `scripts/bootstrap-owner.ts` (o caminho do `install.sh`, e-mail
 confirmado), org "[TESTE] Loja e Agenda E1"; onboarding percorrido pela tela e o resto pulado pelos
 botões «Pular». Conferido no banco: `settings.perfil_de_negocio` = canais `whatsapp`, `loja_online`
 e objetivos `vender_produto`, `agendar`; funis `Vendas` (padrão, `vender_produto`) e `Agendamentos`

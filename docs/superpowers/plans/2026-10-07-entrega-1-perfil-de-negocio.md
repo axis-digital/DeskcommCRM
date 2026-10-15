@@ -43,7 +43,7 @@ Posse: `app/actions/onboarding/montarQuadro.ts`, `app/onboarding/funil/**`, suge
 ### C — Banco e handler do GA4
 Posse: `supabase/migrations/<ts>_0904_*.sql`, `supabase/baseline.sql` (apêndice), `lib/conversoes/ga4.handler.ts`,
 `tests/invariants/**` do GA4, `lib/database.types.ts` se preciso.
-1. Migration 0904: ampliar `ga4_conversion_rules_evento_conhecido` com os 4 eventos novos; conferir se
+1. Migration 0904 (renumerada para 9004): ampliar `ga4_conversion_rules_evento_conhecido` com os 4 eventos novos; conferir se
    `ad_conversion_dispatches` ou outra tabela tem CHECK de `ga4_event_name`/`ga4_event` e ampliar também.
    Linha `-- manifest:`; apêndice idempotente no baseline (drop constraint if exists + add).
 2. `ga4.handler.ts`: evento da venda = `eventoDaVendaDoObjetivo(objetivo do funil do negócio)` ??

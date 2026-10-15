@@ -6,7 +6,7 @@ import {
 import { GOV_ORG, GOV_STAGE, seedGov, sql } from "./gov-helpers";
 
 /**
- * Migration 0904: os eventos de etapa da jornada do comprador (`view_item`,
+ * Migration 9004: os eventos de etapa da jornada do comprador (`view_item`,
  * `add_to_cart`, `schedule`, `close_unconvert_lead`) entram no CHECK de
  * `ga4_conversion_rules.ga4_event`.
  *
@@ -38,7 +38,7 @@ function inserirRegra(ga4Event: string): string {
     rollback;`);
 }
 
-describe("conversões GA4: eventos de etapa da jornada (0904)", () => {
+describe("conversões GA4: eventos de etapa da jornada (9004)", () => {
   for (const evento of NOVOS) {
     it(`regra aceita ${evento}`, () => {
       expect(inserirRegra(evento)).toContain(evento);

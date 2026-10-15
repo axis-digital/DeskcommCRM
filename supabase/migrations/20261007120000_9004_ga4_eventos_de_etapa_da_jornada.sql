@@ -1,6 +1,6 @@
 -- manifest: o CHECK ga4_conversion_rules_evento_conhecido aceita os eventos de etapa da jornada do comprador (view_item, add_to_cart, schedule, close_unconvert_lead), que o mapa jornada × evento por objetivo do funil sugere (Entrega 1)
 --
--- Forward-fix da 0902. A regra por etapa do GA4 só aceitava os quatro eventos
+-- Forward-fix da 9002. A regra por etapa do GA4 só aceitava os quatro eventos
 -- de geração de lead (generate_lead, qualify_lead, working_lead,
 -- begin_checkout). O mapa jornada × evento (`lib/conversoes/mapa-de-eventos-ga4.ts`)
 -- passou a sugerir, conforme o objetivo do funil:

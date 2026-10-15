@@ -54512,8 +54512,8 @@ comment on column public.ai_router_members.pipeline_id is
 comment on column public.ai_router_members.stage_id is
   'Etapa de destino dentro de pipeline_id (#2155). NULL = a primeira etapa aberta do funil.';
 
--- ---- GA4: eventos de etapa da jornada do comprador (migration 0904) ----
--- Racional inteiro na migration 0904 (forward-fix da 0902). O CHECK da regra por
+-- ---- GA4: eventos de etapa da jornada do comprador (migration 9004) ----
+-- Racional inteiro na migration 9004 (forward-fix da 9002). O CHECK da regra por
 -- etapa do GA4 passa a aceitar view_item, add_to_cart, schedule e
 -- close_unconvert_lead, que o mapa jornada × evento sugere por objetivo do funil.
 -- O conjunto novo contém o antigo: nenhuma linha existente viola. Idempotente.
