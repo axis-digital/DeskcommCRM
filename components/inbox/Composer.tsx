@@ -31,6 +31,7 @@ import { X } from "@/lib/ui/icons";
 import { toast } from "sonner";
 import { useSendMessage } from "@/hooks/inbox/useSendMessage";
 import { useUploadMedia, type DestinoDoUpload } from "@/hooks/inbox/useUploadMedia";
+import { useEnviosDeMidia } from "@/hooks/inbox/useEnviosDeMidia";
 import { imagemDoClipboard } from "@/lib/inbox/clipboard-image";
 import {
   interpolateTemplate,
@@ -183,6 +184,7 @@ export const Composer = forwardRef<ComposerHandle, Props>(function Composer(
   const taRef = useRef<HTMLTextAreaElement | null>(null);
   const send = useSendMessage();
   const upload = useUploadMedia();
+  const envios = useEnviosDeMidia(conversationId);
   const createNote = useCreateNote();
   const templates = useMessageTemplates();
   const slash = resolveSlash(text);
@@ -702,42 +704,36 @@ export const Composer = forwardRef<ComposerHandle, Props>(function Composer(
           // A BIFURCAÇÃO (#1863, F3) — e ela é decidida pelo modo CONGELADO NA
           // ESCOLHA (`pendingEm`), não pelo modo de agora.
           //
-          //   reply  → upload em `whatsapp-media` + `useSendMessage`: exatamente
-          //            o que era antes, byte por byte. Nada aqui mudou para o
-          //            cliente.
+          //   reply  → bolha otimista (`useEnviosDeMidia`): o diálogo fecha e o
+          //            Composer volta na hora; upload em `whatsapp-media` e o
+          //            POST seguem em segundo plano, com o mesmo corpo de antes.
+          //            Na falha, a bolha guarda arquivo e legenda e oferece
+          //            "Tentar de novo".
           //   note   → upload em `internal-media` + `useCreateNote`, com o trio
           //            como `anexo`. Não existe passo de envio: a nota não é
           //            mensagem, não tem `type`, não tem destino no WhatsApp.
+          //            Segue esperando com o diálogo aberto.
           //
-          // O `try/catch` continua cobrindo SÓ o upload (falha de gravação da
-          // nota é tratada pelo onError do próprio hook, e o diálogo fica aberto
-          // nos dois casos).
-          const destino: DestinoDoUpload = pendingEm === "note" ? "nota" : "mensagem";
+          // O `try/catch` cobre SÓ o upload da nota (falha de gravação da
+          // nota é tratada pelo onError do próprio hook, e o diálogo fica
+          // aberto nos dois casos).
+          if (pendingEm === "reply") {
+            envios.enviar({ conversationId, arquivo: pendingFile, legenda: caption });
+            setPendingFile(null);
+            return;
+          }
+          const destino: DestinoDoUpload = "nota";
           try {
             const uploaded = await upload.mutateAsync({ conversationId, file: pendingFile, destino });
-            if (destino === "nota") {
-              createNote.mutate(
-                {
-                  conversation_id: conversationId,
-                  body: caption,
-                  anexo: {
-                    storage_path: uploaded.storage_path,
-                    media_mime: uploaded.media_mime,
-                    media_size_bytes: uploaded.media_size_bytes,
-                  },
-                },
-                { onSuccess: () => setPendingFile(null) },
-              );
-              return;
-            }
-            send.mutate(
+            createNote.mutate(
               {
                 conversation_id: conversationId,
-                type: uploaded.kind,
-                body: caption || undefined,
-                media_storage_path: uploaded.storage_path,
-                media_mime: uploaded.media_mime,
-                media_size_bytes: uploaded.media_size_bytes,
+                body: caption,
+                anexo: {
+                  storage_path: uploaded.storage_path,
+                  media_mime: uploaded.media_mime,
+                  media_size_bytes: uploaded.media_size_bytes,
+                },
               },
               { onSuccess: () => setPendingFile(null) },
             );

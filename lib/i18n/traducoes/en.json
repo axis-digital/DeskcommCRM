@@ -5210,6 +5210,8 @@
   "convite(s) enviado(s)": "invite(s) sent",
   "falha(s).": "failure(s).",
   "Enviando…": "Sending…",
+  "Não enviada": "Not sent",
+  "Não foi possível enviar. Verifique a conexão.": "Could not send. Check your connection.",
   "Enviar convites": "Send invites",
   "Enviados": "Sent",
   "Email enviado.": "Email sent.",
