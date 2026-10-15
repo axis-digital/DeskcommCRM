@@ -1,0 +1,20 @@
+[
+  {
+    "tFechouMs": 289,
+    "tBolhaMs": 294,
+    "statusEnviando": " Enviando…",
+    "composerAtivo": true
+  },
+  {
+    "statusFalha": " Não enviada",
+    "legendaPreservada": true,
+    "previaBlob": true
+  },
+  {
+    "aposRetentativa": " Não enviada"
+  },
+  {
+    "descartadaSome": true,
+    "postsBloqueados": 2
+  }
+]

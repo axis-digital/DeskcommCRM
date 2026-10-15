@@ -28,6 +28,10 @@ vi.mock("@/hooks/inbox/useUploadMedia", () => ({
 vi.mock("@/hooks/inbox/useSendMessage", () => ({
   useSendMessage: () => ({ mutate: sendMock, isPending: false }),
 }));
+const enviarMock = vi.fn();
+vi.mock("@/hooks/inbox/useEnviosDeMidia", () => ({
+  useEnviosDeMidia: () => ({ enviar: enviarMock, pendentes: [], tentarDeNovo: vi.fn(), descartar: vi.fn() }),
+}));
 vi.mock("@/hooks/inbox/useCreateNote", () => ({
   useCreateNote: () => ({ mutate: createNoteMock, isPending: false }),
 }));
@@ -113,9 +117,10 @@ describe("Composer — colar imagem", () => {
     uploadMock.mockClear();
     sendMock.mockClear();
     createNoteMock.mockClear();
+    enviarMock.mockClear();
   });
 
-  it("colar imagem abre o preview e enviar dispara upload + send", async () => {
+  it("colar imagem abre o preview e enviar entrega à bolha otimista", async () => {
     renderComposer();
     fireEvent.paste(campo(), { clipboardData: clipboard({ files: [png()] }) });
 
@@ -123,13 +128,10 @@ describe("Composer — colar imagem", () => {
     fireEvent.change(screen.getByLabelText(/legenda/i), { target: { value: "mirá esto" } });
     fireEvent.click(screen.getByRole("button", { name: /^enviar$/i }));
 
-    await waitFor(() => expect(uploadMock).toHaveBeenCalled());
-    await waitFor(() =>
-      expect(sendMock).toHaveBeenCalledWith(
-        expect.objectContaining({ conversation_id: "conv-1", type: "image", body: "mirá esto" }),
-        expect.anything(),
-      ),
+    expect(enviarMock).toHaveBeenCalledWith(
+      expect.objectContaining({ conversationId: "conv-1", legenda: "mirá esto" }),
     );
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
   });
 
   it("colar TEXTO não abre preview e não cancela o paste do browser", () => {
@@ -167,6 +169,7 @@ describe("Composer — colar imagem", () => {
       ),
     );
     expect(sendMock).not.toHaveBeenCalled();
+    expect(enviarMock).not.toHaveBeenCalled();
   });
 
   it("com anexo já em preview, colar não substitui em silêncio o que o operador escolheu", async () => {

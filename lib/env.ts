@@ -215,6 +215,8 @@ const schema = z.object({
   WAHA_ACCEPTED_ENGINES: z.string().optional().default(""),
   WAHA_SESSION_WEBHOOK: z.string().optional().default(""),
   WAHA_SESSION_PROXY: z.string().optional().default(""),
+  // Origem interna pela qual o WAHA baixa a mídia enviada (lib/waha/media-url.ts). Vazio = URL pública.
+  WAHA_MEDIA_BASE_URL: z.string().optional().default(""),
   // Dias de histórico importados ao parear um número (lib/waha/historico.ts). 0 = desligado.
   WAHA_HISTORY_IMPORT_DAYS: z.string().optional().default("0"),
 

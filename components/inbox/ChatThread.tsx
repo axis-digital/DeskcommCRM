@@ -12,6 +12,9 @@ import { MessageBubble } from "./MessageBubble";
 import { NoteCard } from "./NoteCard";
 import { PassagemCard } from "./PassagemCard";
 import { useMessagesRealtime } from "@/hooks/inbox/useMessagesRealtime";
+import { useEnviosDeMidia } from "@/hooks/inbox/useEnviosDeMidia";
+import { idsDeEnviosGravados } from "@/lib/messaging/media/envio-otimista";
+import { BolhaDeEnvioLocal } from "@/components/inbox/BolhaDeEnvioLocal";
 import { useConversationNotes } from "@/hooks/inbox/useConversationNotes";
 import { usePassagensDaConversa } from "@/hooks/inbox/usePassagensDaConversa";
 import { useClaimConversation } from "@/hooks/inbox/useClaimConversation";
@@ -175,6 +178,25 @@ export function ChatThread({
     [messages, notes, cartoes],
   );
 
+  /**
+   * Anexos que o atendente mandou e ainda não viraram linha (bolha otimista).
+   * Ficam no FIM do fio — são sempre o mais novo — e somem quando a linha real
+   * com a marca deles chega, seja pela resposta do POST, seja pelo Realtime.
+   */
+  const envios = useEnviosDeMidia(conversationId);
+  const gravados = useMemo(() => idsDeEnviosGravados(messages), [messages]);
+  const locais = envios.pendentes.filter((e) => !gravados.has(e.id));
+  // A bolha cresce ao falhar (motivo + botões): a troca de fase também rola o
+  // fio, senão "Tentar de novo" nasce abaixo da dobra (medido no staging).
+  const fasesDosLocais = locais.map((e) => e.fase).join(",");
+  const { descartar } = envios;
+  useEffect(() => {
+    // A linha real chegou antes da resposta do POST (o cliente desistiu, o
+    // servidor gravou): tira da fila, senão a retentativa ficaria disponível
+    // para uma mensagem que já existe.
+    for (const e of envios.pendentes) if (gravados.has(e.id) && e.fase === "falhou") descartar(e.id);
+  }, [envios.pendentes, gravados, descartar]);
+
   const paginas = q.data?.pages.length ?? 0;
 
   // Conversa nova: a contagem de páginas recomeça, senão a primeira carga da
@@ -252,7 +274,7 @@ export function ChatThread({
       behavior: primeiraAncoragem ? "auto" : "smooth",
       block: "end",
     });
-  }, [items.length, conversationId, paginas]);
+  }, [items.length, fasesDosLocais, conversationId, paginas]);
 
   /**
    * O ESTADO DO CANAL DESTE THREAD, PUBLICADO SEMPRE — inclusive quando não há
@@ -315,7 +337,7 @@ export function ChatThread({
     );
   }
 
-  if (items.length === 0) {
+  if (items.length === 0 && locais.length === 0) {
     return (
       <div
         {...sinalDoCanal}
@@ -431,6 +453,15 @@ export function ChatThread({
               ),
             )}
           </div>
+        ))}
+
+        {locais.map((envio) => (
+          <BolhaDeEnvioLocal
+            key={`envio-${envio.id}`}
+            envio={envio}
+            onTentarDeNovo={() => envios.tentarDeNovo(envio.id)}
+            onDescartar={() => descartar(envio.id)}
+          />
         ))}
 
         <div ref={bottomRef} />

@@ -44,14 +44,14 @@ Lista canônica do que **não fazer** no DeskcommCRM. Anti-patterns ficam aqui p
 ## 6. ❌ `Sparkle` ou `Sparkles` icon pra IA
 
 **Por quê:** clichê 2023–2024. Comunica "feature de marketing" mais que função.
-**✅ Sim:** `Brain` (Phosphor duotone) pra "processamento", `MagicWand` pra "sugestão automática" raro. `Lightning` é reservado pra **shortcuts/templates do atendente**, não IA.
+**✅ Sim:** `Brain` (Axis/Lucide outline) pra "processamento" e `Sparkle` pra "sugestão automática" rara. Ícones de atalho permanecem reservados a **shortcuts/templates do atendente**, não IA.
 
 ---
 
 ## 7. ❌ Lucide Icons (default shadcn)
 
 **Por quê:** ~80% dos shadcn-based usam Lucide. Genérico por convergência.
-**✅ Sim:** Phosphor com peso `duotone` default. Ver `05-iconography-phosphor.md`.
+**✅ Sim:** Axis/Lucide outline com traço padrão de 1,75px. Ver `05-iconography-phosphor.md`.
 
 ---
 
@@ -93,7 +93,7 @@ Lista canônica do que **não fazer** no DeskcommCRM. Anti-patterns ficam aqui p
 ## 13. ❌ Emoji em UI funcional (botão, toast, error, success)
 
 **Por quê:** infantiliza voz, polui screenshots de debug, atrapalha screen readers.
-**✅ Sim:** ícone Phosphor com cor semântica + texto sóbrio.
+**✅ Sim:** ícone Axis/Lucide com cor semântica + texto sóbrio.
 
 ---
 
