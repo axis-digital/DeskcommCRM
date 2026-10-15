@@ -78,6 +78,15 @@ const nextConfig: NextConfig = {
   typedRoutes: true,
   experimental: {
     optimizePackageImports: ["lucide-react", "date-fns"],
+    // O `proxy.ts` roda antes de todo handler e o Next só deixa passar os
+    // primeiros 10MB do corpo (`Request body exceeded 10MB ... Only the first
+    // 10MB will be available`). Upload de mídia vai até 50MB
+    // (`MAX_MEDIA_BYTES`, mais 1MiB de margem do multipart em `/media`): sem
+    // este teto, foto de celular acima de 10MB chegava truncada ao handler,
+    // que respondia 422 "Campo 'file' (multipart) obrigatório". Literal
+    // porque este arquivo não resolve o alias `@/`; o valor é vigiado por
+    // `tests/unit/proxy-aceita-o-maior-upload.test.ts`.
+    proxyClientMaxBodySize: "51mb",
   },
   images: {
     // O app não usa next/image de fato (só <img> raw); desligar o otimizador
