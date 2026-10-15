@@ -30,6 +30,10 @@ const UPLOAD_DE_NOTA = {
 vi.mock("@/hooks/inbox/useSendMessage", () => ({
   useSendMessage: () => ({ mutate: sendMock, isPending: false }),
 }));
+const enviarMock = vi.fn();
+vi.mock("@/hooks/inbox/useEnviosDeMidia", () => ({
+  useEnviosDeMidia: () => ({ enviar: enviarMock, pendentes: [], tentarDeNovo: vi.fn(), descartar: vi.fn() }),
+}));
 vi.mock("@/hooks/inbox/useCreateNote", () => ({
   useCreateNote: () => ({ mutate: createNoteMock, isPending: false }),
 }));
@@ -69,6 +73,7 @@ describe("Composer + modo nota interna", () => {
     createNoteMock.mockClear();
     uploadMock.mockClear();
     uploadMock.mockResolvedValue(UPLOAD_DE_NOTA);
+    enviarMock.mockClear();
   });
 
   it("modo reply (default): envia normal via useSendMessage", () => {
@@ -153,29 +158,17 @@ describe("Composer + modo nota interna", () => {
     expect(sendMock).not.toHaveBeenCalled();
   });
 
-  it("ANEXO em modo REPLY: upload em media + useSendMessage — o comportamento de antes", async () => {
+  it("ANEXO em modo REPLY: vai para a bolha otimista, nunca para useCreateNote", async () => {
     renderComposer();
     const dialog = await escolherArquivo("foto.jpg", "image/jpeg");
     fireEvent.change(within(dialog).getByLabelText(/legenda/i), { target: { value: "olha isso" } });
 
     fireEvent.click(within(dialog).getByRole("button", { name: /^enviar$/i }));
 
-    await waitFor(() =>
-      expect(uploadMock).toHaveBeenCalledWith(
-        expect.objectContaining({ conversationId: "conv-1", destino: "mensagem" }),
-      ),
+    expect(enviarMock).toHaveBeenCalledWith(
+      expect.objectContaining({ conversationId: "conv-1", legenda: "olha isso" }),
     );
-    await waitFor(() =>
-      expect(sendMock).toHaveBeenCalledWith(
-        expect.objectContaining({
-          conversation_id: "conv-1",
-          type: "image",
-          body: "olha isso",
-          media_storage_path: "org-1/conv-1/note-abc.png",
-        }),
-        expect.anything(),
-      ),
-    );
+    expect(uploadMock).not.toHaveBeenCalled();
     expect(createNoteMock).not.toHaveBeenCalled();
   });
 
@@ -201,5 +194,6 @@ describe("Composer + modo nota interna", () => {
     await waitFor(() => expect(createNoteMock).toHaveBeenCalled());
     expect(uploadMock).toHaveBeenCalledWith(expect.objectContaining({ conversationId: "conv-1", destino: "nota" }));
     expect(sendMock).not.toHaveBeenCalled();
+    expect(enviarMock).not.toHaveBeenCalled();
   });
 });

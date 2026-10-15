@@ -9,7 +9,7 @@
  * realtime de `ai_knowledge_sources`) e o estado da chave
  * (`GET /api/v1/ai/knowledge/chave`). Nenhuma rota nova só para contar.
  */
-import { CheckCircle2, Loader2, TriangleAlert } from "lucide-react";
+import { CheckCircle2, Loader2, TriangleAlert } from "@/lib/ui/icons";
 
 import { Card } from "@/components/ui/card";
 import { useT } from "@/hooks/i18n/useT";

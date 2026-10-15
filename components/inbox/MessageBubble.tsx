@@ -21,6 +21,7 @@ import { MediaUnavailable } from "@/components/inbox/media/MediaUnavailable";
 import { ContactCard } from "@/components/inbox/media/ContactCard";
 import { LocationCard } from "@/components/inbox/media/LocationCard";
 import { localizacaoDaMensagem } from "@/lib/messaging/localizacao";
+import { resolveSharedContact } from "@/lib/messaging/contact-card";
 import {
   extractCitations,
   isAiGeneratedMessage,
@@ -35,7 +36,7 @@ import {
  * `primary-foreground` dentro dela (documento, áudio, citação, ticks)
  * acompanha sozinho. Resposta de IA leva faixa roxa (o roxo é IA na Axis).
  */
-const BOLHA_SAIDA_ESCURO =
+export const BOLHA_SAIDA_ESCURO =
   "dark:bg-[var(--inbox-bubble-out,color-mix(in_oklab,var(--color-accent)_20%,var(--color-surface-elevated)))] dark:[--color-accent-fg:var(--inbox-bubble-out-fg,var(--color-text))] dark:border-r-[3px] dark:border-r-accent";
 const BOLHA_IA_ESCURO =
   "dark:bg-[var(--inbox-bubble-ai,color-mix(in_oklab,var(--color-accent)_20%,var(--color-surface-elevated)))] dark:border-r-0 dark:border-l-[3px] dark:border-l-[var(--axis-focus,var(--color-accent))]";
@@ -354,6 +355,8 @@ export function MessageBubble({
                 ? t("Esta mensagem foi apagada")
                 : citada.metadata?.crm_hidden_at
                 ? t("Mensagem ocultada no CRM")
+                : citada.type === "contact"
+                ? resolveSharedContact(citada)?.name || t("Contato")
                 : citada.body?.trim() || t("(sem texto)")}
             </div>
           </div>

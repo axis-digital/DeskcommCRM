@@ -1,7 +1,7 @@
 "use server";
 
 /**
- * Liga e desliga "Enviar vendas de contatos sem anúncio nem site" (0902). Sem o opt-in, nenhuma venda sem origem sai.
+ * Liga e desliga "Enviar vendas de contatos sem anúncio nem site" (9002). Sem o opt-in, nenhuma venda sem origem sai.
  * A chave mora em `organizations.settings.conversions.enviar_sem_origem` e é
  * lida por `lib/conversoes/reportar-sem-origem.ts`.
  *

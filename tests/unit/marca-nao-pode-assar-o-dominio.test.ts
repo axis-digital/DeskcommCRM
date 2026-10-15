@@ -96,3 +96,30 @@ describe("a base do Storage vem de runtime, nunca do build", () => {
     expect(FONTE, "domínio literal no código").not.toMatch(/https:\/\/[a-z0-9-]+\.supabase\.co/);
   });
 });
+
+/**
+ * O MESMO DEFEITO, NO ENVIO DE MÍDIA PELO WAHA.
+ *
+ * A reescrita de `WAHA_MEDIA_BASE_URL` compara a origem da URL assinada com a
+ * origem pública do Supabase. O adapter lia essa origem por acesso estático, e o
+ * bundle de produção ficou assim (medido em 2026-10-14):
+ *
+ *   reescreverOrigemDaMidia(a.media.url,"https://placeholder.supabase.co",…)
+ *
+ * A origem nunca casava, a URL ia intacta pelo domínio público, o WAHA não
+ * fazia hairpin e todo `sendImage` do CRM estourava 30s (`waha_timeout`) — com
+ * o teste do adapter verde, porque `vi.stubEnv` muda o `process.env` em runtime
+ * e o teste nunca vê o bundle.
+ */
+const FONTE_ADAPTER_WAHA = readFileSync("lib/channels/adapters/waha.ts", "utf8")
+  .replace(/\/\*[\s\S]*?\*\//g, "")
+  .replace(/\/\/.*$/gm, "");
+
+describe("o adapter WAHA lê a origem pública em runtime", () => {
+  it("não há acesso ESTÁTICO a process.env.NEXT_PUBLIC_*", () => {
+    const estaticos = [...FONTE_ADAPTER_WAHA.matchAll(/process\.env\.NEXT_PUBLIC_[A-Z_]+/g)].map(
+      (m) => m[0],
+    );
+    expect(estaticos, "o Next vai assar isto com o valor do build").toEqual([]);
+  });
+});

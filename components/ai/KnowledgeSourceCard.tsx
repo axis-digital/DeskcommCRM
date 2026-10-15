@@ -33,7 +33,7 @@ import {
   Package,
   RefreshCw,
   Trash2,
-} from "lucide-react";
+} from "@/lib/ui/icons";
 
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";

@@ -303,7 +303,7 @@ const PROVA_PROPRIA: readonly Excecao[] = [
       "tests/invariants/conversoes-ga4-schema.test.ts — RLS ligada, zero policies, " +
       "privilégios revogados de anon/authenticated (papéis do navegador não leem a " +
       "regra nem executam o gatilho). O servidor aplica organization_id às regras por " +
-      "etapa do GA4 (0902); a FK composta que recusa etapa de outra organização é " +
+      "etapa do GA4 (9002); a FK composta que recusa etapa de outra organização é " +
       "provada no mesmo arquivo.",
   },
   {

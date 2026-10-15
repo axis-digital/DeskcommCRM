@@ -8,7 +8,7 @@ date: 2026-04-28
 
 # 06 — Empty States & Errors
 
-> Catálogo padronizado em PT-BR. Toda tela com estado `empty | error | no-permission | loading-failed` deve usar uma destas composições. Ícones do Phosphor Icons (consistência com design-system base).
+> Catálogo padronizado em PT-BR. Toda tela com estado `empty | error | no-permission | loading-failed` deve usar uma destas composições. Ícones Axis/Lucide do barrel canônico (consistência com o design system base).
 
 ## Princípios
 
@@ -20,7 +20,7 @@ date: 2026-04-28
 
 ## Formato de cada entrada
 
-`Tela / contexto` · **Ícone Phosphor** · **Headline** · **Sub-copy** · **Ação primária** · **Ação secundária**
+`Tela / contexto` · **Ícone Axis/Lucide** · **Headline** · **Sub-copy** · **Ação primária** · **Ação secundária**
 
 ---
 
@@ -81,7 +81,7 @@ date: 2026-04-28
 - Sem CTAs.
 
 ### A9. Sem sessões WhatsApp — `/app/integrations/whatsapp`
-- Ícone: `WhatsappLogo`
+- Ícone: `ChatCircle`
 - Headline: **Nenhum número conectado**
 - Sub-copy: Conecte um número WhatsApp pra começar a receber mensagens. Recomendamos número exclusivo, não pessoal.
 - Primária: `Conectar número` → `/app/integrations/whatsapp/new`
@@ -153,7 +153,7 @@ date: 2026-04-28
 - Banner amarelo top-of-content, dismissível após reconexão (vira verde "Reconectado" 3s).
 
 ### B9. WAHA session FAILED — banner em sessão
-- Ícone: `WhatsappLogo` cinza + badge erro
+- Ícone: `ChatCircle` cinza + badge erro
 - Headline: **Sessão {phone} caiu**
 - Sub-copy: O WhatsApp Web foi desconectado no telefone. Refaça o pareamento pra continuar.
 - Primária: `Reconectar QR` → `/app/integrations/whatsapp/[id]/qr`
@@ -248,7 +248,7 @@ date: 2026-04-28
 | "Você não pode fazer isso" | "Seu papel atual não permite" |
 | "Recarregue a página" | "Tente novamente" |
 | "Erro 500" sem contexto | "Algo deu errado — código {request_id}" |
-| Emojis em erros | Texto + ícone Phosphor |
+| Emojis em erros | Texto + ícone Axis/Lucide |
 | Frases passivas longas | Frases curtas, ativas |
 
 ## E. Acessibilidade dos estados

@@ -27,7 +27,7 @@ import { useT } from "@/hooks/i18n/useT";
  */
 import { useState } from "react";
 import Link from "next/link";
-import { KeyRound, CheckCircle2, TriangleAlert } from "lucide-react";
+import { KeyRound, CheckCircle2, TriangleAlert } from "@/lib/ui/icons";
 import { toast } from "sonner";
 
 import {

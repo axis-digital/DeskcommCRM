@@ -97,7 +97,7 @@ export interface ConversaoOffline {
   /** E.164 sem `+`, ainda EM CLARO: o hash é responsabilidade do transporte. */
   telefone: string | null;
   /**
-   * E-mail do contato, só no fallback sem origem (0902+). Sai em SHA-256 e só
+   * E-mail do contato, só no fallback sem origem (9002+). Sai em SHA-256 e só
    * quando não há clique: é o identificador que o Google casa sem `gclid`.
    */
   emailDoContato?: string | null;

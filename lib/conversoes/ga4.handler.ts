@@ -1,5 +1,5 @@
 /**
- * O consumidor das conversões do GA4 (0902).
+ * O consumidor das conversões do GA4 (9002).
  *
  * O GA4 é DESTINO, não origem: não depende de qual anúncio trouxe o contato,
  * e sim de o CRM ter capturado o `client_id` do visitante no site

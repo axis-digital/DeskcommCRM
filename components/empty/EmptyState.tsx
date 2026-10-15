@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import type { Icon as PhosphorIcon } from "@phosphor-icons/react";
+import type { AxisIcon } from "@/lib/ui/icons";
 import { Button } from "@/components/ui/button";
 import { useT } from "@/hooks/i18n/useT";
 
@@ -12,7 +12,7 @@ export interface EmptyStateAction {
 }
 
 export interface EmptyStateProps {
-  icon: PhosphorIcon;
+  icon: AxisIcon;
   headline: string;
   subcopy?: string;
   primary?: EmptyStateAction;

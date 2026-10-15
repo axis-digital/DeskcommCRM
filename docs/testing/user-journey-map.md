@@ -3460,7 +3460,7 @@ Spec: `tests/e2e/mapas-em-provedores.spec.ts`.
 
 Contexto: as vendas e as etapas configuradas do funil saem para a propriedade GA4
 da organização pelo Measurement Protocol, só para o contato que veio do site com
-o `_ga` capturado (`rastreio/v1.js` com `data-ga4`). Migration 0902; consumidor
+o `_ga` capturado (`rastreio/v1.js` com `data-ga4`). Migration 9002; consumidor
 `lib/conversoes/ga4.handler.ts`. Junto, a venda de contato SEM origem pode ir à
 Meta e ao Google em hash, com opt-in (`organizations.settings.conversions.enviar_sem_origem`).
 

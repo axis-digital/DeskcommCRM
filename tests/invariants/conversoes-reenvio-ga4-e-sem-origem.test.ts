@@ -1,7 +1,7 @@
 /**
- * O reenvio das linhas do GA4 e da venda sem origem (forward-fix da 0902).
+ * O reenvio das linhas do GA4 e da venda sem origem (forward-fix da 9002).
  *
- * A 0902 gravou no livro-razão `GA4:Venda`, `GA4Etapa:<uuid>` e
+ * A 9002 gravou no livro-razão `GA4:Venda`, `GA4Etapa:<uuid>` e
  * `SemOrigem:<plataforma>:Purchase`, mas a porta de reenvio
  * (`fn_solicitar_reenvio_conversao`) só conhecia os nomes do Google e da Meta:
  * devolvia `false` para todos eles, e o guarda de registro exigia

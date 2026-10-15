@@ -1,6 +1,6 @@
--- manifest: o reenvio de conversão alcança as linhas da 0902 — fn_solicitar_reenvio_conversao aceita GA4:Venda, GA4Etapa:<uuid> e SemOrigem:(meta_ads|google_ads):Purchase, com guarda pelo retrato do GA4 e por negócio ganho na venda sem origem
+-- manifest: o reenvio de conversão alcança as linhas da 9002 — fn_solicitar_reenvio_conversao aceita GA4:Venda, GA4Etapa:<uuid> e SemOrigem:(meta_ads|google_ads):Purchase, com guarda pelo retrato do GA4 e por negócio ganho na venda sem origem
 --
--- Forward-fix da 0902. A 0902 passou a gravar no livro-razão `GA4:Venda`,
+-- Forward-fix da 9002. A 9002 passou a gravar no livro-razão `GA4:Venda`,
 -- `GA4Etapa:<uuid>` e `SemOrigem:<plataforma>:Purchase`, mas a porta de reenvio
 -- só conhecia `Purchase`, `QualifiedLead`, `Etapa:*` e `MetaEtapa:*`: devolvia
 -- `false` para todo o resto, e o guarda de registro exigia `google_action_id` de
