@@ -14,7 +14,7 @@
  * mensagem que chegasse no meio apagaria a bolha da tela. Aqui a bolha só sai
  * quando o envio dela termina.
  *
- * O que NÃO é responsabilidade desta fila: a falha do CANAL. Quando o WAHA
+ * O que NÃO é responsabilidade desta fila: a falha do CANAL. Quando o provedor do canal
  * recusa ou estoura o prazo, o servidor grava a linha como `failed` e responde
  * 201 — a bolha real, com "Falhou", toma o lugar desta. A fila só segura o que
  * ainda não tem linha: falha no upload, ou o POST que não chegou a responder.
