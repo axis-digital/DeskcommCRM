@@ -1,3 +1,4 @@
+// @vitest-environment node
 /**
  * Task 3 do seam de canais. O adapter é BURRO de propósito: traduz formato e
  * delega. Não há caso aqui sobre janela, cap ou horário — se um aparecer, o
