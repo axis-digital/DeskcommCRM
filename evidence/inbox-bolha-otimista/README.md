@@ -1,6 +1,6 @@
 # Prova em tela — bolha otimista no envio de mídia (PR #21)
 
-Staging `staging.deskcomm.axisaceleradora.com.br`, imagem construída de `73034c33e`,
+Staging `staging.deskcomm.axisaceleradora.com.br`, imagem reconstruída de `055db991f` (inclui o conserto da rolagem e o #18),
 baseline da branch reaplicado. 2026-10-15. Playwright (Chromium, 1280×800), conversa
 `[TESTE] Cliente GA4`.
 
@@ -31,12 +31,13 @@ Números brutos em `medidas-sem-envio.json`.
 `03-nao-enviada-ANTES-do-conserto-abaixo-da-dobra.png`: ao virar "Não enviada" a bolha
 cresce e o fio não rolava — status e botões ficavam abaixo da dobra. Consertado em
 `5491b669a` (a troca de fase entra nas dependências da rolagem), com teste e sabotagem
-(1 vermelho de 5, o previsto). **Esta captura é anterior ao conserto; o staging ainda
-roda a imagem de `73034c33e`.**
+(1 vermelho de 5, o previsto). Esta captura é anterior ao conserto.
+
+`03-bolha-nao-enviada.png`: o mesmo estado depois do conserto, no staging reconstruído —
+mensagem de erro, "Descartar" e "Tentar de novo" dentro da dobra (1280×800).
 
 ## O que NÃO foi provado em tela
 
 - A bolha local virando a mensagem real sem duplicar: exige envio de verdade pelo WAHA
   (número real). Coberto por `hooks/inbox/useEnviosDeMidia.test.tsx` e
   `tests/unit/chat-thread-bolha-otimista.test.tsx`.
-- O conserto da rolagem na tela (staging não reconstruído depois dele).
