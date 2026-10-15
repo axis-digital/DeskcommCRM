@@ -89,6 +89,6 @@ create trigger trg_marcar_configuracao_regra_ga4
 alter table public.ad_conversion_dispatches
   add column if not exists ga4_event_name text;
 comment on column public.ad_conversion_dispatches.ga4_event_name is
-  'Retrato do evento GA4 (0902): o nome que saiu no fio. Reenviar usa este, nunca a regra de agora.';
+  'Retrato do evento GA4 (9002): o nome que saiu no fio. Reenviar usa este, nunca a regra de agora.';
 
 notify pgrst, 'reload schema';

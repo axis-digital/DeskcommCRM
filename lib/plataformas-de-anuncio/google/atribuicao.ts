@@ -73,7 +73,7 @@ export async function extrairEEstamparAtribuicaoGoogle(
     bruto: {
       token,
       click_identifiers: { gclid: casado.gclid, gbraid: casado.gbraid, wbraid: casado.wbraid },
-      // Identidade do GA4 (0902), lida por `ga4/identidade.ts`. Só os dois ids
+      // Identidade do GA4 (9002), lida por `ga4/identidade.ts`. Só os dois ids
       // validados — o `query_raw` inteiro não entra no contato.
       ...(casado.ga
         ? { ga: { ga_client_id: casado.ga.clientId, ga_session_id: casado.ga.sessionId } }

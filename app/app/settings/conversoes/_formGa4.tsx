@@ -1,7 +1,7 @@
 "use client";
 
 /**
- * Conexão com o GA4 (migration 0902). Measurement ID + API secret da
+ * Conexão com o GA4 (migration 9002). Measurement ID + API secret da
  * propriedade. O secret é só de escrita: a tela sabe que existe, nunca o
  * recebe de volta — campo em branco mantém o que já está gravado.
  */

@@ -1,7 +1,7 @@
 "use client";
 
 /**
- * "Enviar vendas de contatos sem anúncio nem site" — desligada por padrão (0902).
+ * "Enviar vendas de contatos sem anúncio nem site" — desligada por padrão (9002).
  * Salva no clique: é uma chave só, sem formulário em volta.
  */
 import { useState, useTransition } from "react";

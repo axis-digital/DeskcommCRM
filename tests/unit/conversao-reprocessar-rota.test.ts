@@ -72,7 +72,7 @@ describe("reprocessamento autorizado", () => {
     "GA4Etapa:11111111-1111-4111-8111-111111111111",
     "SemOrigem:meta_ads:Purchase",
     "SemOrigem:google_ads:Purchase",
-  ])("aceita o reenvio de %s (GA4 e venda sem origem, 0902)", async (evento) => {
+  ])("aceita o reenvio de %s (GA4 e venda sem origem, 9002)", async (evento) => {
     const resposta = await POST(
       new Request(`https://example.test?event_name=${encodeURIComponent(evento)}`, {
         method: "POST",

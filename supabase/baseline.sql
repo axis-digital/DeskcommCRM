@@ -45594,9 +45594,9 @@ $$;
 revoke execute on function public.fn_solicitar_reenvio_conversao(uuid, uuid, text) from public, anon, authenticated;
 grant execute on function public.fn_solicitar_reenvio_conversao(uuid, uuid, text) to service_role;
 
--- ---- conversões no GA4 (migration 0902) ----
+-- ---- conversões no GA4 (migration 9002) ----
 --
--- Racional inteiro na migration 0902. Cria função, então fica ANTES da varredura de anon.
+-- Racional inteiro na migration 9002. Cria função, então fica ANTES da varredura de anon.
 --
 -- O GA4 é DESTINO de análise, não origem de atribuição: reaproveita a tabela
 -- agnóstica de credencial (dataset_id = Measurement ID; access_token_encrypted =
@@ -45687,7 +45687,7 @@ create trigger trg_marcar_configuracao_regra_ga4
 alter table public.ad_conversion_dispatches
   add column if not exists ga4_event_name text;
 comment on column public.ad_conversion_dispatches.ga4_event_name is
-  'Retrato do evento GA4 (0902): o nome que saiu no fio. Reenviar usa este, nunca a regra de agora.';
+  'Retrato do evento GA4 (9002): o nome que saiu no fio. Reenviar usa este, nunca a regra de agora.';
 
 notify pgrst, 'reload schema';
 
@@ -50849,9 +50849,9 @@ create unique index if not exists agent_inbox_integracao_desautorizada_aberto_un
 
 notify pgrst, 'reload schema';
 
--- ---- reenvio de conversão alcança GA4 e venda sem origem (migration 0903) ----
+-- ---- reenvio de conversão alcança GA4 e venda sem origem (migration 9003) ----
 --
--- Racional inteiro na migration 0903 (forward-fix da 0902). Cria função, então
+-- Racional inteiro na migration 9003 (forward-fix da 9002). Cria função, então
 -- fica ANTES da varredura de anon. Substitui a definição da 0524 acima: aceita
 -- GA4:Venda, GA4Etapa:<uuid> e SemOrigem:(meta_ads|google_ads):Purchase; o GA4
 -- exige o retrato (event_occurred_at + ga4_event_name), a venda sem origem exige

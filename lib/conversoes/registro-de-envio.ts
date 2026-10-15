@@ -44,7 +44,7 @@ export interface RegistroDeEnvio {
   googleActionId?: string;
   /** Retrato do evento de etapa da Meta (0524): o nome que sai no fio. */
   metaEventName?: string;
-  /** Retrato do evento GA4 (0902): o nome que saiu no fio. */
+  /** Retrato do evento GA4 (9002): o nome que saiu no fio. */
   ga4EventName?: string;
 }
 

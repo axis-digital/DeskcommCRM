@@ -92,7 +92,7 @@ export async function GET(req: NextRequest, ctx: RouteContext): Promise<Response
     return paginaDeSaida(whatsAppUrl(config.whatsappE164, textoSemRef(config.messageTemplate)));
   }
 
-  // A identidade GA4 (0902) viaja junto: o `rastreio/v1.js` a anexa ao clique
+  // A identidade GA4 (9002) viaja junto: o `rastreio/v1.js` a anexa ao clique
   // quando o site liga `data-ga4`, e o ref casado a leva até o contato. Só
   // entra no formato do cookie `_ga` — o mesmo normalizador da leitura.
   const ga = normalizarIdentidadeGa4({

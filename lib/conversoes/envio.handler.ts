@@ -179,7 +179,7 @@ export async function processarConversao(
       : await lerAtribuicao(admin, row.organization_id, lead.contact_id);
   if (!leitura.temAtribuicao) {
     // Sem anúncio nem clique: a venda só sai pelo fallback, e só com o opt-in
-    // da organização (0902). Sem ele, o comportamento é o de sempre.
+    // da organização (9002). Sem ele, o comportamento é o de sempre.
     if (leitura.motivo === "sem_atribuicao" && !qualificacao && EVENTO === "Purchase")
       return reportarSemOrigem(admin, row, lead);
     return ok("skipped", leitura.motivo);

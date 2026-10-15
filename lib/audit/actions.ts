@@ -492,7 +492,7 @@ export const AUDIT_ACTIONS = [
   "google_ads_conversion_action.created",
   // O que cada etapa do funil informa à Meta (0524) — o par da regra acima.
   "meta_ads_conversion_rules.updated",
-  // O que cada etapa do funil informa ao GA4 (0902) — o par da regra acima.
+  // O que cada etapa do funil informa ao GA4 (9002) — o par da regra acima.
   "ga4_conversion_rules.updated",
   // A conexão de LEITURA da organização com a conta de anúncios (0214).
   // Ação SEPARADA da de cima, e não um `metadata.purpose` na mesma: a pergunta
@@ -1029,7 +1029,7 @@ export const AUDIT_ACTIONS = [
   // "Enviar vendas pelo canal da conversa" (doc 76, PR #1819): ligar faz o
   // valor da venda e o telefone do cliente saírem para o provedor do canal.
   "conversions.report_via_channel_updated",
-  // Fallback sem origem (0902): ligar faz a venda de quem chegou sem anúncio
+  // Fallback sem origem (9002): ligar faz a venda de quem chegou sem anúncio
   // sair para a Meta e para o Google em hash, sem clique.
   "conversions.enviar_sem_origem_updated",
 

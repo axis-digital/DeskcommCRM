@@ -1,7 +1,7 @@
 "use client";
 
 /**
- * O que cada etapa do funil informa ao GA4 (migration 0902).
+ * O que cada etapa do funil informa ao GA4 (migration 9002).
  *
  * Par do `_regrasMeta.tsx`. Uma linha por etapa ABERTA de cada funil: ligada,
  * ela manda o evento de etapa escolhido quando um negócio entra ali. A venda

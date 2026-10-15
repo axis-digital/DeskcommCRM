@@ -1,5 +1,5 @@
 /**
- * As regras de conversão do GA4 por ETAPA do funil (migration 0902), e o
+ * As regras de conversão do GA4 por ETAPA do funil (migration 9002), e o
  * vocabulário de eventos que o CRM manda ao GA4.
  *
  * Par de `regras-meta.ts`. Duas diferenças que vêm do GA4: os nomes são os
