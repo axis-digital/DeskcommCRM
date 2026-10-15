@@ -21,6 +21,9 @@ retentativa; nenhum chegou ao servidor). O upload para o Storage foi real, atras
 | Retentativa (POST bloqueado de novo) | volta a "Não enviada" |
 | "Descartar" | bolha some |
 
+Capturas: `01-dialogo-do-anexo.png` (diálogo do anexo), `02-bolha-enviando.png` (bolha
+local em "Enviando…") e `04-descartada.png` (conversa após "Descartar").
+
 Números brutos em `medidas-sem-envio.json`.
 
 ## Achado e conserto
