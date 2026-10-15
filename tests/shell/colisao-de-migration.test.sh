@@ -75,6 +75,13 @@ unset $(git rev-parse --local-env-vars)
 export GIT_CEILING_DIRECTORIES="$TMP"
 export GIT_AUTHOR_NAME="Teste" GIT_AUTHOR_EMAIL="teste@exemplo.invalid"
 export GIT_COMMITTER_NAME="Teste" GIT_COMMITTER_EMAIL="teste@exemplo.invalid"
+# GITHUB_REF real do runner (refs/pull/N/merge) vaza pro script sob teste e muda qual
+# PR o gate trata como "o próprio" (checar-colisao-de-migration.sh:260). Quando o número
+# da fixture coincide com o PR real que está rodando esta suíte, o caso falha sem motivo
+# no conteúdo testado — medido: caso 18 ("gate_prs ... 8") quebra sempre que esta suíte
+# roda dentro do PR #8 real, porque GITHUB_REF=refs/pull/8/merge faz o 8 da fixture virar
+# "próprio" em vez de NÃO MEDIDO.
+unset GITHUB_REF GITHUB_REPOSITORY GITHUB_ACTIONS
 
 # ── gh FALSO, para TODOS os casos: sem rede e sem depender do gh de quem roda ──────────
 # Ele HONRA o contrato da chamada real — se ignorasse os argumentos, trocar `--state open`

@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import * as React from "react";
 import { useRouter } from "next/navigation";
 
-import { GoogleLogo } from "@/lib/ui/icons";
+import { CalendarDots } from "@/lib/ui/icons";
 
 /**
  * O cartão da agenda conectada — e o caso que importa é o de quem NÃO tem.
@@ -124,7 +124,7 @@ export function CartaoDaConexaoGoogle({
         data-testid="google-conectado"
         className="flex items-center gap-2 rounded-lg border border-border bg-surface p-3"
       >
-        <GoogleLogo size={16} weight="bold" className="shrink-0 text-text-muted" aria-hidden />
+        <CalendarDots size={16} weight="bold" className="shrink-0 text-text-muted" aria-hidden />
         <p className="min-w-0 flex-1 truncate text-sm">
           <span className="text-text-muted">{t("Agenda conectada:")} </span>
           <span className="font-medium">{contaConectada}</span>
@@ -161,7 +161,7 @@ export function CartaoDaConexaoGoogle({
       </p>
       <Button variant="outline" size="sm" data-testid="conectar-google" asChild>
         <a href="/api/v1/agenda/google/connect">
-          <GoogleLogo size={16} weight="bold" aria-hidden />
+          <CalendarDots size={16} weight="bold" aria-hidden />
           <span>{t("Conectar Google")}</span>
         </a>
       </Button>

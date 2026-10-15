@@ -70,7 +70,7 @@ Inter / Geist / Space Grotesk **proibidos** por saturação em training data.
 - **Default**: `Sage + Bricolage/Jakarta + Equilibrada + Light`. Sage projeta
   calma operacional sem cair em "saúde mental clichê"; Bricolage tem width axis
   útil para hierarquia em headers de inbox.
-- **Iconografia recomendada**: Phosphor (duotone). Justificativa na seção Iconografia.
+- **Iconografia canônica**: Axis/Lucide outline, traço de 1,75–2px. Regras na seção Iconografia.
 - **CSS variables, não Tailwind classes**: o showcase intencionalmente fica fora
   do tema do app para não poluí-lo antes da decisão final. Quando a variante for
   escolhida, migra-se para o `@theme inline` de `app/globals.css` com
