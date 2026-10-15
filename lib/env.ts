@@ -30,9 +30,7 @@ const isBuildPhase = process.env.NEXT_PHASE === "phase-production-build";
  * pra permitir setup parcial (ex: dev sem WAHA quando trabalhando só na UI).
  */
 const required = (name: string) =>
-  isProd
-    ? z.string().min(1, `${name} é obrigatória em produção`)
-    : z.string().default("");
+  isProd ? z.string().min(1, `${name} é obrigatória em produção`) : z.string().default("");
 
 const requiredAlways = (name: string) => z.string().min(1, `${name} é obrigatória`);
 
@@ -217,6 +215,8 @@ const schema = z.object({
   WAHA_ACCEPTED_ENGINES: z.string().optional().default(""),
   WAHA_SESSION_WEBHOOK: z.string().optional().default(""),
   WAHA_SESSION_PROXY: z.string().optional().default(""),
+  // Origem interna pela qual o WAHA baixa a mídia enviada (lib/waha/media-url.ts). Vazio = URL pública.
+  WAHA_MEDIA_BASE_URL: z.string().optional().default(""),
   // Dias de histórico importados ao parear um número (lib/waha/historico.ts). 0 = desligado.
   WAHA_HISTORY_IMPORT_DAYS: z.string().optional().default("0"),
 
@@ -593,14 +593,8 @@ const schema = z.object({
     .transform((v) => v === "true"),
 
   // App URLs
-  NEXT_PUBLIC_APP_URL: z
-    .string()
-    .url()
-    .default("http://localhost:3000"),
-  NEXT_PUBLIC_ADMIN_URL: z
-    .string()
-    .url()
-    .default("http://localhost:3000"),
+  NEXT_PUBLIC_APP_URL: z.string().url().default("http://localhost:3000"),
+  NEXT_PUBLIC_ADMIN_URL: z.string().url().default("http://localhost:3000"),
   /**
    * URL pública opcional para os webhooks da Meta (WhatsApp Cloud API / canais oficiais).
    * Quando definida, é usada no lugar de NEXT_PUBLIC_APP_URL para compor a URL de callback

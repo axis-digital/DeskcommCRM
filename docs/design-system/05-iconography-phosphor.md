@@ -1,179 +1,190 @@
-# 05 — Iconografia Phosphor
+# 05 — Iconografia Axis/Lucide
 
-> **Source of truth:** `@phosphor-icons/react`, peso default `duotone`.
+> **Source of truth:** catálogo curado do Axis Design System, implementado por `lucide-react` e
+> exposto no produto somente por `@/lib/ui/icons`.
 
-## Por que Phosphor
+O nome deste arquivo é mantido por compatibilidade com links existentes. O contrato vigente é
+Axis/Lucide; Phosphor não faz mais parte da iconografia canônica.
 
-A iconografia canônica do DeskcommCRM é **Phosphor Icons** com peso **duotone** como default, **regular** como secundário.
+## Princípios
 
-Razões:
+- **Outline monocromático.** O ícone usa `currentColor`, sem preenchimento decorativo, duotone ou
+  gradiente.
+- **Traço consistente.** O padrão é `1.75px`; `2px` é o máximo e fica reservado a ênfase em
+  controles pequenos. Nunca use traço acima de `2px`.
+- **Catálogo curado.** Use apenas símbolos exportados por `@/lib/ui/icons`. Um ícone ausente entra
+  primeiro no barrel e neste mapeamento; não importe diretamente do pacote nem desenhe um SVG
+  local.
+- **Função antes da marca.** Plataformas terceiras recebem um ícone genérico que descreve o canal
+  ou a ação. Não redesenhe logotipos dentro da família Lucide.
+- **Texto continua soberano.** O ícone reforça uma ação, um estado ou um destino; não substitui um
+  rótulo necessário para compreensão.
 
-- **Diferenciação de mercado.** ~80% dos CRMs SaaS atuais usam Lucide (Feather fork). Lucide é correto e neutro, mas previsível. Phosphor diverge sem custo de qualidade — pelo contrário, é mais expressivo.
-- **Duotone tem peso visual sem ruído.** A camada secundária (preenchimento ~20% opacity) dá presença sem competir com o texto. Regular fica pra contextos onde duotone seria excessivo (sidebar densa).
-- **5 weights disponíveis.** `thin`, `light`, `regular`, `bold`, `duotone`, `fill`. Permite hierarquia dentro do mesmo set sem trocar família.
-- **Cobertura grande e consistente.** ~9000 ícones. Cobre todos os domínios do produto (chat, comércio, dados, IA, gestão).
-- **Família humanista.** Curvas suaves combinam com Atkinson Hyperlegible. Lucide é mais geométrico, Heroicons é mais "clean SaaS"; Phosphor cabe no soft-tech.
+## Uso no código
 
-## Instalação
-
-```bash
-pnpm add @phosphor-icons/react
-```
+O pacote oficial é `lucide-react`, mas componentes do produto importam apenas o barrel canônico:
 
 ```tsx
-import { ChatCircle, Kanban, UserCircle } from "@phosphor-icons/react";
+import { ChatCircle, MagnifyingGlass, Plus } from "@/lib/ui/icons";
 
-<ChatCircle weight="duotone" size={20} />
+<ChatCircle size={20} aria-hidden="true" />
+<MagnifyingGlass size={20} className="text-text-muted" aria-hidden="true" />
+<Plus size={16} strokeWidth={2} aria-hidden="true" />
 ```
+
+Não faça:
+
+```tsx
+import { Search } from "lucide-react";
+```
+
+O barrel mantém os nomes semânticos usados pelo produto e permite evoluir a implementação sem
+espalhar dependência de pacote pelas telas.
 
 ## Tamanhos canônicos
 
 Quatro tamanhos. Não invente intermediários.
 
-| Tamanho | px | Uso |
-|---------|----|----|
-| `xs` | 16 | Inline em texto (parágrafo, badge), trailing em link |
-| `sm` | 20 | Sidebar nav, toolbar action, leading em botão |
-| `md` | 24 | **Default UI** — header actions, list-item leading, empty-state primário |
-| `lg` | 32 | Hero, empty state grande, feature card |
+| Tamanho |  px | Uso                                               |
+| ------- | --: | ------------------------------------------------- |
+| `xs`    |  16 | Inline em texto, badge ou link                    |
+| `sm`    |  20 | Navegação, toolbar e ícone à esquerda de botão    |
+| `md`    |  24 | Ações de cabeçalho, listas e empty state compacto |
+| `lg`    |  32 | Empty state grande e feature card                 |
 
-Acima de 32 → use ilustração, não ícone.
+Acima de 32px, prefira ilustração em vez de ampliar um ícone de interface.
 
-## Cor
+## Cor e traço
 
-Ícones consomem `currentColor` ou variáveis específicas. **Nunca** hardcode cor.
+Ícones herdam `currentColor`. Use tokens semânticos; nunca grave cor hexadecimal ou cor de marca no
+componente.
 
 ```tsx
-// Default — herda do parent
-<MagnifyingGlass className="text-text-muted" weight="duotone" />
+// Padrão Axis: 1.75px, herdado do barrel
+<MagnifyingGlass className="text-text-muted" aria-hidden="true" />
 
-// Em estado ativo (link active, primary button)
-<ArrowRight className="text-accent" weight="bold" />
+// Ênfase excepcional em controle pequeno: máximo 2px
+<Plus size={16} strokeWidth={2} className="text-accent" aria-hidden="true" />
 
-// Decorativo dentro de badge colorido
-<CheckCircle className="text-success" weight="duotone" />
+// Estado semântico continua monocromático
+<CheckCircle className="text-success" aria-hidden="true" />
 ```
 
-CSS:
-
-```css
-.icon-default { color: var(--ds-text-muted); }
-.icon-accent  { color: var(--ds-accent); }
-.icon-on-bg   { color: var(--ds-accent-fg); }  /* sobre bg accent */
-```
-
-**Duotone:** o peso secundário (preenchimento) usa automaticamente `currentColor` em opacidade reduzida. Não há config extra.
+Não use `fill`, `strokeWidth` maior que `2`, duas cores no mesmo ícone ou opacidade interna para
+simular duotone.
 
 ## Mapeamento canônico — função → ícone
 
-Use **estes ícones** para estas funções. Se não está na lista e parece não ter um óbvio, abra RFC antes de escolher.
+Use estes símbolos para manter a mesma linguagem nas telas. Se a função não estiver na lista e não
+tiver equivalente claro no catálogo, proponha a inclusão antes de escolher um ícone avulso.
 
 ### Navegação principal
 
-| Função | Ícone Phosphor | Notas |
-|--------|----------------|-------|
-| Inbox / conversas | `ChatCircle` | duotone, default da home |
-| Kanban / pedidos | `Kanban` | duotone |
-| Clientes / CRM | `UsersThree` | duotone — não use `User` solo |
-| Catálogo / produtos | `ShoppingBag` | duotone |
-| Relatórios / analytics | `ChartLine` | duotone (não `ChartBar`) |
-| Configurações | `Gear` | regular (não duotone — fica menos formal) |
-| Notificações | `Bell` | duotone, com badge se houver pending |
+| Função                 | Export do barrel | Observação                               |
+| ---------------------- | ---------------- | ---------------------------------------- |
+| Inbox / conversas      | `Inbox`          | Destino de entrada e triagem             |
+| Kanban / pedidos       | `Kanban`         | Fluxo visual por etapas                  |
+| Clientes / CRM         | `UsersThree`     | Grupo de pessoas; não use pessoa isolada |
+| Catálogo / produtos    | `Storefront`     | Catálogo comercial                       |
+| Relatórios / analytics | `ChartLineUp`    | Tendência e desempenho                   |
+| Configurações          | `Gear`           | Ajustes do sistema                       |
+| Notificações           | `Bell`           | Badge separado quando houver pendência   |
 
 ### Ações
 
-| Função | Ícone | Notas |
-|--------|-------|-------|
-| Buscar | `MagnifyingGlass` | regular |
-| Adicionar / criar | `Plus` | bold (peso compensa o tamanho pequeno) |
-| Editar | `PencilSimple` | regular (não `Pencil` — tem texturas) |
-| Apagar | `Trash` | regular, com cor `error` em ações destrutivas |
-| Mais opções | `DotsThree` | regular |
-| Filtrar | `Funnel` | regular |
-| Ordenar | `ArrowsDownUp` | regular |
-| Atribuir / owner | `UserCircle` | duotone |
-| Tag / etiqueta | `Tag` | regular |
-| Fechar / dismiss | `X` | regular |
-| Voltar | `ArrowLeft` | regular |
-| Avançar | `ArrowRight` | regular ou bold em CTA |
-| Expandir | `CaretDown` | regular |
-| Marcar como resolvido | `CheckCircle` | duotone, cor `success` |
-| Reabrir conversa | `ArrowCounterClockwise` | regular |
+| Função                 | Export do barrel        | Observação                             |
+| ---------------------- | ----------------------- | -------------------------------------- |
+| Buscar                 | `MagnifyingGlass`       | Normalmente dentro do campo            |
+| Adicionar / criar      | `Plus`                  | Pode usar `2px` em 16px                |
+| Editar                 | `PencilSimple`          | Edição de conteúdo ou configuração     |
+| Apagar                 | `Trash`                 | Cor de erro somente na ação destrutiva |
+| Mais opções            | `DotsThree`             | Menu contextual                        |
+| Filtrar                | `Funnel`                | Refino de lista ou relatório           |
+| Atribuir / responsável | `UserCircle`            | Pessoa responsável                     |
+| Fechar / dispensar     | `X`                     | Não confundir com exclusão             |
+| Avançar                | `ArrowRight`            | Fluxo ou CTA                           |
+| Expandir               | `CaretDown`             | Conteúdo recolhível                    |
+| Resolver               | `CheckCircle`           | Com texto ou nome acessível            |
+| Reabrir                | `ClockCounterClockwise` | Retorno a um estado anterior           |
 
 ### Estado e status
 
-| Função | Ícone | Notas |
-|--------|-------|-------|
-| Sucesso / OK | `CheckCircle` | duotone, cor `success` |
-| Aviso | `Warning` | duotone, cor `warning` (não `WarningCircle` — visual diferente) |
-| Erro / urgente | `WarningOctagon` | duotone, cor `error` |
-| Info / dica | `Info` | duotone, cor `info` |
-| Loading | `CircleNotch` (com spin) | regular |
-| Skeleton placeholder | sem ícone | use `<Skeleton>` shadcn |
+| Função              | Export do barrel | Observação                  |
+| ------------------- | ---------------- | --------------------------- |
+| Sucesso / concluído | `CheckCircle`    | Token de sucesso            |
+| Aviso               | `Warning`        | Token de aviso              |
+| Erro / urgente      | `WarningOctagon` | Token de erro               |
+| Informação          | `Info`           | Token informativo           |
+| Carregando          | `CircleNotch`    | Use `animate-spin`          |
+| Placeholder         | sem ícone        | Use o componente `Skeleton` |
 
-### Mensagens (chat)
+### Mensagens
 
-| Função | Ícone | Notas |
-|--------|-------|-------|
-| Anexar arquivo | `Paperclip` | regular |
-| Imagem | `Image` | regular |
-| Áudio | `Microphone` | regular |
-| Enviar | `PaperPlaneRight` | bold |
-| Emoji | `Smiley` | regular |
-| Template / shortcut | `Lightning` | duotone (uso operacional, **não usar pra IA**) |
-| Ack: enviado | `Check` | regular, text-muted |
-| Ack: entregue | `Checks` | regular, text-muted |
-| Ack: lido | `Checks` | regular, text-accent (cor pra diferenciar) |
+| Função          | Export do barrel | Observação                  |
+| --------------- | ---------------- | --------------------------- |
+| Anexar arquivo  | `Paperclip`      | Ação no compositor          |
+| Imagem          | `ImageIcon`      | Tipo de anexo               |
+| Áudio           | `Microphone`     | Gravação ou mídia de voz    |
+| Enviar          | `PaperPlaneTilt` | Ação primária do compositor |
+| Emoji           | `Smiley`         | Seletor de reação           |
+| Enviado         | `Check`          | Estado com rótulo acessível |
+| Entregue / lido | `Checks`         | A cor diferencia os estados |
 
-### IA / automação
+### IA e automação
 
-| Função | Ícone | Notas |
-|--------|-------|-------|
-| IA respondendo | `Brain` ou `Sparkle` | duotone — **`Sparkle` apenas** se tom for de "sugestão criativa"; `Brain` pra "processamento" |
-| Sugestão automática | `MagicWand` | duotone (raro) |
+| Função               | Export do barrel | Observação                  |
+| -------------------- | ---------------- | --------------------------- |
+| Processamento por IA | `Brain`          | Processamento ou raciocínio |
+| Sugestão automática  | `Sparkle`        | Apenas sugestão criativa    |
+| Fluxo automatizado   | `GitBranch`      | Ramificação ou regra        |
 
-> ⚠️ **Não use `Lightning` para IA.** Lightning é reservado pra "shortcuts/templates" do atendente. Trocar gera ambiguidade.
+Não use um ícone de raio para representar IA: o símbolo é ambíguo com atalho e velocidade.
 
-### Comércio
+### Plataformas terceiras
 
-| Função | Ícone | Notas |
-|--------|-------|-------|
-| Pedido / sacola | `ShoppingBag` | duotone |
-| Pagamento | `CreditCard` | duotone |
-| Frete / envio | `Truck` | duotone |
-| Produto único | `Package` | regular |
-| Cupom / desconto | `TicketDiscount` | duotone |
+Não recrie logotipos de mensageria, rede social, agenda ou provedor com traços Lucide. Represente a
+função e deixe a identificação da plataforma para o texto adjacente:
 
-## Quando NÃO usar ícone
+| Contexto              | Ícone genérico  |
+| --------------------- | --------------- |
+| Canal de mensagens    | `ChatCircle`    |
+| Telefonia             | `Phone`         |
+| Página ou serviço web | `Globe`         |
+| Agenda externa        | `CalendarBlank` |
+| Integração / webhook  | `WebhooksLogo`  |
 
-- **Em label puramente verbal** onde o texto é mais claro. Ex: botão `Salvar` não precisa de ícone; `Marcar como resolvido` precisa de `CheckCircle` porque o texto é longo.
-- **Em estados onde a cor já comunica.** Badge `success` verde com texto "Pago" não precisa de ícone — economiza espaço.
-- **Em ícone redundante.** Não coloque `MagnifyingGlass` antes de um input com placeholder "Buscar conversas".
-- **Decoração pura.** Toda ocorrência de ícone deve ter função (affordance, status, navegação).
+Se um logotipo oficial for indispensável por requisito de co-branding, trate-o como asset de marca,
+fora do sistema de ícones e conforme as regras de uso do proprietário.
+
+## Quando não usar ícone
+
+- Em rótulo curto que já explica a ação, como `Salvar`.
+- Em badge cuja cor e texto já comunicam o estado.
+- Antes de um campo cujo contexto já está explícito, salvo quando o ícone for affordance interativa.
+- Como decoração sem função de navegação, ação ou estado.
 
 ## Acessibilidade
 
 ```tsx
-// Ícone que é a única affordance (icon-only button)
+// Ícone como única affordance: o controle recebe nome acessível
 <button aria-label="Apagar conversa">
-  <Trash size={20} weight="regular" />
+  <Trash size={20} aria-hidden="true" />
 </button>
 
-// Ícone decorativo ao lado de texto (texto já comunica)
+// Ícone decorativo ao lado de texto
 <button>
-  <Plus size={16} weight="bold" aria-hidden="true" />
+  <Plus size={16} strokeWidth={2} aria-hidden="true" />
   <span>Nova conversa</span>
 </button>
 
-// Ícone de status com label
+// Estado: o texto adjacente comunica o significado
 <span role="status">
-  <CheckCircle size={16} weight="duotone" className="text-success" aria-hidden="true" />
+  <CheckCircle size={16} className="text-success" aria-hidden="true" />
   <span>Resolvido</span>
 </span>
 ```
 
-**Regras:**
-- Icon-only button → `aria-label` obrigatório.
-- Ícone + texto → `aria-hidden="true"` no ícone.
-- Ícone de status → ou role/aria-label, ou texto adjacente sempre presente (mesmo que sr-only).
-- Phosphor renderiza como `<svg>`, então ele já é tratável por screen readers conforme attrs.
+- Botão somente com ícone precisa de `aria-label`.
+- Ícone acompanhado por texto usa `aria-hidden="true"`.
+- Estado precisa de texto visível ou equivalente para leitor de tela.
+- Cor nunca é o único sinal de significado.
