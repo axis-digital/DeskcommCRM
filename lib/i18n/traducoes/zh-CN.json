@@ -3751,6 +3751,8 @@
   "convite(s) enviado(s)": "已发送邀请",
   "falha(s).": "失败。",
   "Enviando…": "正在发送…",
+  "Não enviada": "未发送",
+  "Não foi possível enviar. Verifique a conexão.": "无法发送。请检查网络连接。",
   "Enviar convites": "发送邀请",
   "Enviados": "已发送",
   "Email enviado.": "邮件已发送。",
