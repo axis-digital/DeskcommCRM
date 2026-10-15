@@ -159,6 +159,22 @@ describe("ChatThread — bolha otimista do anexo", () => {
     expect(estado.descartar).not.toHaveBeenCalled();
   });
 
+  it("a bolha virou 'não enviada': o fio rola, senão o motivo e os botões ficam abaixo da dobra", () => {
+    // Medido no staging (2026-10-15): a bolha cresce ~70px ao falhar, e sem
+    // rolar o atendente via "Enviando…" sumir sem ver o "Tentar de novo".
+    estado.mensagens = [msg("m-1")];
+    estado.pendentes = [envio("k-1")];
+    const { rerender } = render(<ChatThread conversationId="c-1" />, { wrapper });
+    const rolar = vi.mocked(Element.prototype.scrollIntoView);
+    const antes = rolar.mock.calls.length;
+
+    estado.pendentes = [envio("k-1", { fase: "falhou", erro: "Tempo esgotado" })];
+    rerender(<ChatThread conversationId="c-1" />);
+
+    expect(screen.getByRole("button", { name: "Tentar de novo" })).toBeInTheDocument();
+    expect(rolar.mock.calls.length).toBeGreaterThan(antes);
+  });
+
   it("a bolha dizia 'não enviada', mas o servidor gravou: sai da fila (sem retentativa para o que já existe)", () => {
     estado.mensagens = [msg("m-real", { metadata: { envio_local: "k-1" } })];
     estado.pendentes = [envio("k-1", { fase: "falhou", erro: "Tempo esgotado" })];

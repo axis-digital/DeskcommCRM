@@ -186,6 +186,9 @@ export function ChatThread({
   const envios = useEnviosDeMidia(conversationId);
   const gravados = useMemo(() => idsDeEnviosGravados(messages), [messages]);
   const locais = envios.pendentes.filter((e) => !gravados.has(e.id));
+  // A bolha cresce ao falhar (motivo + botões): a troca de fase também rola o
+  // fio, senão "Tentar de novo" nasce abaixo da dobra (medido no staging).
+  const fasesDosLocais = locais.map((e) => e.fase).join(",");
   const { descartar } = envios;
   useEffect(() => {
     // A linha real chegou antes da resposta do POST (o cliente desistiu, o
@@ -271,7 +274,7 @@ export function ChatThread({
       behavior: primeiraAncoragem ? "auto" : "smooth",
       block: "end",
     });
-  }, [items.length, locais.length, conversationId, paginas]);
+  }, [items.length, fasesDosLocais, conversationId, paginas]);
 
   /**
    * O ESTADO DO CANAL DESTE THREAD, PUBLICADO SEMPRE — inclusive quando não há
