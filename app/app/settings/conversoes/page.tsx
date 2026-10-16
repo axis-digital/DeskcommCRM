@@ -386,7 +386,12 @@ export default async function ConversoesPage({
             />
           )}
           {(estado.conectada || vendaPeloCanal) && !etapas.error && regrasMeta && (
-            <RegrasDeConversaoMeta etapas={etapasAbertas} regras={regrasMeta} idioma={idioma} />
+            <RegrasDeConversaoMeta
+              etapas={etapasAbertas}
+              regras={regrasMeta}
+              idioma={idioma}
+              conexaoDireta={estado.conectada}
+            />
           )}
           <section className="flex flex-col gap-4" aria-labelledby="titulo-ga4">
             <h2 id="titulo-ga4" className="text-lg font-semibold">
