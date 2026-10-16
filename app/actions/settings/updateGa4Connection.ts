@@ -2,6 +2,7 @@
 
 import { supportWriteError } from "@/lib/impersonate/support";
 import { headers } from "next/headers";
+import { ipDoCliente } from "@/lib/http/ip-do-cliente";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 
@@ -93,7 +94,7 @@ export async function updateGa4Connection(
     resourceType: "ad_platform_connections",
     resourceId: null,
     requestId: hdrs.get("x-request-id") ?? undefined,
-    ip: hdrs.get("x-forwarded-for")?.split(",")[0]?.trim() ?? undefined,
+    ip: ipDoCliente(hdrs),
     userAgent: hdrs.get("user-agent") ?? undefined,
     metadata: {
       platform: "ga4",
