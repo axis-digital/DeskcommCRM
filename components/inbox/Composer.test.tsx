@@ -28,7 +28,9 @@ const DICIONARIO: Record<string, { es: string }> = {
   Enviar: { es: "Enviar" },
   Mensagem: { es: "Mensaje" },
   "Escreva uma mensagem…": { es: "Escribe un mensaje…" },
-  "Escreva uma nota interna… (só o time vê)": { es: "Escribe una nota interna… (solo el equipo la ve)" },
+  "Escreva uma nota interna… (só o time vê)": {
+    es: "Escribe una nota interna… (solo el equipo la ve)",
+  },
   "Enter envia · Shift+Enter quebra linha": { es: "Enter envía · Shift+Enter salta de línea" },
   "Enter salva a nota · Shift+Enter quebra línea": {
     es: "Enter guarda la nota · Shift+Enter salta de línea",
@@ -36,10 +38,11 @@ const DICIONARIO: Record<string, { es: string }> = {
   "Enter salva a nota · Shift+Enter quebra linha": {
     es: "Enter guarda la nota · Shift+Enter salta de línea",
   },
-  "Contato sem nome no CRM: {{nome}}/{{primeiro_nome}} ficaram literais no texto. Edite antes de enviar.": {
-    es: "Contacto sin nombre en el CRM: {{nome}}/{{primeiro_nome}} quedaron como texto literal en el mensaje. Edítalo antes de enviar.",
-  },
-  "Atendente": { es: "Agente" },
+  "Contato sem nome no CRM: {{nome}}/{{primeiro_nome}} ficaram literais no texto. Edite antes de enviar.":
+    {
+      es: "Contacto sin nombre en el CRM: {{nome}}/{{primeiro_nome}} quedaron como texto literal en el mensaje. Edítalo antes de enviar.",
+    },
+  Atendente: { es: "Agente" },
 };
 
 function fazTradutor(idioma: "pt_BR" | "es"): Tradutor {
@@ -154,7 +157,9 @@ function renderComposer(opts?: {
       contactName={opts?.contactName === undefined ? "Rafael Melgaço" : opts.contactName}
       contactDisplayName={opts?.contactDisplayName ?? null}
     />,
-    { wrapper: ({ children }) => <QueryClientProvider client={qc}>{children}</QueryClientProvider> },
+    {
+      wrapper: ({ children }) => <QueryClientProvider client={qc}>{children}</QueryClientProvider>,
+    },
   );
 }
 
@@ -273,7 +278,9 @@ describe("o que o conserto NÃO muda (preservado, medido)", () => {
   });
 
   it("o campo volta ao literal no restoreOnError — o que o atendente digitou é o que resta", async () => {
-    sendMutate.mockImplementation((_payload: unknown, opts: { onError: () => void }) => opts.onError());
+    sendMutate.mockImplementation((_payload: unknown, opts: { onError: () => void }) =>
+      opts.onError(),
+    );
     renderComposer({ contactName: "Rafael Melgaço" });
 
     await enviarDigitando("Oi {{primeiro_nome}}, tudo bem?");
@@ -308,10 +315,20 @@ describe("o que o conserto NÃO muda (preservado, medido)", () => {
     const { rerender } = renderComposer({ contactName: "Rafael Melgaço" });
     fireEvent.change(screen.getByRole("textbox"), { target: { value: "Oi {{primeiro_nome}}" } });
 
-    rerender(<Composer conversationId="conv-2" initialDraft="" contactName="Ana Paula" contactDisplayName={null} />);
+    rerender(
+      <Composer
+        conversationId="conv-2"
+        initialDraft=""
+        contactName="Ana Paula"
+        contactDisplayName={null}
+      />,
+    );
     await userEvent.click(screen.getByRole("button", { name: /enviar/i }));
 
     expect(sendMutate).toHaveBeenCalledTimes(1);
-    expect(sendMutate.mock.calls[0]![0]).toMatchObject({ conversation_id: "conv-2", body: "Oi Ana" });
+    expect(sendMutate.mock.calls[0]![0]).toMatchObject({
+      conversation_id: "conv-2",
+      body: "Oi Ana",
+    });
   });
 });
