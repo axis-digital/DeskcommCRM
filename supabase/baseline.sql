@@ -45601,6 +45601,103 @@ $$;
 revoke execute on function public.fn_solicitar_reenvio_conversao(uuid, uuid, text) from public, anon, authenticated;
 grant execute on function public.fn_solicitar_reenvio_conversao(uuid, uuid, text) to service_role;
 
+-- ---- conversões no GA4 (migration 9002) ----
+--
+-- Racional inteiro na migration 9002. Cria função, então fica ANTES da varredura de anon.
+--
+-- O GA4 é DESTINO de análise, não origem de atribuição: reaproveita a tabela
+-- agnóstica de credencial (dataset_id = Measurement ID; access_token_encrypted =
+-- API secret) e o livro-razão, e ganha regras por etapa espelhadas da 0524.
+
+alter table public.ad_platform_connections
+  drop constraint if exists ad_platform_connections_platform_conhecida;
+alter table public.ad_platform_connections
+  add constraint ad_platform_connections_platform_conhecida
+  check (platform = any (array['meta_ads'::text, 'google_ads'::text, 'ga4'::text]));
+
+alter table public.ad_platform_connections
+  add column if not exists ga4_won_event text;
+alter table public.ad_platform_connections
+  drop constraint if exists ad_platform_connections_ga4_won_event_check;
+alter table public.ad_platform_connections
+  add constraint ad_platform_connections_ga4_won_event_check
+  check (ga4_won_event is null or ga4_won_event in ('close_convert_lead', 'purchase'));
+
+comment on column public.ad_platform_connections.ga4_won_event is
+  'Só para platform=ga4: o evento que o ganho envia. close_convert_lead (funil de leads, padrão) ou purchase (e-commerce, com transaction_id = id do lead).';
+
+create table if not exists public.ga4_conversion_rules (
+  id uuid primary key default gen_random_uuid(),
+  organization_id uuid not null references public.organizations(id) on delete cascade,
+  stage_id uuid not null,
+  event_name text not null,
+  ga4_event text not null,
+  enabled boolean not null default true,
+  configured_at timestamptz not null default now(),
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now(),
+  updated_by uuid,
+  constraint ga4_conversion_rules_evento_do_livro
+    check (event_name ~ '^GA4Etapa:[0-9a-f-]{36}$'),
+  constraint ga4_conversion_rules_evento_conhecido
+    check (ga4_event in ('generate_lead', 'qualify_lead', 'working_lead', 'begin_checkout'))
+);
+
+alter table public.ga4_conversion_rules
+  drop constraint if exists ga4_conversion_rules_stage_org_fk;
+alter table public.ga4_conversion_rules
+  add constraint ga4_conversion_rules_stage_org_fk
+  foreign key (organization_id, stage_id)
+  references public.crm_stages (organization_id, id)
+  on delete cascade;
+
+create unique index if not exists ga4_conversion_rules_org_stage_uk
+  on public.ga4_conversion_rules (organization_id, stage_id);
+create unique index if not exists ga4_conversion_rules_org_event_uk
+  on public.ga4_conversion_rules (organization_id, event_name);
+
+comment on table public.ga4_conversion_rules is
+  'Qual evento recomendado do GA4 cada etapa do funil envia quando um negócio entra nela. event_name (GA4Etapa:<uuid>) é a chave do livro-razão ad_conversion_dispatches. Server-side only: RLS sem policy e grants revogados de anon/authenticated.';
+
+alter table public.ga4_conversion_rules enable row level security;
+revoke all on public.ga4_conversion_rules from anon, authenticated;
+grant select, insert, update, delete on public.ga4_conversion_rules to service_role;
+
+drop trigger if exists trg_ga4_conversion_rules_updated_at on public.ga4_conversion_rules;
+create trigger trg_ga4_conversion_rules_updated_at
+  before update on public.ga4_conversion_rules
+  for each row execute function public.fn_set_updated_at();
+
+create or replace function public.fn_marcar_configuracao_regra_ga4()
+returns trigger language plpgsql set search_path = public as $$
+begin
+  if tg_op = 'INSERT' then
+    new.configured_at := coalesce(new.configured_at, now());
+  elsif new.stage_id is distinct from old.stage_id
+     or new.ga4_event is distinct from old.ga4_event
+     or (new.enabled and not old.enabled) then
+    new.configured_at := now();
+  else
+    new.configured_at := old.configured_at;
+  end if;
+  return new;
+end;
+$$;
+revoke execute on function public.fn_marcar_configuracao_regra_ga4() from public, anon, authenticated;
+grant execute on function public.fn_marcar_configuracao_regra_ga4() to service_role;
+
+drop trigger if exists trg_marcar_configuracao_regra_ga4 on public.ga4_conversion_rules;
+create trigger trg_marcar_configuracao_regra_ga4
+  before insert or update on public.ga4_conversion_rules
+  for each row execute function public.fn_marcar_configuracao_regra_ga4();
+
+alter table public.ad_conversion_dispatches
+  add column if not exists ga4_event_name text;
+comment on column public.ad_conversion_dispatches.ga4_event_name is
+  'Retrato do evento GA4 (9002): o nome que saiu no fio. Reenviar usa este, nunca a regra de agora.';
+
+notify pgrst, 'reload schema';
+
 -- ---- a remarcação carimba quando o horário foi marcado (migration 0536) ----
 -- Issue #2230, seguimento da #2226/#2223: a régua do degrau vencido na marcação
 -- é `calendar_appointments.created_at`, e `created_at` não muda quando a reunião
@@ -50759,6 +50856,58 @@ create unique index if not exists agent_inbox_integracao_desautorizada_aberto_un
 
 notify pgrst, 'reload schema';
 
+-- ---- reenvio de conversão alcança GA4 e venda sem origem (migration 9003) ----
+--
+-- Racional inteiro na migration 9003 (forward-fix da 9002). Cria função, então
+-- fica ANTES da varredura de anon. Substitui a definição da 0524 acima: aceita
+-- GA4:Venda, GA4Etapa:<uuid> e SemOrigem:(meta_ads|google_ads):Purchase; o GA4
+-- exige o retrato (event_occurred_at + ga4_event_name), a venda sem origem exige
+-- negócio ganho.
+
+create or replace function public.fn_solicitar_reenvio_conversao(p_org uuid, p_lead uuid, p_event text)
+returns boolean language plpgsql set search_path = public as $$
+declare v_linha public.ad_conversion_dispatches%rowtype;
+begin
+  if p_event is null or not (
+    p_event in ('Purchase', 'QualifiedLead', 'GA4:Venda')
+    or p_event ~ '^Etapa:[0-9a-f-]{36}$'
+    or p_event ~ '^MetaEtapa:[0-9a-f-]{36}$'
+    or p_event ~ '^GA4Etapa:[0-9a-f-]{36}$'
+    or p_event ~ '^SemOrigem:(meta_ads|google_ads):Purchase$'
+  ) then
+    return false;
+  end if;
+  select * into v_linha from public.ad_conversion_dispatches
+    where organization_id = p_org and lead_id = p_lead and event_name = p_event for update;
+  if not found or v_linha.status = 'sent' then return false; end if;
+  if p_event = 'GA4:Venda' or p_event ~ '^GA4Etapa:' then
+    -- O consumidor do GA4 reenvia o RETRATO: quando e qual evento saiu no fio.
+    if v_linha.event_occurred_at is null or v_linha.ga4_event_name is null then return false; end if;
+  elsif p_event ~ '^SemOrigem:' then
+    -- A venda sem origem só sai de negócio ganho, como o `Purchase` sem protocolo.
+    if not exists (
+      select 1 from public.crm_leads where id = p_lead and organization_id = p_org and status = 'won'
+    ) then return false; end if;
+  elsif p_event ~ '^MetaEtapa:' then
+    if v_linha.event_occurred_at is null or v_linha.meta_event_name is null then return false; end if;
+  elsif p_event <> 'Purchase' and (v_linha.event_occurred_at is null or v_linha.google_action_id is null) then
+    return false;
+  end if;
+  if p_event = 'Purchase' and v_linha.remote_request_id is null and not exists (
+    select 1 from public.crm_leads where id = p_lead and organization_id = p_org and status = 'won'
+  ) then return false; end if;
+  if exists (select 1 from public.event_log where organization_id = p_org and entity_id = p_lead
+    and event_type = 'ad_conversion.retry_requested' and status in ('pending', 'processing')
+    and coalesce(payload->>'event_name', 'Purchase') = p_event) then return false; end if;
+  perform public.emit_event('ad_conversion.retry_requested', 'crm_lead', p_lead,
+    jsonb_build_object('event_name', p_event), '{}'::jsonb, p_org);
+  update public.ad_conversion_dispatches set reason = 'reprocessamento_solicitado', attempted_at = now()
+    where id = v_linha.id and organization_id = p_org;
+  return true;
+end;
+$$;
+revoke execute on function public.fn_solicitar_reenvio_conversao(uuid, uuid, text) from public, anon, authenticated;
+grant execute on function public.fn_solicitar_reenvio_conversao(uuid, uuid, text) to service_role;
 -- ---- Carteira do cliente: o contato ganha um vendedor dono (migration 0622) ----
 
 -- manifest: **Carteira do cliente (#2591): o contato ganha um vendedor dono, que é avisado quando o cliente fala com outro e fica com o negócio novo.** Hoje o dono só existe em `crm_leads.owner_user_id` e em `conversations.assigned_to_user_id` — nascem de quem atendeu primeiro ou do rodízio. Aqui: (A) `contacts.carteira_user_id`/`carteira_origem`/`carteira_definida_em` com vocabulário fechado e coerência de uma via só (dono gravado exige origem e data, para o `on delete set null` do FK não recusar a exclusão do login do dono); (B) a coluna fica FORA do que `authenticated` grava (gatilho 42501, mesma forma da 0583) e só o servidor escreve pela `fn_definir_carteira_do_cliente` (SECURITY DEFINER, manager+ chamando, dono tem de ser membro ativo `agent`/`manager`/`admin` da MESMA organização — `viewer` e revogado não contam), que na mesma transação adota os negócios abertos SEM dono do contato; (C) `trg_crm_lead_nasce_na_carteira` (BEFORE INSERT) preenche dono/kind/assigned_at quando o negócio chega SEM dono e o contato tem carteira qualificada — negócio que já tem dono não muda, e sem carteira nada muda (o rodízio continua decidindo). Sem backfill: contato sem carteira é o comportamento de hoje.

@@ -40,6 +40,7 @@
  * é registrado: ele volta no `HandlerResult` e o drain o persiste no `event_log`
  * (invariante 4 — não-aplicação é auditável, não invisível).
  */
+import type { SupabaseClient } from "@supabase/supabase-js";
 import { canalQueReportaConversao } from "@/lib/channels/conversao-pelo-canal";
 import type { ChannelConversionInput, ChannelConversionResult } from "@/lib/channels/types";
 import type { EventHandler, EventRow, HandlerResult } from "@/lib/event-log/dispatcher";
@@ -60,7 +61,15 @@ import {
   ehEventoDeEtapaMeta,
   rotuloDoEventoDaMeta,
 } from "./regras-meta";
+import { EVENTO_DE_VENDA_GA4, ehEventoDeEtapaGa4 } from "./regras-ga4";
 import { lerRegistro, registraEnvio } from "./registro-de-envio";
+import {
+  eventoSemOrigem,
+  lerContatoSemOrigem,
+  lerEnviarSemOrigem,
+  plataformaSemOrigemDoEvento,
+  reportarVendaSemOrigem,
+} from "./reportar-sem-origem";
 
 const CONSUMER_KEY = "conversoes.venda";
 
@@ -85,6 +94,21 @@ export interface EventoDeEtapa {
   eventoMeta?: string;
 }
 
+/**
+ * O reenvio é pedido por evento, e cada evento tem um dono: as etapas do Google
+ * e da Meta e as linhas do GA4 são reenviadas pelos seus consumidores. Aqui só
+ * entram `Purchase` e a venda sem origem — sem este filtro, o reenvio de uma
+ * linha do GA4 reprocessaria a venda das plataformas de anúncio de carona.
+ */
+function ehReenvioDeOutroConsumidor(evento: unknown): boolean {
+  return (
+    ehEventoDeEtapa(evento) ||
+    ehEventoDeEtapaMeta(evento) ||
+    ehEventoDeEtapaGa4(evento) ||
+    evento === EVENTO_DE_VENDA_GA4
+  );
+}
+
 export async function processarConversao(
   row: EventRow,
   qualificacao?: EventoDeEtapa,
@@ -93,7 +117,7 @@ export async function processarConversao(
   if (
     !qualificacao &&
     row.event_type === "ad_conversion.retry_requested" &&
-    (ehEventoDeEtapa(row.payload.event_name) || ehEventoDeEtapaMeta(row.payload.event_name))
+    ehReenvioDeOutroConsumidor(row.payload.event_name)
   )
     return ok("skipped", "outro_evento");
   if (!row.entity_id) return ok("skipped", "sem_entidade");
@@ -129,6 +153,13 @@ export async function processarConversao(
     contact_id: string | null;
   };
 
+  const plataformaDoReenvioSemOrigem =
+    row.event_type === "ad_conversion.retry_requested"
+      ? plataformaSemOrigemDoEvento(row.payload.event_name)
+      : null;
+  if (plataformaDoReenvioSemOrigem)
+    return reportarSemOrigem(admin, row, lead, plataformaDoReenvioSemOrigem);
+
   // O filtro que faz `lead.stage_changed` valer a pena escutar: a grande maioria
   // das mudanças de etapa não é fechamento, e sai por aqui sem tocar no banco de
   // novo nem sujar o livro-razão.
@@ -146,9 +177,27 @@ export async function processarConversao(
           atribuicao: { plataforma: registro.platform, cliqueDeOrigem: "", telefone: null },
         }
       : await lerAtribuicao(admin, row.organization_id, lead.contact_id);
-  if (!leitura.temAtribuicao) return ok("skipped", leitura.motivo);
+  if (!leitura.temAtribuicao) {
+    // Sem anúncio nem clique: a venda só sai pelo fallback, e só com o opt-in
+    // da organização (9002). Sem ele, o comportamento é o de sempre.
+    if (leitura.motivo === "sem_atribuicao" && !qualificacao && EVENTO === "Purchase")
+      return reportarSemOrigem(admin, row, lead);
+    return ok("skipped", leitura.motivo);
+  }
 
   const { plataforma, cliqueDeOrigem, telefone } = leitura.atribuicao;
+  // Se a venda já foi reportada SEM origem a esta plataforma, a atribuição que
+  // apareceu depois não pode contá-la de novo: o `Purchase` duplicaria a venda
+  // no otimizador. O registro sem origem é a prova de envio.
+  if (!qualificacao && EVENTO === "Purchase") {
+    const semOrigem = await lerRegistro(
+      admin,
+      row.organization_id,
+      lead.id,
+      eventoSemOrigem(plataforma),
+    );
+    if (semOrigem?.status === "sent") return ok("skipped", "ja_enviada_sem_origem");
+  }
   const identificadoresGoogle =
     "identificadoresGoogle" in leitura.atribuicao
       ? leitura.atribuicao.identificadoresGoogle
@@ -513,6 +562,61 @@ export async function processarConversao(
     );
     return ok("skipped", "recusado_pela_plataforma");
   }
+}
+
+/**
+ * A venda de um contato sem anúncio nem clique. Sem o opt-in, nada sai e nada
+ * é gravado — a venda orgânica segue fora do livro-razão, como sempre.
+ */
+async function reportarSemOrigem(
+  admin: SupabaseClient,
+  row: EventRow,
+  lead: {
+    id: string;
+    value_cents: number | null;
+    currency: string | null;
+    closed_at: string | null;
+    contact_id: string | null;
+  },
+  apenasPlataforma?: Parameters<typeof reportarVendaSemOrigem>[2],
+): Promise<HandlerResult> {
+  if (!(await lerEnviarSemOrigem(admin, row.organization_id)))
+    return ok("skipped", "sem_atribuicao");
+  const contato = lead.contact_id
+    ? await lerContatoSemOrigem(admin, row.organization_id, lead.contact_id)
+    : null;
+  if (!contato) return ok("skipped", "sem_contato");
+
+  const venda = {
+    organizationId: row.organization_id,
+    leadId: lead.id,
+    valorCentavos: lead.value_cents !== null && lead.value_cents > 0 ? lead.value_cents : null,
+    moeda: lead.currency,
+    ocorridoEm: new Date(lead.closed_at ?? row.created_at ?? Date.now()),
+    telefone: contato.telefone,
+    email: contato.email,
+  };
+  const desfechos = apenasPlataforma
+    ? await reportarVendaSemOrigem(admin, venda, apenasPlataforma)
+    : await reportarVendaSemOrigem(admin, venda);
+
+  const reenviar = desfechos.find((d) => d.status === "retry");
+  if (reenviar)
+    return {
+      consumer_key: CONSUMER_KEY,
+      status: "retry",
+      retry_at: new Date(Date.now() + ESPERA_PADRAO_MS).toISOString(),
+      detail: `venda sem origem: ${reenviar.plataforma} pede nova tentativa`,
+    };
+  const enviadas = desfechos.filter((d) => d.status === "sent").map((d) => d.plataforma);
+  if (enviadas.length > 0) return ok("ok", `venda sem origem reportada (${enviadas.join(", ")})`);
+  return ok(
+    "skipped",
+    desfechos
+      .map((d) => d.motivo)
+      .filter(Boolean)
+      .join(", ") || "sem_conexao",
+  );
 }
 
 /**

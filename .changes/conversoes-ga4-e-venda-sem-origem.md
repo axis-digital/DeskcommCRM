@@ -1,0 +1,19 @@
+---
+impacto: capacidade_nova
+secao: adicionado
+titulo: Vendas e etapas do funil vão para o GA4, e a venda sem origem é opt-in
+---
+
+As vendas e as etapas configuradas do funil passam a ser enviadas para a propriedade GA4 da
+organização, quando o contato veio do site com o rastreio ligado. A conexão e as regras por etapa
+ficam em Configurações › Conversões › GA4, e cada envio aparece no histórico com o motivo quando não
+sai. Nada muda para quem não liga a conexão.
+
+Também é possível enviar a venda de quem chegou sem anúncio e sem clique para a Meta e para o
+Google, em hash. Vem desligado: a organização liga em Configurações › Conversões, sabendo que essas
+vendas entram na otimização como orgânicas.
+
+Um envio para o GA4 que falhou pode ser reenviado pelo botão "Verificar ou tentar novamente" do
+histórico, sem duplicar a venda no GA4 nem reenviar de carona a venda da Meta ou do Google. O mesmo
+vale para a venda sem origem. A tela também explica quando usar "Compra (purchase)" como evento da
+venda, o indicado para loja e funil de pedidos.

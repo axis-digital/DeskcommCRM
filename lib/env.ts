@@ -615,6 +615,9 @@ const schema = z.object({
    */
   META_GRAPH_BASE_URL: z.string().optional().default(""),
   META_ADS_GRAPH_BASE_URL: z.string().optional().default(""),
+  // Host do Measurement Protocol do GA4 (vazio = o host real do Google). Mesma
+  // régua de META_ADS_GRAPH_BASE_URL; ver lib/plataformas-de-anuncio/ga4/base.ts.
+  GA4_MP_BASE_URL: z.string().optional().default(""),
 
   // Marca da instalação (white-label) — ver lib/branding.ts.
   // Sem prefixo NEXT_PUBLIC_ de propósito: essas seriam queimadas no bundle

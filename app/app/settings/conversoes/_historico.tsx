@@ -143,6 +143,7 @@ export function HistoricoDeEnvios({
             <option value="">{t("Todas")}</option>
             <option value="google_ads">Google Ads</option>
             <option value="meta_ads">Meta Ads</option>
+            <option value="ga4">GA4</option>
           </select>
         </label>
         <label className="flex min-w-48 flex-1 flex-col gap-1 text-xs">
@@ -186,7 +187,9 @@ export function HistoricoDeEnvios({
                             ? "Google Ads"
                             : l.plataforma === "meta_ads"
                               ? "Meta Ads"
-                              : l.plataforma}
+                              : l.plataforma === "ga4"
+                                ? "GA4"
+                                : l.plataforma}
                         </span>
                       </p>
                       <p className="truncate text-xs text-muted-foreground">

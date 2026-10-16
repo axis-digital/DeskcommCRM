@@ -31,6 +31,7 @@ import { cobrancaSinalHandler } from "@/lib/cobranca/sinal.handler";
 import { conversaoDeVendaHandler } from "@/lib/conversoes/envio.handler";
 import { conversaoDeQualificacaoHandler } from "@/lib/conversoes/qualificacao.handler";
 import { conversaoDeEtapaMetaHandler } from "@/lib/conversoes/etapa-meta.handler";
+import { conversaoGa4Handler } from "@/lib/conversoes/ga4.handler";
 import { nuvemshopDesinstalacaoHandler } from "@/lib/nuvemshop/sync/desinstalacao.handler";
 import { nuvemshopPedidoHandler } from "@/lib/nuvemshop/sync/pedido.handler";
 import { nuvemshopSyncHandler } from "@/lib/nuvemshop/sync/sync-page.handler";
@@ -92,15 +93,32 @@ const PULA: EventHandler[] = [
   conversaoDeVendaHandler,
   conversaoDeQualificacaoHandler,
   conversaoDeEtapaMetaHandler,
+  conversaoGa4Handler,
   pinoReintentoHandler,
 ];
 
 const PREFIXO_DE_TESTE = "teste-org-parada";
 const EVENTO_DE_TESTE = "teste.org_parada";
-const handleRoda = vi.fn(async () => ({ consumer_key: `${PREFIXO_DE_TESTE}-roda`, status: "ok" as const }));
-const handlePula = vi.fn(async () => ({ consumer_key: `${PREFIXO_DE_TESTE}-pula`, status: "ok" as const }));
-registerHandler({ key: `${PREFIXO_DE_TESTE}-roda`, events: [EVENTO_DE_TESTE], naOrgParada: "roda", handle: handleRoda });
-registerHandler({ key: `${PREFIXO_DE_TESTE}-pula`, events: [EVENTO_DE_TESTE], naOrgParada: "pula", handle: handlePula });
+const handleRoda = vi.fn(async () => ({
+  consumer_key: `${PREFIXO_DE_TESTE}-roda`,
+  status: "ok" as const,
+}));
+const handlePula = vi.fn(async () => ({
+  consumer_key: `${PREFIXO_DE_TESTE}-pula`,
+  status: "ok" as const,
+}));
+registerHandler({
+  key: `${PREFIXO_DE_TESTE}-roda`,
+  events: [EVENTO_DE_TESTE],
+  naOrgParada: "roda",
+  handle: handleRoda,
+});
+registerHandler({
+  key: `${PREFIXO_DE_TESTE}-pula`,
+  events: [EVENTO_DE_TESTE],
+  naOrgParada: "pula",
+  handle: handlePula,
+});
 
 function linha(): EventRow {
   return {
@@ -153,7 +171,8 @@ function dublarAdmin(opts: {
               : { data: opts.orgs, error: null },
           );
         }
-        if (tabela === "event_log") return resolve({ data: pedeProcessing ? [] : opts.linhas, error: null });
+        if (tabela === "event_log")
+          return resolve({ data: pedeProcessing ? [] : opts.linhas, error: null });
         return resolve({ data: null, error: null });
       },
     };
@@ -207,7 +226,10 @@ describe("dispatchEvent × org parada", () => {
 describe("drainEventLog lê o status das orgs do lote", () => {
   it("org parada: o 'pula' entra em consumed_by e o evento fecha done — não volta na reativação", async () => {
     handlePula.mockClear();
-    const { admin, updates } = dublarAdmin({ linhas: [linha()], orgs: [{ id: "org-1", status: "suspended" }] });
+    const { admin, updates } = dublarAdmin({
+      linhas: [linha()],
+      orgs: [{ id: "org-1", status: "suspended" }],
+    });
     const resumo = await drainEventLog(admin);
     const fim = updates.filter((u) => u.tabela === "event_log").pop()!.payload;
     expect(fim.status).toBe("done");
@@ -216,7 +238,9 @@ describe("drainEventLog lê o status das orgs do lote", () => {
     );
     expect(String(fim.last_error)).toContain(`${PREFIXO_DE_TESTE}-pula: org_nao_operante`);
     expect(handlePula).not.toHaveBeenCalled();
-    expect(resumo.pulados).toContain(`${EVENTO_DE_TESTE}/${PREFIXO_DE_TESTE}-pula: org_nao_operante`);
+    expect(resumo.pulados).toContain(
+      `${EVENTO_DE_TESTE}/${PREFIXO_DE_TESTE}-pula: org_nao_operante`,
+    );
   });
 
   // Controle do lado que mais pesa. Medido por sabotagem: inverter a régua
@@ -225,14 +249,19 @@ describe("drainEventLog lê o status das orgs do lote", () => {
   // calaria a IA e as automações de todas as empresas ativas. Só este caso pega.
   it("org operante: o handler 'pula' roda e o evento fecha done com a chave em consumed_by, sem org_nao_operante", async () => {
     handlePula.mockClear();
-    const { admin, updates } = dublarAdmin({ linhas: [linha()], orgs: [{ id: "org-1", status: "active" }] });
+    const { admin, updates } = dublarAdmin({
+      linhas: [linha()],
+      orgs: [{ id: "org-1", status: "active" }],
+    });
     const resumo = await drainEventLog(admin);
     const fim = updates.filter((u) => u.tabela === "event_log").pop()!.payload;
     expect(handlePula).toHaveBeenCalledOnce();
     expect(fim.status).toBe("done");
     expect(fim.consumed_by).toEqual(expect.arrayContaining([`${PREFIXO_DE_TESTE}-pula`]));
     expect(String(fim.last_error ?? "")).not.toContain("org_nao_operante");
-    expect(resumo.pulados ?? []).not.toContain(`${EVENTO_DE_TESTE}/${PREFIXO_DE_TESTE}-pula: org_nao_operante`);
+    expect(resumo.pulados ?? []).not.toContain(
+      `${EVENTO_DE_TESTE}/${PREFIXO_DE_TESTE}-pula: org_nao_operante`,
+    );
   });
 
   it("org que não volta da leitura conta como parada (falha fechada)", async () => {
@@ -245,7 +274,10 @@ describe("drainEventLog lê o status das orgs do lote", () => {
   it("leitura do status falha: nada é reclamado, o lote espera o próximo tique", async () => {
     handlePula.mockClear();
     handleRoda.mockClear();
-    const { admin, updates } = dublarAdmin({ linhas: [linha()], orgs: { erro: "connection reset" } });
+    const { admin, updates } = dublarAdmin({
+      linhas: [linha()],
+      orgs: { erro: "connection reset" },
+    });
     await drainEventLog(admin);
     expect(updates.some((u) => u.payload.status === "processing")).toBe(false);
     expect(handlePula).not.toHaveBeenCalled();
