@@ -144,7 +144,10 @@ describe("planoDosFunisExtras", () => {
   });
 
   it("a comparação de colunas ignora caixa e acento, como o resto do editor de etapas", () => {
-    const gritado = { ...principalDeClinica, colunas: colunasDeClinica.map((c) => c.toUpperCase()) };
+    const gritado = {
+      ...principalDeClinica,
+      colunas: colunasDeClinica.map((c) => c.toUpperCase()),
+    };
     expect(planoDosFunisExtras(["agendar"], [gritado])).toEqual([]);
   });
 
