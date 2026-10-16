@@ -15,6 +15,7 @@
  * `resolveActiveOrg`, nunca do corpo.
  */
 import { headers } from "next/headers";
+import { ipDoCliente } from "@/lib/http/ip-do-cliente";
 import { revalidatePath } from "next/cache";
 
 import { audit } from "@/lib/audit";
@@ -92,7 +93,7 @@ export async function updatePerfilDeNegocio(
     resourceType: "organization",
     resourceId: activeOrg.orgId,
     requestId: hdrs.get("x-request-id"),
-    ip: hdrs.get("x-forwarded-for")?.split(",")[0]?.trim() ?? null,
+    ip: ipDoCliente(hdrs),
     userAgent: hdrs.get("user-agent"),
     // Vocabulário fechado — nada de texto livre na trilha append-only.
     metadata: { canais: parsed.data.canais, objetivos: parsed.data.objetivos },

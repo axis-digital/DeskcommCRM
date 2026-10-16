@@ -17,6 +17,7 @@
  * administrador da empresa e MFA. Audita só quando criou alguma regra.
  */
 import { headers } from "next/headers";
+import { ipDoCliente } from "@/lib/http/ip-do-cliente";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 
@@ -133,7 +134,7 @@ export async function aplicarRegrasSugeridasGa4(
       resourceType: "ga4_conversion_rules",
       resourceId: null,
       requestId: hdrs.get("x-request-id") ?? undefined,
-      ip: hdrs.get("x-forwarded-for")?.split(",")[0]?.trim() ?? undefined,
+      ip: ipDoCliente(hdrs),
       userAgent: hdrs.get("user-agent") ?? undefined,
       metadata: {
         origem: "regras_sugeridas",
