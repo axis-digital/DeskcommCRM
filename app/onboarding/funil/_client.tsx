@@ -16,6 +16,7 @@ import { explicacaoDoPasso } from "@/lib/leads/agent-mapping";
 import { MAX_ETAPAS, MIN_ETAPAS, type PropostaDeFunil } from "@/lib/onboarding/proposta-de-funil";
 import { PACOTES } from "@/lib/onboarding/pacotes-de-funil";
 import { OBJETIVOS_DO_NEGOCIO, type ObjetivoDoNegocio } from "@/lib/onboarding/perfil-de-negocio";
+import { repeteQuadroAtivo } from "@/lib/onboarding/funis-por-objetivo";
 import type { Sugestao } from "@/lib/onboarding/sugerir-funil";
 
 /**
@@ -50,6 +51,13 @@ export function QuadroClient({
   // ela clica em salvar, avança, e a coluna simplesmente não existe. Barrar aqui
   // é o preço de ter o botão "Adicionar coluna".
   const semNome = quadro.etapas.some((e) => !e.nome.trim());
+
+  // Extra cujo quadro pronto é o mesmo de cima não é oferecido: numa clínica o
+  // quadro principal já é o de agendamento, e "Agendamentos 2" seria cópia. A
+  // conta segue o quadro EDITADO — trocar de modelo devolve a oferta. O servidor
+  // aplica a mesma regra ao gravar.
+  const colunasDoQuadro = quadro.etapas.map((e) => e.nome);
+  const extrasVisiveis = extras.filter((e) => !repeteQuadroAtivo(e.objetivo, colunasDoQuadro));
 
   function renomear(i: number, nome: string) {
     setQuadro((q) => ({ ...q, etapas: q.etapas.map((e, j) => (j === i ? { ...e, nome } : e)) }));
@@ -207,7 +215,7 @@ export function QuadroClient({
         um ganha um quadro por objetivo. Pré-marcados: foi o que a pessoa disse
         querer duas telas atrás; desmarcar é a exceção.
       */}
-      {extras.length > 0 ? (
+      {extrasVisiveis.length > 0 ? (
         <fieldset className="space-y-2 rounded-lg border bg-background p-4">
           <legend className="px-1 text-sm font-medium">{t("Outros quadros do seu negócio")}</legend>
           <p className="text-xs text-muted-foreground">
@@ -216,7 +224,7 @@ export function QuadroClient({
             )}
           </p>
           {OBJETIVOS_DO_NEGOCIO.map((o) =>
-            extras.some((e) => e.objetivo === o.valor) ? (
+            extrasVisiveis.some((e) => e.objetivo === o.valor) ? (
               <label key={o.valor} className="flex items-center gap-2 text-sm">
                 <input
                   type="checkbox"
@@ -300,7 +308,12 @@ export function QuadroClient({
               const fd = new FormData();
               fd.set("quadro", JSON.stringify(quadro));
               fd.set("origem", origem);
-              fd.set("extras", JSON.stringify(marcados));
+              fd.set(
+                "extras",
+                JSON.stringify(
+                  marcados.filter((m) => extrasVisiveis.some((e) => e.objetivo === m)),
+                ),
+              );
               const res = await aplicarQuadro(fd);
               // Sucesso redireciona no servidor; só o desfecho ruim volta.
               if (res && !res.ok) toast.error(res.erro);

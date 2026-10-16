@@ -368,6 +368,8 @@ export async function aplicarQuadro(formData: FormData): Promise<ResultadoDoQuad
       position: padrao?.position ?? 0,
       is_archived: false,
       settings: objetivo ? { objetivo } : padrao?.settings,
+      // Extra cujo quadro pronto repete estas colunas não nasce (ver o plano).
+      colunas: proposta.etapas.map((e) => e.nome),
     },
   ];
   const criados: Array<{ objetivo: ObjetivoDoNegocio; pipeline_id: string }> = [];

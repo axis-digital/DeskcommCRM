@@ -36,6 +36,8 @@ export interface FunilExistente {
   position: number;
   is_archived: boolean;
   settings: unknown;
+  /** Os nomes das colunas, em ordem. Ausente = desconhecidas (não entra na comparação). */
+  colunas?: readonly string[];
 }
 
 /** Um funil a criar. `settings` já leva o objetivo — o funil nunca nasce sem ele. */
@@ -87,12 +89,33 @@ function nomeLivre(nome: string, nomesAtivos: string[]): string {
 }
 
 /**
+ * O quadro pronto do objetivo tem exatamente estas colunas, na mesma ordem?
+ *
+ * Compara pela `chaveDeNome` (sem caixa nem acento), a mesma régua do editor
+ * de etapas. Usada pelo plano e pela tela, que esconde o extra repetido.
+ */
+export function repeteQuadroAtivo(
+  objetivo: ObjetivoDoNegocio,
+  colunas: readonly string[],
+): boolean {
+  const doPacote = pacoteDoObjetivo(objetivo).proposta.etapas.map((e) => chaveDeNome(e.nome));
+  return (
+    doPacote.length === colunas.length &&
+    doPacote.every((nome, i) => nome === chaveDeNome(colunas[i] ?? ""))
+  );
+}
+
+/**
  * Os funis que faltam criar, já com nome, slug e posição livres.
  *
  * ⚠️ IDEMPOTENTE POR OBJETIVO: objetivo que já tem funil ATIVO na organização
  * fica de fora — reaplicar o passo não duplica. Arquivado não conta (a pessoa
  * tirou aquele quadro da frente), mas o slug dele segue ocupado:
  * `uniq_crm_pipelines_org_slug` não é parcial.
+ *
+ * ⚠️ E NÃO REPETE QUADRO: objetivo cujo quadro pronto tem as mesmas colunas de
+ * um funil ativo também fica de fora. Numa clínica, o quadro principal já é o
+ * de agendamento; o extra de "Agendar" nascia como "Agendamentos 2", idêntico.
  */
 export function planoDosFunisExtras(
   marcados: readonly ObjetivoDoNegocio[],
@@ -103,6 +126,9 @@ export function planoDosFunisExtras(
   );
   const slugs = funis.map((f) => f.slug);
   const nomesAtivos = funis.filter((f) => !f.is_archived).map((f) => f.name);
+  const quadrosAtivos = funis
+    .filter((f) => !f.is_archived && f.colunas)
+    .map((f) => f.colunas as readonly string[]);
   let ultima = funis.reduce<number | null>(
     (max, f) => (max === null || f.position > max ? f.position : max),
     null,
@@ -111,6 +137,7 @@ export function planoDosFunisExtras(
   const plano: FunilAPlanejar[] = [];
   for (const objetivo of new Set(marcados)) {
     if (jaTem.has(objetivo)) continue;
+    if (quadrosAtivos.some((colunas) => repeteQuadroAtivo(objetivo, colunas))) continue;
     const { proposta } = pacoteDoObjetivo(objetivo);
     const nome = nomeLivre(proposta.nome, nomesAtivos);
     const slug = slugDeNome(nome, slugs, "funil");

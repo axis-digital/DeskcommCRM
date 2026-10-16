@@ -11,6 +11,7 @@ import {
   extrasMarcados,
   objetivosExtras,
   planoDosFunisExtras,
+  repeteQuadroAtivo,
   type FunilExistente,
 } from "@/lib/onboarding/funis-por-objetivo";
 import { pacoteDoObjetivo } from "@/lib/onboarding/perfil-de-negocio";
@@ -125,6 +126,47 @@ describe("planoDosFunisExtras", () => {
 
   it("objetivo repetido na entrada vira um funil só", () => {
     expect(planoDosFunisExtras(["captar_lead", "captar_lead"], [PADRAO])).toHaveLength(1);
+  });
+
+  // Achado no staging (2026-10-15): clínica marcou "Vender serviços" e "Agendar".
+  // O quadro principal aprovado foi o de clínica ("Agendamentos"), com o 1º
+  // objetivo; o extra de "Agendar" sai do MESMO pacote — e nasciam
+  // "Agendamentos" e "Agendamentos 2" com as mesmas 7 colunas.
+  const colunasDeClinica = pacoteDoObjetivo("agendar").proposta.etapas.map((e) => e.nome);
+  const principalDeClinica: FunilExistente = {
+    ...PADRAO,
+    settings: { objetivo: "vender_servico" },
+    colunas: colunasDeClinica,
+  };
+
+  it("extra cujo quadro pronto repete as colunas de um funil ativo não nasce", () => {
+    expect(planoDosFunisExtras(["agendar"], [principalDeClinica])).toEqual([]);
+  });
+
+  it("a comparação de colunas ignora caixa e acento, como o resto do editor de etapas", () => {
+    const gritado = { ...principalDeClinica, colunas: colunasDeClinica.map((c) => c.toUpperCase()) };
+    expect(planoDosFunisExtras(["agendar"], [gritado])).toEqual([]);
+  });
+
+  it("quadro principal editado (uma coluna a mais) não conta como repetido — o extra nasce", () => {
+    const editado = { ...principalDeClinica, colunas: [...colunasDeClinica, "Retorno"] };
+    expect(planoDosFunisExtras(["agendar"], [editado]).map((p) => p.objetivo)).toEqual(["agendar"]);
+  });
+
+  it("funil ARQUIVADO com as mesmas colunas não impede o extra", () => {
+    const arquivado = { ...principalDeClinica, is_archived: true };
+    expect(planoDosFunisExtras(["agendar"], [arquivado]).map((p) => p.objetivo)).toEqual([
+      "agendar",
+    ]);
+  });
+});
+
+describe("repeteQuadroAtivo", () => {
+  it("diz se o quadro pronto do objetivo é o mesmo das colunas dadas", () => {
+    const clinica = pacoteDoObjetivo("agendar").proposta.etapas.map((e) => e.nome);
+    expect(repeteQuadroAtivo("agendar", clinica)).toBe(true);
+    expect(repeteQuadroAtivo("vender_produto", clinica)).toBe(false);
+    expect(repeteQuadroAtivo("agendar", clinica.slice(0, -1))).toBe(false);
   });
 });
 
