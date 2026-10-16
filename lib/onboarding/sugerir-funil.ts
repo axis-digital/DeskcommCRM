@@ -25,6 +25,8 @@ import {
   type PropostaDeFunil,
 } from "@/lib/onboarding/proposta-de-funil";
 import { PACOTES, PACOTE_PADRAO, type PacoteDeFunil } from "@/lib/onboarding/pacotes-de-funil";
+import { pacoteDoObjetivo, rotuloDoObjetivo } from "@/lib/onboarding/perfil-de-negocio";
+import type { ContextoDoPerfil } from "@/lib/onboarding/funis-por-objetivo";
 
 /** O que se sabe do negócio quando a sugestão é pedida. */
 export interface ContextoDoNegocio {
@@ -32,6 +34,11 @@ export interface ContextoDoNegocio {
   nome: string;
   /** O que ele respondeu quando perguntamos o que o negócio faz. */
   oQueFaz: string;
+  /**
+   * Por onde vende e o que quer que a conversa vire (perfil do negócio). Ausente
+   * em organização sem perfil — e aí o pedido é exatamente o de antes.
+   */
+  perfil?: ContextoDoPerfil | null;
 }
 
 /**
@@ -59,13 +66,30 @@ const PISTAS: Record<string, RegExp> = {
  * por ordem de chave de objeto sobre entrada do usuário.
  */
 export function escolherPacotePorTexto(texto: string): PacoteDeFunil {
+  return pacoteReconhecidoNoTexto(texto) ?? PACOTE_PADRAO;
+}
+
+function pacoteReconhecidoNoTexto(texto: string): PacoteDeFunil | null {
   for (const [id, pista] of Object.entries(PISTAS)) {
     if (pista.test(texto)) {
       const p = PACOTES.find((x) => x.id === id);
       if (p) return p;
     }
   }
-  return PACOTE_PADRAO;
+  return null;
+}
+
+/**
+ * O exemplo do pedido e o plano B quando a IA não responde.
+ *
+ * O texto do dono vence quando reconhece o ramo: "clínica" diz mais que
+ * "Agendar horários". Quando o texto não reconhece nada, o objetivo principal do
+ * perfil escolhe o quadro — melhor que o genérico para quem já disse o que quer.
+ */
+export function escolherPacote(ctx: ContextoDoNegocio): PacoteDeFunil {
+  const peloTexto = pacoteReconhecidoNoTexto(`${ctx.nome} ${ctx.oQueFaz}`);
+  if (peloTexto) return peloTexto;
+  return ctx.perfil ? pacoteDoObjetivo(ctx.perfil.objetivoPrincipal) : PACOTE_PADRAO;
 }
 
 /**
@@ -100,6 +124,7 @@ export function pedidoDeSugestao(
     prompt: [
       `Negócio: ${ctx.nome}`,
       `O que faz: ${ctx.oQueFaz}`,
+      ...linhasDoPerfil(ctx.perfil),
       "",
       "Monte de 5 a 7 colunas, na ordem em que o cliente passa por elas.",
       'Cada coluna tem "nome" (o que aparece no topo) e "passo", que diz quando o atendente move o cliente para lá:',
@@ -109,6 +134,19 @@ export function pedidoDeSugestao(
       JSON.stringify({ nome: exemplo.proposta.nome, etapas: exemplo.proposta.etapas }, null, 2),
     ].join("\n"),
   };
+}
+
+/**
+ * O perfil em três linhas curtas. Sem perfil, nenhuma — o pedido fica igual ao
+ * de antes do perfil existir.
+ */
+function linhasDoPerfil(perfil: ContextoDoPerfil | null | undefined): string[] {
+  if (!perfil) return [];
+  return [
+    ...(perfil.canais.length > 0 ? [`Vende por: ${perfil.canais.join(", ")}`] : []),
+    `Quer que a conversa vire: ${perfil.objetivos.join(", ")}`,
+    `Objetivo deste quadro: ${rotuloDoObjetivo(perfil.objetivoPrincipal)}`,
+  ];
 }
 
 /**
@@ -154,7 +192,7 @@ export type Gerar = (entrada: { system: string; prompt: string }) => Promise<str
  * for investigar.
  */
 export async function sugerirFunil(ctx: ContextoDoNegocio, gerar: Gerar): Promise<Sugestao> {
-  const exemplo = escolherPacotePorTexto(`${ctx.nome} ${ctx.oQueFaz}`);
+  const exemplo = escolherPacote(ctx);
 
   let texto: string;
   try {

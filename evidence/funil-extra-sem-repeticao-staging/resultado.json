@@ -1,0 +1,11 @@
+{
+  "urlFunil": "/onboarding/funil",
+  "nomeDoQuadro": "Agendamentos",
+  "extraComQuadroDeClinica": 0,
+  "extraComQuadroDeServicos": 1,
+  "extraMarcado": true,
+  "extraDepoisDeVoltarParaClinica": 0,
+  "urlDepois": "/onboarding",
+  "errosDeConsole": [],
+  "respostas4xx5xx": []
+}

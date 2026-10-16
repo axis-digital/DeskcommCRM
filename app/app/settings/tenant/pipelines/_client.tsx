@@ -20,6 +20,11 @@ import type { PipelineConfigPatch } from "@/lib/schemas/settings";
 import { camposDoFunil } from "@/lib/leads/campos-do-funil";
 import { modoDeReabertura } from "@/lib/leads/reabertura";
 import { CATEGORIAS_DE_PERDA } from "@/lib/schemas/leads";
+import {
+  OBJETIVOS_DO_NEGOCIO,
+  lerObjetivoDoFunil,
+  type ObjetivoDoNegocio,
+} from "@/lib/onboarding/perfil-de-negocio";
 import { customFieldSchema, type CustomFieldDef } from "@/lib/schemas/settings";
 import {
   mostrarQuandoSchema,
@@ -308,6 +313,9 @@ function PipelineEditor({
 }) {
   const t = useT();
   const v = pipeline.vocabulary ?? {};
+  const [objetivo, setObjetivo] = useState<ObjetivoDoNegocio | null>(() =>
+    lerObjetivoDoFunil(pipeline.settings),
+  );
   const [lead, setLead] = useState(v.lead ?? "Lead");
   const [deal, setDeal] = useState(v.deal ?? "Deal");
   const [won, setWon] = useState(v.won ?? "Ganho");
@@ -395,6 +403,7 @@ function PipelineEditor({
       won_reason_required: wonRequired,
       comanda_no_ganho: comandaNoGanho,
       reabertura: retomaComoNovo ? "novo_negocio" : "mesmo_registro",
+      objetivo,
     };
     startTransition(async () => {
       const r = await updatePipelineConfig(pipeline.id, patch);
@@ -412,6 +421,38 @@ function PipelineEditor({
   return (
     <div className="space-y-4 border-t border-border pt-6">
       <h3 className="text-sm font-semibold">{t("Vocabulário e campos")}</h3>
+
+      {/*
+        O objetivo escolhe o evento de conversão de cada passo deste funil (o
+        mesmo "já sabe o que oferecer" é carrinho num funil de produto e lead
+        qualificado num de captação). `__sem__` porque o Select recusa value="".
+      */}
+      <div className="space-y-1">
+        <Label className="text-xs" htmlFor={`objetivo-${pipeline.id}`}>
+          {t("Objetivo do funil")}
+        </Label>
+        <Select
+          value={objetivo ?? "__sem__"}
+          onValueChange={(valor) =>
+            setObjetivo(valor === "__sem__" ? null : (valor as ObjetivoDoNegocio))
+          }
+        >
+          <SelectTrigger id={`objetivo-${pipeline.id}`} className="h-8 w-64 text-xs">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="__sem__">{t("Sem objetivo")}</SelectItem>
+            {OBJETIVOS_DO_NEGOCIO.map((o) => (
+              <SelectItem key={o.valor} value={o.valor}>
+                {t(o.rotulo)}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        <p className="text-xs text-muted-foreground">
+          {t("É o que a conversa deste funil deve virar. Escolhe o evento de conversão de cada etapa.")}
+        </p>
+      </div>
 
       <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
         <div className="space-y-1">

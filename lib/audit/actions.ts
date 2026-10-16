@@ -89,6 +89,13 @@ export const AUDIT_ACTIONS = [
    * o valor de agora e a escolha anterior não se reconstrói.
    */
   "org.interface_changed",
+  /**
+   * O PERFIL DO NEGÓCIO mudou em Configurações › Organização (Entrega 1):
+   * canais de venda e objetivos. Decide o funil sugerido e o evento de
+   * conversão por etapa, então "quem trocou o objetivo, e quando" é pergunta
+   * de trilha — `settings` guarda só o valor de agora.
+   */
+  "organization.business_profile_updated",
   "member.accepted",
   "member.role_changed",
   "member.revoked",

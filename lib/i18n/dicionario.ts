@@ -15353,6 +15353,55 @@ export const DICIONARIO: Traducoes = {
   "Opção de histórico salva.": { es: "Opción de historial guardada." },
   "Não foi possível guardar esta opção.": { es: "No fue posible guardar esta opción." },
 
+  // ---- Entrega 1 / workstream D ----
+  "Funil com objetivo decide sozinho: produtos enviam Compra (purchase); serviços, contatos e agenda enviam Lead convertido. Esta escolha vale para funil sem objetivo.": {
+    es: "El embudo con objetivo decide solo: productos envían Compra (purchase); servicios, contactos y agenda envían Lead convertido. Esta elección vale para el embudo sin objetivo.",
+  },
+  "Regras sugeridas": { es: "Reglas sugeridas" },
+  "Pelo objetivo de cada funil e pelo passo de cada etapa, o CRM sugere o evento que a etapa informa ao GA4. Aplicar cria só as regras que ainda não existem — nenhuma regra configurada é trocada.": { es: "Según el objetivo de cada embudo y el paso de cada etapa, el CRM sugiere el evento que la etapa informa a GA4. Aplicar crea solo las reglas que aún no existen: ninguna regla configurada se reemplaza." },
+  "Nenhuma sugestão por enquanto: as sugestões saem do passo de cada etapa (novo, em qualificação, qualificado, negociando, perdido). Confira as etapas dos seus funis.": { es: "Ninguna sugerencia por ahora: las sugerencias salen del paso de cada etapa (nuevo, en calificación, calificado, negociando, perdido). Revisa las etapas de tus embudos." },
+  "Sem objetivo — tratado como funil de leads": { es: "Sin objetivo: tratado como embudo de leads" },
+  "já configurada": { es: "ya configurada" },
+  "Todas as etapas sugeridas já têm regra.": { es: "Todas las etapas sugeridas ya tienen regla." },
+  "Aplicar sugestões": { es: "Aplicar sugerencias" },
+  "regra(s) criada(s).": { es: "regla(s) creada(s)." },
+  "Nenhuma regra criada: essas etapas já estavam configuradas.": { es: "Ninguna regla creada: esas etapas ya estaban configuradas." },
+  "Uma das sugestões mudou ou não vale mais. Atualize a página.": { es: "Una de las sugerencias cambió o ya no es válida. Actualiza la página." },
+  "Não consegui aplicar agora.": { es: "No pude aplicar ahora." },
+  // ---- Entrega 1 / workstream A ----
+  // Perfil do negócio: boas-vindas do onboarding e Configurações › Organização.
+  "Por onde vocês vendem?": { es: "¿Por dónde venden?" },
+  "Marque todos os que valem. Pode deixar em branco se ainda não vende.": { es: "Marca todos los que apliquen. Puedes dejarlo en blanco si todavía no vendes." },
+  "O que vocês querem que a conversa vire?": { es: "¿En qué quieren que se convierta la conversación?" },
+  "Marque ao menos um. Cada objetivo pode virar um quadro de clientes próprio.": { es: "Marca al menos uno. Cada objetivo puede convertirse en un tablero de clientes propio." },
+  "Loja online (site)": { es: "Tienda en línea (sitio web)" },
+  "WhatsApp": { es: "WhatsApp" },
+  "Instagram": { es: "Instagram" },
+  "Loja física": { es: "Tienda física" },
+  "Vender produtos": { es: "Vender productos" },
+  "Vender serviços": { es: "Vender servicios" },
+  "Captar contatos interessados": { es: "Captar contactos interesados" },
+  "Agendar horários": { es: "Agendar citas" },
+  "Marque ao menos um objetivo para continuar.": { es: "Marca al menos un objetivo para continuar." },
+  "Perfil do negócio": { es: "Perfil del negocio" },
+  "Perfil do negócio salvo.": { es: "Perfil del negocio guardado." },
+  "Não foi possível salvar o perfil do negócio.": { es: "No fue posible guardar el perfil del negocio." },
+  "Por onde vocês vendem e o que a conversa deve virar. É daqui que saem os quadros de clientes sugeridos e o evento de conversão de cada etapa.": { es: "Por dónde venden y en qué debe convertirse la conversación. De aquí salen los tableros de clientes sugeridos y el evento de conversión de cada etapa." },
+  "Salvar perfil do negócio": { es: "Guardar perfil del negocio" },
+
+  // ---- Entrega 1 / workstream B ----
+  // Funis por objetivo no passo "funil" do onboarding e objetivo no editor de funil.
+  // Os rótulos dos objetivos ("Vender produtos"…) são do bloco do workstream A.
+  "Outros quadros do seu negócio": { es: "Otros tableros de tu negocio" },
+  "Você marcou mais de um objetivo. Cada um ganha um quadro próprio, com colunas prontas que dá para ajustar depois em Configurações › Funis.": {
+    es: "Marcaste más de un objetivo. Cada uno recibe un tablero propio, con columnas listas que puedes ajustar después en Configuración › Embudos.",
+  },
+  "Também criar funil de": { es: "También crear embudo de" },
+  "Objetivo do funil": { es: "Objetivo del embudo" },
+  "Sem objetivo": { es: "Sin objetivo" },
+  "É o que a conversa deste funil deve virar. Escolhe o evento de conversão de cada etapa.": {
+    es: "Es en lo que debe convertirse la conversación de este embudo. Elige el evento de conversión de cada etapa.",
+  },
   // ─── Cobrança do revendedor — Central (PR 3a) ───
   "Plano e cobrança da empresa precisam de atenção": { es: "El plan y la facturación de la empresa necesitan atención" },
   "Abra Plano e cobrança: lá estão o link para pagar, a troca do cartão e a troca de plano. Só quem administra a empresa vê essa tela.": { es: "Abre Plan y facturación: allí están el enlace para pagar, el cambio de tarjeta y el cambio de plan. Solo quien administra la empresa ve esa pantalla." },

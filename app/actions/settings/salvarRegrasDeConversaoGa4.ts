@@ -72,8 +72,8 @@ export async function salvarRegrasDeConversaoGa4(
   const orgId = activeOrg.orgId;
   const regras = parsed.data;
 
-  // Toda etapa ligada precisa ser DESTA organização e estar aberta: ganho é a
-  // compra (outro consumidor) e perda não é conversão.
+  // Toda etapa ligada precisa ser DESTA organização e não ganha: ganho é a
+  // venda (outro consumidor). Perda entra: no GA4 ela é `close_unconvert_lead`.
   const ligadas = regras.filter((r) => r.enabled).map((r) => r.stage_id);
   if (ligadas.length > 0) {
     const { data: etapas, error } = await admin
@@ -81,7 +81,6 @@ export async function salvarRegrasDeConversaoGa4(
       .select("id")
       .eq("organization_id", orgId)
       .eq("is_won", false)
-      .eq("is_lost", false)
       .in("id", ligadas);
     if (error) return { ok: false, error: "erro_ao_gravar" };
     const validas = new Set(((etapas ?? []) as Array<{ id: string }>).map((e) => e.id));

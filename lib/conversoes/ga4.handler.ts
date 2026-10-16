@@ -7,17 +7,26 @@
  * `envio.handler.ts`, que é guiado pela atribuição.
  *
  * Travas, na ordem: já enviada não sai de novo; movimento anterior à regra não
- * envia (`configured_at`); etapa precisa ser desta organização e estar aberta;
- * sem conexão ou sem identidade não grava linha — feature desligada não polui
- * o Histórico. O reenvio usa o RETRATO gravado (quando e qual evento).
+ * envia (`configured_at`); etapa precisa ser desta organização e não ser de
+ * ganho (o ganho é a venda, que tem caminho próprio) — etapa de PERDA dispara,
+ * é onde mora o `close_unconvert_lead`; sem conexão ou sem identidade não grava
+ * linha — feature desligada não polui o Histórico. O reenvio usa o RETRATO
+ * gravado (quando e qual evento).
+ *
+ * O evento da venda segue o objetivo do funil do negócio
+ * (`crm_pipelines.settings.objetivo`): vender produto → `purchase`, os demais →
+ * `close_convert_lead`. Funil sem objetivo cai no padrão da conexão
+ * (`ga4_won_event`).
  */
 import { z } from "zod";
 import type { EventHandler, EventRow, HandlerResult } from "@/lib/event-log/dispatcher";
+import { lerObjetivoDoFunil } from "@/lib/onboarding/perfil-de-negocio";
 import { lerCredencialGa4 } from "@/lib/plataformas-de-anuncio/ga4/credencial";
 import { lerIdentidadeGa4 } from "@/lib/plataformas-de-anuncio/ga4/identidade";
 import { enviarEventoGa4 } from "@/lib/plataformas-de-anuncio/ga4/measurement-protocol";
 import type { NomeDoEvento } from "@/lib/plataformas-de-anuncio/types";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { eventoDaVendaDoObjetivo } from "./mapa-de-eventos-ga4";
 import { lerRegistro, registraEnvio } from "./registro-de-envio";
 import { EVENTO_DE_VENDA_GA4, ehEventoDeEtapaGa4, lerRegraGa4DaEtapa } from "./regras-ga4";
 
@@ -40,6 +49,7 @@ interface Lead {
   currency: string | null;
   closed_at: string | null;
   contact_id: string | null;
+  pipeline_id: string | null;
 }
 
 interface Alvo {
@@ -52,7 +62,7 @@ interface Alvo {
 async function lerLead(admin: Admin, org: string, id: string): Promise<Lead | null> {
   const { data, error } = await admin
     .from("crm_leads")
-    .select("id, status, value_cents, currency, closed_at, contact_id")
+    .select("id, status, value_cents, currency, closed_at, contact_id, pipeline_id")
     .eq("organization_id", org)
     .eq("id", id)
     .maybeSingle();
@@ -60,17 +70,31 @@ async function lerLead(admin: Admin, org: string, id: string): Promise<Lead | nu
   return (data as Lead | null) ?? null;
 }
 
-async function etapaAberta(admin: Admin, org: string, stageId: string): Promise<boolean> {
+/** Etapa desta organização que não é de ganho. Etapa de perda dispara. */
+async function etapaQueDispara(admin: Admin, org: string, stageId: string): Promise<boolean> {
   const { data, error } = await admin
     .from("crm_stages")
     .select("id")
     .eq("organization_id", org)
     .eq("id", stageId)
     .eq("is_won", false)
-    .eq("is_lost", false)
     .maybeSingle();
   if (error) throw error;
   return Boolean(data);
+}
+
+/** O evento da venda pelo objetivo do funil do negócio; `null` = padrão da conexão. */
+async function eventoDaVendaDoFunil(admin: Admin, org: string, pipelineId: string | null): Promise<string | null> {
+  if (!pipelineId) return null;
+  const { data, error } = await admin
+    .from("crm_pipelines")
+    .select("settings")
+    .eq("organization_id", org)
+    .eq("id", pipelineId)
+    .maybeSingle();
+  if (error) throw error;
+  const settings = (data as { settings?: unknown } | null)?.settings;
+  return eventoDaVendaDoObjetivo(lerObjetivoDoFunil(settings));
 }
 
 async function alvoDoEvento(admin: Admin, row: EventRow, lead: Lead): Promise<Alvo | string> {
@@ -90,7 +114,7 @@ async function alvoDoEvento(admin: Admin, row: EventRow, lead: Lead): Promise<Al
   const regra = await lerRegraGa4DaEtapa(admin, row.organization_id, etapa.data);
   if (!regra || !regra.enabled || !ehEventoDeEtapaGa4(regra.eventName)) return "etapa_sem_regra_ga4";
   if (Date.parse(row.created_at) < Date.parse(regra.configuredAt)) return "anterior_a_configuracao";
-  if (!(await etapaAberta(admin, row.organization_id, etapa.data))) return "etapa_invalida";
+  if (!(await etapaQueDispara(admin, row.organization_id, etapa.data))) return "etapa_invalida";
   return { evento: regra.eventName, nome: regra.ga4Event, ocorridoEm: row.created_at, venda: false };
 }
 
@@ -121,7 +145,11 @@ async function handle(row: EventRow): Promise<HandlerResult> {
     const identidade = lerIdentidadeGa4((contato as { source_metadata?: unknown } | null)?.source_metadata);
     if (!identidade) return pula("sem_identidade_ga4");
 
-    const nome = alvo.nome ?? cred.credencial.wonEvent;
+    // Reenvio já traz o retrato (`alvo.nome`); só a venda nova consulta o funil.
+    const nome =
+      alvo.nome ??
+      (await eventoDaVendaDoFunil(admin, row.organization_id, lead.pipeline_id)) ??
+      cred.credencial.wonEvent;
     const valor = alvo.venda ? lead.value_cents : null;
     const moeda = alvo.venda ? lead.currency : null;
     const resultado = await enviarEventoGa4(cred.credencial, {

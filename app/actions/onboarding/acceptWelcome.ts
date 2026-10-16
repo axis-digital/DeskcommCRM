@@ -2,7 +2,8 @@
 
 /**
  * Server Action: completes the welcome step. Updates `display_name`/`timezone`
- * on the org and stamps `onboarding_state.welcome` with accepted_at + meta.
+ * on the org, merges `settings.perfil_de_negocio` (canais + objetivos) and
+ * stamps `onboarding_state.welcome` with accepted_at + meta.
  */
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
@@ -32,6 +33,12 @@ export async function acceptWelcome(formData: FormData): Promise<AcceptWelcomeRe
   const raw = {
     display_name: String(formData.get("display_name") ?? "").trim(),
     o_que_faz: String(formData.get("o_que_faz") ?? "").trim() || undefined,
+    // Grupos de checkbox: um valor por caixa marcada. Validados pelo schema
+    // central do perfil — valor fora do vocabulário recusa o passo inteiro.
+    perfil_de_negocio: {
+      canais: formData.getAll("canais").map(String),
+      objetivos: formData.getAll("objetivos").map(String),
+    },
     timezone: String(formData.get("timezone") ?? "America/Sao_Paulo"),
     accepted_terms_at: new Date().toISOString(),
   };
@@ -57,7 +64,13 @@ export async function acceptWelcome(formData: FormData): Promise<AcceptWelcomeRe
           ...(input.o_que_faz ? { o_que_faz: input.o_que_faz } : {}),
         },
       },
-      { display_name: input.display_name, timezone: input.timezone },
+      {
+        display_name: input.display_name,
+        timezone: input.timezone,
+        // MERGE em `settings` (branding e segurança moram lá também), no MESMO
+        // UPDATE do passo: org já configurada não recebe o perfil (#2113).
+        settings: { perfil_de_negocio: input.perfil_de_negocio },
+      },
       { soNoWizard: true },
     );
   } catch (err) {
@@ -98,7 +111,12 @@ export async function acceptWelcome(formData: FormData): Promise<AcceptWelcomeRe
     // O ramo NÃO entra no audit: é texto livre que o dono escreveu, e o audit
     // é append-only com retenção de 5 anos — nada que a anonimização da LGPD
     // não alcance depois deve cair lá por conveniência de diagnóstico.
-    metadata: { display_name: input.display_name, timezone: input.timezone },
+    // O perfil entra: é vocabulário fechado (não é texto livre do dono).
+    metadata: {
+      display_name: input.display_name,
+      timezone: input.timezone,
+      perfil_de_negocio: input.perfil_de_negocio,
+    },
   });
 
   redirect("/onboarding");

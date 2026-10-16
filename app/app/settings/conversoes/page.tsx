@@ -88,6 +88,8 @@ import {
 } from "@/lib/conversoes/regras-ga4";
 import { FormularioDoGa4 } from "./_formGa4";
 import { RegrasDeConversaoGa4 } from "./_regrasGa4";
+import { RegrasSugeridasGa4 } from "./_regrasSugeridasGa4";
+import { lerSugestoesDeRegrasGa4 } from "@/lib/conversoes/ler-regras-sugeridas-ga4";
 
 export const metadata = { title: "Conversões" };
 export const dynamic = "force-dynamic";
@@ -155,10 +157,9 @@ export default async function ConversoesPage({
     lerEstadoDaCaptura(admin, "google_ads_landing_pages", activeOrg.orgId),
     admin
       .from("crm_stages")
-      .select("id, name, pipeline_id, crm_pipelines(name)")
+      .select("id, name, pipeline_id, is_lost, crm_pipelines(name)")
       .eq("organization_id", activeOrg.orgId)
       .eq("is_won", false)
-      .eq("is_lost", false)
       .order("position"),
     // Falha na leitura das regras não derruba a tela: o editor some e o resto fica.
     listarRegrasGoogle(admin, activeOrg.orgId).catch(() => null),
@@ -181,6 +182,11 @@ export default async function ConversoesPage({
     })),
     { eventName: EVENTO_DE_VENDA_GA4, label: "Venda (GA4)" },
   ];
+  // As sugestões só existem com o GA4 configurado — sem conexão, não há a quem
+  // informar. Falhar aqui não derruba a tela: o painel some e o resto fica.
+  const sugestoesGa4 = estadoGa4?.configurada
+    ? await lerSugestoesDeRegrasGa4(admin, activeOrg.orgId).catch(() => null)
+    : null;
   const linhaDaOrganizacao = organizacao.data as { slug: string | null; settings?: unknown } | null;
   const slug = linhaDaOrganizacao?.slug ?? null;
   // Página / WABA gravadas pela tela (#2098) — a MESMA leitura que a credencial
@@ -192,12 +198,17 @@ export default async function ConversoesPage({
   const vendaPeloCanal = vendaPeloCanalLigada(linhaDaOrganizacao?.settings);
   // Etapas abertas agrupadas por funil, na ordem do funil; a primeira de cada
   // funil é onde o lead nasce (a sugestão "Novo lead" do recomendado).
-  const vistosOsFunis = new Set<string>();
-  const etapasAbertas: EtapaAberta[] = (
+  //
+  // A perdida só entra no editor do GA4: lá ela é `close_unconvert_lead` (o
+  // painel "Regras sugeridas" a cria). Meta e Google não convertem perda. Sem
+  // ela na lista do GA4, o "Salvar regras" desligaria em silêncio a regra que
+  // o painel criou — o editor desliga o que não vê.
+  const etapasNaoGanhas = (
     (etapas.data ?? []) as Array<{
       id: string;
       name: string;
       pipeline_id: string;
+      is_lost: boolean;
       crm_pipelines: { name: string } | Array<{ name: string }> | null;
     }>
   )
@@ -205,15 +216,21 @@ export default async function ConversoesPage({
       id: e.id,
       nome: e.name,
       pipelineId: e.pipeline_id,
+      perdida: e.is_lost === true,
       funil:
         (Array.isArray(e.crm_pipelines) ? e.crm_pipelines[0] : e.crm_pipelines)?.name ?? "Funil",
     }))
-    .sort((a, b) => a.funil.localeCompare(b.funil))
-    .map((e) => {
+    .sort((a, b) => a.funil.localeCompare(b.funil));
+  const comPrimeira = (lista: typeof etapasNaoGanhas): EtapaAberta[] => {
+    const vistosOsFunis = new Set<string>();
+    return lista.map((e) => {
       const primeira = !vistosOsFunis.has(e.pipelineId);
       vistosOsFunis.add(e.pipelineId);
       return { id: e.id, nome: e.nome, funil: e.funil, primeira };
     });
+  };
+  const etapasAbertas = comPrimeira(etapasNaoGanhas.filter((e) => !e.perdida));
+  const etapasDoGa4 = comPrimeira(etapasNaoGanhas);
   // As abas de leitura só consultam o que mostram: a de configuração não paga
   // o histórico, e o histórico não paga o diagnóstico.
   const filtrosDoHistorico = lerFiltros(parametros);
@@ -381,8 +398,19 @@ export default async function ConversoesPage({
               {t("Google Analytics 4")}
             </h2>
             {estadoGa4 && <FormularioDoGa4 estado={estadoGa4} idioma={idioma} />}
+            {estadoGa4?.configurada && sugestoesGa4 && (
+              <RegrasSugeridasGa4 sugestoes={sugestoesGa4} idioma={idioma} />
+            )}
             {estadoGa4?.configurada && !etapas.error && regrasGa4 && (
-              <RegrasDeConversaoGa4 etapas={etapasAbertas} regras={regrasGa4} idioma={idioma} />
+              // A chave muda quando as regras mudam (ex.: "Aplicar sugestões"):
+              // o editor guarda rascunho em estado, e um rascunho velho salvo
+              // depois desligaria as regras recém-criadas.
+              <RegrasDeConversaoGa4
+                key={regrasGa4.map((r) => `${r.stageId}:${r.enabled}:${r.ga4Event}`).join("|")}
+                etapas={etapasDoGa4}
+                regras={regrasGa4}
+                idioma={idioma}
+              />
             )}
           </section>
           <FormularioDeConversoesGoogle
