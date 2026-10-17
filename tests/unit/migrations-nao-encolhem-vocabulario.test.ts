@@ -65,6 +65,18 @@ const DIR_MIGRATIONS = path.join(process.cwd(), "supabase", "migrations");
  * dado existente faz o `update.sh` de um clone quebrar no meio.
  */
 const REMOCOES_DELIBERADAS: Record<string, { valores: string[]; porque: string }> = {
+  "20261019000002_0655_avisos_de_tarefa_na_central.sql::agent_inbox_items_kind_check": {
+    valores: ["integracao_desautorizada"],
+    porque:
+      "O ENCONTRO de duas linhas de trabalho, não uma remoção de propósito: a 9005 " +
+      "(Nuvemshop, exclusiva do fork) acrescentou `integracao_desautorizada` em " +
+      "2026-10-09, e a 0655 (avisos de tarefa, upstream) reconstruiu a constraint a " +
+      "partir da lista que ENXERGAVA, sem o valor do fork. Na `main` da upstream a 0655 " +
+      "não remove nada; o buraco só existe na árvore em que as duas se encontram. A " +
+      "forward-fix é a 9006 (`inbox_kind_mantem_integracao_desautorizada`), que repete " +
+      "a lista inteira do baseline com os dois vocabulários — o estado FINAL da cadeia " +
+      "tem o valor de volta. Migration aplicada não se edita.",
+  },
   "20260918231000_0312_aviso_de_followup_sem_agente.sql::agent_inbox_items_kind_check": {
     valores: ["aviso_de_caso_nao_entregue"],
     porque:

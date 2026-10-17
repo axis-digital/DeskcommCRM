@@ -6,23 +6,24 @@
  * 2 imagens, a 2ª falhava no upload e o operador clicava Enviar de novo. A 1ª
  * imagem saía DE NOVO, com a legenda — dois envios com o mesmo texto, o que a
  * issue proíbe ("falha no envio da mídia não causa duplicação do texto").
+ *
+ * No fork a resposta envia pela BOLHA OTIMISTA (`useEnviosDeMidia`): o diálogo
+ * fecha na hora e cada arquivo vira a sua bolha, com retry próprio ("Tentar de
+ * novo") que reenvia só aquele arquivo. A garantia passa a ser decidida na
+ * entrega à fila: um `enviar` por arquivo, e SÓ o primeiro leva a legenda — então
+ * o retry de uma bolha nunca repete o texto nem reenvia as outras.
  */
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const h = vi.hoisted(() => ({
-  falharNaChamada: 0,
-  chamadas: 0,
+const uploadMock = vi.fn();
+const sendMock = vi.fn();
+const enviarMock = vi.fn();
+
+vi.mock("@/hooks/inbox/useEnviosDeMidia", () => ({
+  useEnviosDeMidia: () => ({ pendentes: [], enviar: enviarMock, tentarDeNovo: vi.fn(), descartar: vi.fn() }),
 }));
-
-const uploadMock = vi.fn(async ({ file }: { file: File }) => {
-  h.chamadas += 1;
-  if (h.chamadas === h.falharNaChamada) throw new Error("upload_failed");
-  return { storage_path: `org/conv/out-${file.name}`, media_mime: "image/jpeg", media_size_bytes: 3, kind: "image" as const };
-});
-const sendMock = vi.fn((_v: unknown, opts?: { onSuccess?: () => void }) => opts?.onSuccess?.());
-
 vi.mock("@/hooks/inbox/useUploadMedia", () => ({
   useUploadMedia: () => ({ mutateAsync: uploadMock, isPending: false }),
 }));
@@ -62,14 +63,16 @@ async function escolherTemplate() {
 }
 
 const enviar = () => fireEvent.click(screen.getByRole("button", { name: /^enviar$/i }));
-const corpos = () => sendMock.mock.calls.map(([v]) => (v as { body?: string }).body);
-const arquivos = () => uploadMock.mock.calls.map(([v]) => v.file.name);
+const entregues = () =>
+  enviarMock.mock.calls.map(([v]) => {
+    const { arquivo, legenda } = v as { arquivo: File; legenda: string };
+    return [arquivo.name, legenda];
+  });
 
 beforeEach(() => {
-  h.chamadas = 0;
-  h.falharNaChamada = 0;
   uploadMock.mockClear();
   sendMock.mockClear();
+  enviarMock.mockClear();
   globalThis.fetch = vi.fn(async () => ({
     ok: true,
     status: 200,
@@ -78,21 +81,21 @@ beforeEach(() => {
   })) as never;
 });
 
-describe("resposta rápida com imagem — retry e remoção na prévia (#2526)", () => {
-  it("(1) a 2ª imagem falha e o operador reenvia: só a 2ª sobe de novo, e SEM a legenda", async () => {
-    h.falharNaChamada = 2;
+describe("resposta rápida com imagem — fila por bolha e remoção na prévia (#2526)", () => {
+  it("(1) duas imagens: uma bolha por arquivo, e só a 1ª leva a legenda (o retry de uma bolha não repete o texto)", async () => {
     await escolherTemplate();
 
     enviar();
-    await waitFor(() => expect(uploadMock).toHaveBeenCalledTimes(2));
-    expect(corpos()).toEqual(["Veja o modelo"]);
-    expect(screen.getByRole("dialog")).toBeInTheDocument();
 
-    enviar(); // retry
-    await waitFor(() => expect(sendMock).toHaveBeenCalledTimes(2));
-    expect(arquivos()).toEqual(["a.jpg", "b.jpg", "b.jpg"]);
-    expect(corpos()).toEqual(["Veja o modelo", undefined]);
+    await waitFor(() => expect(enviarMock).toHaveBeenCalledTimes(2));
+    expect(entregues()).toEqual([
+      ["a.jpg", "Veja o modelo"],
+      ["b.jpg", ""],
+    ]);
+    // O envio saiu da fila de dentro do diálogo: ele fecha na hora, sem upload nem POST aqui.
     await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
+    expect(uploadMock).not.toHaveBeenCalled();
+    expect(sendMock).not.toHaveBeenCalled();
   });
 
   it("(2) remover a 1ª imagem na prévia: só a 2ª sai, levando a legenda", async () => {
@@ -102,9 +105,8 @@ describe("resposta rápida com imagem — retry e remoção na prévia (#2526)",
     expect(screen.getAllByRole("button", { name: /remover imagem/i })).toHaveLength(1);
     enviar();
 
-    await waitFor(() => expect(sendMock).toHaveBeenCalledTimes(1));
-    expect(arquivos()).toEqual(["b.jpg"]);
-    expect(corpos()).toEqual(["Veja o modelo"]);
+    await waitFor(() => expect(enviarMock).toHaveBeenCalledTimes(1));
+    expect(entregues()).toEqual([["b.jpg", "Veja o modelo"]]);
   });
 
   it("(3) remover todas: a prévia fecha e o texto volta para o campo, sem envio", async () => {
@@ -115,6 +117,7 @@ describe("resposta rápida com imagem — retry e remoção na prévia (#2526)",
 
     await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
     expect((screen.getByRole("textbox") as HTMLTextAreaElement).value).toBe("Veja o modelo");
+    expect(enviarMock).not.toHaveBeenCalled();
     expect(uploadMock).not.toHaveBeenCalled();
     expect(sendMock).not.toHaveBeenCalled();
   });

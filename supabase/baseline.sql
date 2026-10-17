@@ -10193,6 +10193,8 @@ alter table public.agent_inbox_items
     -- os pedidos param de sincronizar. Um aviso por integração, resolvido na
     -- reconexão. NESTA lista pelas razões de sempre (#159).
     'integracao_desautorizada',
+    -- (migration 9006) forward-fix: a 0655 reconstruiu esta lista sem o valor acima
+    -- (9005, fork). A lista deste bloco é a canônica; a 9006 a repete inteira.
     -- (migration 0655, issue #2529) A tarefa vencida só aparecia em vermelho
     -- para quem ABRIA a lista de tarefas: quem não abria perdia o prazo em
     -- silêncio. O cron `task-reminder` varre `crm_tasks` com prazo na janela e
