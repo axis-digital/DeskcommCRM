@@ -11,7 +11,10 @@ const f = (over: Partial<FunilCandidato> & { id: string }): FunilCandidato => ({
 
 describe("escolherFunilPadrao", () => {
   it("devolve o funil marcado como padrão quando ele está vivo", () => {
-    const r = escolherFunilPadrao([f({ id: "a", position: 0 }), f({ id: "b", position: 1, is_default: true })]);
+    const r = escolherFunilPadrao([
+      f({ id: "a", position: 0 }),
+      f({ id: "b", position: 1, is_default: true }),
+    ]);
     expect(r?.id).toBe("b");
   });
 

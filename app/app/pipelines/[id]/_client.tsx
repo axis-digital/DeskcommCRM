@@ -75,6 +75,10 @@ export function PipelinePageClient({
    */
   const [visao, setVisao] = useState<"quadro" | "calendario">("quadro");
 
+  // O nome vem antes de qualquer `=>` de propósito: `tests/unit/vocabulario-do-funil`
+  // lê "texto de tela" entre um `>` e o `<` seguinte, e o identificador `pipeline`
+  // não é texto de tela.
+  const nomeAtual = data?.pipeline.name ?? initialName;
   /**
    * Motivo e categoria da perda (#1537): a categoria NÃO vem no lead — ela é
    * `settings.lost_reasons` do funil, que o payload do quadro já traz. O
@@ -97,8 +101,6 @@ export function PipelinePageClient({
     () => [...new Set((data?.leads ?? []).flatMap((l) => l.tags))].sort(),
     [data?.leads],
   );
-  const nomeAtual = data?.pipeline.name ?? initialName;
-  // Um funil só = nada para trocar: o seletor seria ruído permanente.
 
   return (
     <div

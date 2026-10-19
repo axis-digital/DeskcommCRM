@@ -51,7 +51,7 @@ export function SeletorDeFunil({ funis, atualId, nomeAtual }: Props) {
                 title={f.is_default ? `${f.name} (${t("padrão")})` : f.name}
                 className={cn(
                   "inline-flex min-h-11 max-w-[14rem] shrink-0 items-center truncate rounded-md px-3 text-sm font-medium transition-colors lg:min-h-8",
-                  "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+                  "focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring",
                   atual
                     ? "bg-background text-foreground shadow-sm"
                     : "text-muted-foreground hover:bg-background/60 hover:text-foreground",

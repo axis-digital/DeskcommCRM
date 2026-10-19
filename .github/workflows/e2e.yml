@@ -1266,6 +1266,7 @@ jobs:
         cobranca-suspensao-e-limites.spec.ts
         filtro-por-marcador-pela-tela.spec.ts
         fonte-de-captacao-assina-os-envios.spec.ts
+        funil-conversa-no-dossie.spec.ts
         inbox-busca-e-filtros-dizem-a-verdade.spec.ts
         mapas-em-provedores.spec.ts
         modulo-de-dados-na-ficha-do-contato.spec.ts
