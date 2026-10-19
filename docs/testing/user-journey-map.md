@@ -37,7 +37,7 @@ fonte só (`lib/onboarding/passos.ts`) — eram três listas que discordavam. Ga
 | J1.1 | Login com credenciais do bootstrap | entra e é redirecionado pro `/onboarding` (org sem `onboarded_at`) |
 | J1.2 | Login com senha errada | mensagem clara "Email ou senha incorretos", sem stack |
 | J1.3 | Welcome: termos não aceitos | botão avança desabilitado |
-| J1.4 | Welcome: nome da org + timezone salvos | grava `display_name`/`timezone`, avança pro WhatsApp |
+| J1.4 | Welcome: nome da org + timezone salvos | grava `display_name`/`timezone`, avança pro WhatsApp; o seletor continua funcionando se a tradução do navegador substituir o texto selecionado (`components/ui/select.test.tsx`, `tests/e2e/vps-fresh-onboarding.spec.ts`). Evidência local com tradução simulada e dados sintéticos: `evidence/select-traducao-do-navegador/localizacao-selecionada.png` |
 | J1.4a | Welcome: perfil do negócio (canais + objetivos) | sem objetivo o "Continuar" fica desabilitado; marcados, grava `settings.perfil_de_negocio` por merge (branding/segurança intactos) na ordem em que a pessoa marcou · editável em Configurações › Organização · **PASS pela tela no staging** (2026-10-08, ver J41.P1) · e2e **ESCRITO, não rodado** (`tests/e2e/vps-fresh-onboarding.spec.ts` J1.4; unit `tests/unit/onboarding-welcome-perfil-de-negocio.test.ts`, `tests/unit/settings-update-perfil-de-negocio.test.ts`) |
 | J1.5 | Connect WhatsApp: WAHA ativo → QR aparece | sessão criada, QR renderiza via proxy, poll de status roda |
 | J1.6 | Connect WhatsApp: "Pular por enquanto" | avança pro step correto (setup-ai quando Nuvemshop off) |

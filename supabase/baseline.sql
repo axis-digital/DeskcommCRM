@@ -30070,7 +30070,7 @@ create table if not exists public.passagens_de_atendimento (
   motivo_codigo    text not null check (motivo_codigo in (
                      'requested_human','suspected_optout','orcamento_de_ia','low_sentiment',
                      'low_confidence','critical_stage','legal_mention','refund_mention',
-                     'caso_escalado')),
+                     'caso_escalado','verificacao_manual')),
 
   -- ─── OS QUATRO NOMES QUE O GATE DE LGPD LÊ (ver o cabeçalho) ─────────────
   --   title   ← "o que o cliente quer", em uma linha (é o título do cartão)
@@ -30163,7 +30163,7 @@ alter table public.passagens_de_atendimento
   check (motivo_codigo in (
     'requested_human','suspected_optout','orcamento_de_ia','low_sentiment',
     'low_confidence','critical_stage','legal_mention','refund_mention',
-    'caso_escalado'));
+    'caso_escalado','verificacao_manual'));
 
 alter table public.passagens_de_atendimento
   drop constraint if exists passagens_de_atendimento_aviso_motivo_codigo_check;
@@ -59056,3 +59056,51 @@ comment on column public.webhook_lead_captures.outcome is
   'criado = virou lead novo; duplicado = envio repetido, nada mudou no card; atualizado = o card da mesma fonte recebeu o dado novo (issue #2316, só com a opção da fonte ligada); recusado = não entrou (reject_reason diz por quê).';
 
 notify pgrst, 'reload schema';
+
+-- ---- motivo `verificacao_manual` na passagem (migration 0693) ----
+-- O valor entrou no bloco ÚNICO de `passagens_de_atendimento_motivo_codigo_check`
+-- (logo depois do `create table public.passagens_de_atendimento`), e não aqui:
+-- reconstruir a constraint num segundo bloco é o que
+-- `tests/unit/baseline-constraint-reconstruida.test.ts` reprova. Par de
+-- `MOTIVOS_DA_PASSAGEM`/`FRASE_DO_MOTIVO` em `lib/escalacao/passagem.ts`.
+
+-- ---- motor do banco externo e aviso do teste (migration 0691) ----
+alter table public.external_db_connections
+  add column if not exists db_type text not null default 'postgres',
+  add column if not exists last_test_aviso text;
+
+-- Troca de restrição num bloco DO: o update.sh aplica este arquivo sem
+-- ON_ERROR_STOP e em autocommit; soltos, um `add` que falhasse deixaria a
+-- tabela sem as duas restrições. No bloco, a falha desfaz o `drop` junto.
+do $$
+begin
+  alter table public.external_db_connections
+    drop constraint if exists external_db_connections_db_type_valido,
+    drop constraint if exists external_db_connections_last_test_aviso_valido;
+  alter table public.external_db_connections
+    add constraint external_db_connections_db_type_valido
+      check (db_type in ('postgres', 'mysql')),
+    add constraint external_db_connections_last_test_aviso_valido
+      check (last_test_aviso is null or char_length(last_test_aviso) <= 500);
+end $$;
+
+comment on column public.external_db_connections.db_type is
+  'Motor do banco externo: postgres | mysql. Imutável depois de criada (trocar de motor = apagar e criar). Vocabulário espelhado em TipoBanco (lib/external-db/types.ts).';
+comment on column public.external_db_connections.last_test_aviso is
+  'Aviso (não erro) do último teste bem-sucedido, por exemplo privilégio de escrita no usuário do MySQL. Nulo = nada a avisar.';
+
+drop view if exists public.external_db_connections_safe;
+create view public.external_db_connections_safe
+  with (security_invoker = true)
+  as
+  select id, organization_id, label, host, port, database_name, username,
+         ssl_mode, enabled, max_rows, max_filters, max_response_bytes,
+         customer_key_column, customer_key_kind,
+         last_tested_at, last_test_ok, last_test_error,
+         created_by, created_at, updated_at,
+         source_mode, jsonb_array_length(sources) as sources_count,
+         db_type, last_test_aviso
+  from public.external_db_connections;
+
+revoke all on public.external_db_connections_safe from anon;
+grant select on public.external_db_connections_safe to authenticated;
