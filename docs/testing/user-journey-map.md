@@ -37,7 +37,7 @@ fonte só (`lib/onboarding/passos.ts`) — eram três listas que discordavam. Ga
 | J1.1 | Login com credenciais do bootstrap | entra e é redirecionado pro `/onboarding` (org sem `onboarded_at`) |
 | J1.2 | Login com senha errada | mensagem clara "Email ou senha incorretos", sem stack |
 | J1.3 | Welcome: termos não aceitos | botão avança desabilitado |
-| J1.4 | Welcome: nome da org + timezone salvos | grava `display_name`/`timezone`, avança pro WhatsApp |
+| J1.4 | Welcome: nome da org + timezone salvos | grava `display_name`/`timezone`, avança pro WhatsApp; o seletor continua funcionando se a tradução do navegador substituir o texto selecionado (`components/ui/select.test.tsx`, `tests/e2e/vps-fresh-onboarding.spec.ts`). Evidência local com tradução simulada e dados sintéticos: `evidence/select-traducao-do-navegador/localizacao-selecionada.png` |
 | J1.4a | Welcome: perfil do negócio (canais + objetivos) | sem objetivo o "Continuar" fica desabilitado; marcados, grava `settings.perfil_de_negocio` por merge (branding/segurança intactos) na ordem em que a pessoa marcou · editável em Configurações › Organização · **PASS pela tela no staging** (2026-10-08, ver J41.P1) · e2e **ESCRITO, não rodado** (`tests/e2e/vps-fresh-onboarding.spec.ts` J1.4; unit `tests/unit/onboarding-welcome-perfil-de-negocio.test.ts`, `tests/unit/settings-update-perfil-de-negocio.test.ts`) |
 | J1.5 | Connect WhatsApp: WAHA ativo → QR aparece | sessão criada, QR renderiza via proxy, poll de status roda |
 | J1.6 | Connect WhatsApp: "Pular por enquanto" | avança pro step correto (setup-ai quando Nuvemshop off) |
@@ -1534,6 +1534,43 @@ real, não pela tela).
 - **O pagamento em si pelo link.** É o mesmo da J44 (Pix pago no dublê → "Em dia").
 
 **Evidência:** ainda não versionada. A spec grava as duas fotos (o card com o link gerado e o painel da empresa com o mesmo link) na pasta `evidence/cobranca-link-pelo-dono/` quando roda; elas entram aqui, citadas, depois da primeira rodada verde do `e2e`.
+
+## J46 — O anúncio que trouxe a pessoa aparece na conversa e no painel `[P1]` (2026-10-12)
+
+Contexto: pedido de uma operação real (loja com vários produtos anunciados). O
+contato já guardava o anúncio de primeiro toque (`source_metadata.ad_*`), e só
+a ficha do contato o mostrava; a mensagem nascida do clique não guardava de qual
+anúncio veio. A ingestão dos três transportes passa a gravar `metadata.anuncio`
+(título, texto, id, link e miniatura — nunca o clique nem o cru), a bolha dessa
+mensagem leva o cartão do anúncio (imagem, título, texto, «Ver anúncio») e o
+painel ao lado ganha «Anúncio de origem», com o anúncio mais recente quando a
+pessoa voltou por outro (`components/inbox/AnuncioCard.tsx`,
+`components/inbox/AnuncioDoContato.tsx`,
+`app/api/v1/contacts/[id]/crm-summary/route.ts`).
+
+Spec: `tests/e2e/inbox-anuncio-de-origem.spec.ts`.
+
+| # | Caso | Expectativa | Resultado |
+|---|------|-------------|-----------|
+| J46.1 | Abrir a conversa de quem veio de um anúncio e voltou por outro | cada bolha de clique tem o cartão do SEU anúncio, com a imagem carregada (`naturalWidth > 0`) e o link; o painel mostra o anúncio de origem e «Voltou por outro anúncio» com o segundo; os cartões cabem na coluna (`boundingBox`) | **PASS pela tela** — Evidência: `evidence/inbox-anuncio-de-origem/01-anuncio-na-bolha-e-no-painel.png` |
+| J46.2 | Mensagem recebida de um clique, nos três transportes (intermediado, oficial direto, QR) | `metadata.anuncio` com título, texto, id, link e miniatura; sem `ctwa_clid` nem payload cru; sem anúncio, a chave nem aparece; o primeiro toque do contato segue estampado como antes | **PASS (unit)** — `tests/unit/mensagem-guarda-o-seu-anuncio.test.ts` |
+| J46.3 | Endereço do anúncio que não é `https:` (`javascript:`, `data:`, `http:`) | não chega a `href` nem a `src` | **PASS (unit)** — `tests/unit/anuncio-visivel-na-inbox.test.tsx` |
+
+## J47 — Ler a conversa selecionada no tema escuro `[P1]` (2026-10-12)
+
+Contexto: relatado por uma operação real, com a captura — no tema escuro, a linha
+selecionada da lista do Inbox ficava quase branca e o nome do contato sumia. A
+causa: `bg-accent-50`, um degrau da rampa da marca, que tem o MESMO hex nos dois
+temas; o nome é `text-text`, claro no escuro. Passa a `bg-accent-soft`, o token
+que o tema troca (`components/inbox/ConversationListItem.tsx`).
+
+Spec: `tests/e2e/inbox-selecionada-no-escuro.spec.ts`.
+
+| # | Caso | Expectativa | Resultado |
+|---|------|-------------|-----------|
+| J47.1 | Tema escuro, conversa aberta pela lista | o nome do contato na linha selecionada tem contraste ≥ 4,5 contra o fundo EFETIVO (cor computada, camadas translúcidas compostas) | **PASS pela tela** — Evidência: `evidence/inbox-selecionada-no-escuro/01-selecionada-no-escuro.png` |
+| J47.2 | A classe da selecionada | `bg-accent-soft`, nenhum degrau fixo `bg-accent-50…950`; a não selecionada não ganha o fundo | **PASS (unit)** — `tests/unit/selecionada-legivel-no-escuro.test.tsx` |
+| J47.3 | Tema escuro, conversa aberta E marcada no lote, com o mouse ou o foco de teclado | a linha fica num tom só (o botão não pinta por cima do fundo da linha), o foco aparece como anel, e o nome e a prévia seguem com contraste ≥ 4,5 contra o fundo efetivo | **PASS pela tela** — Evidência: `evidence/inbox-selecionada-no-escuro/02-aberta-e-marcada-com-foco.png` |
 
 ## Jornadas exercitadas (instalação final, virgem)
 
@@ -3491,7 +3528,7 @@ Spec: `tests/e2e/mapas-em-provedores.spec.ts`.
 | [P1] | Quem só lê vê a lista e não edita | mesmo spec, passo 6 |
 | [P2] | Fonte que sumiu do banco, catálogo fora do ar | só teste de componente (`PainelDeFontes.test.tsx` 6 e 9) |
 
-## J47 — Ligar o GA4 e ver o ganho chegar na sessão do site `[P1]` (2026-10-06)
+## J49 — Ligar o GA4 e ver o ganho chegar na sessão do site `[P1]` (2026-10-06)
 
 Contexto: as vendas e as etapas configuradas do funil saem para a propriedade GA4
 da organização pelo Measurement Protocol, só para o contato que veio do site com
@@ -3504,27 +3541,27 @@ Spec: `tests/e2e/conversoes-ga4.spec.ts` (receptor HTTP real no lugar do Google,
 
 | # | Caso | Expectativa | Resultado |
 |---|------|-------------|-----------|
-| J47.1 | Dono cola Measurement ID e API secret, liga e salva | «Conexão com o GA4 salva.» | **PASS pela tela** (2026-10-06, bancada fresca: Supabase local pg15 + `baseline.sql` + `bootstrap-owner.ts`, build de produção, receptor HTTP real) — Evidência: `evidence/conversoes-ga4/01-conexao-salva.png` |
-| J47.2 | «Testar conexão» | o receptor recebe `/debug/mp/collect?measurement_id=…`; a tela diz «O GA4 aceitou o evento de teste.» | **PASS pela tela** (2026-10-06, bancada fresca: Supabase local pg15 + `baseline.sql` + `bootstrap-owner.ts`, build de produção, receptor HTTP real) |
-| J47.3 | Script do site com o GA4 ligado | o snippet leva `data-ga4="G-…"` | **PASS pela tela** (2026-10-06, bancada fresca: Supabase local pg15 + `baseline.sql` + `bootstrap-owner.ts`, build de produção, receptor HTTP real) |
-| J47.4 | Visitante com cookie `_ga` clica no WhatsApp do site | o clique leva `ga_client_id`/`ga_session_id`; a primeira mensagem pelo webhook do WAHA casa o ref e o contato ganha a identidade GA4 | **PASS pela tela** (2026-10-06, bancada fresca: Supabase local pg15 + `baseline.sql` + `bootstrap-owner.ts`, build de produção, receptor HTTP real). **Achado ao executar:** a rota `/api/v1/anuncios/google/[org]` gravava só cinco UTMs em `query_raw` e descartava a identidade GA4 — o ref casava e o contato ficava sem ela. Consertado em `fc0f497a9`, com caso em `tests/unit/google-captura-identificadores.test.ts` |
-| J47.5 | Negócio marcado como ganho no kanban, dreno rodado | o receptor recebe `/mp/collect` com o `client_id` do cookie, a sessão, valor e moeda; o Histórico mostra «Venda (GA4)» como «Entregue» | **PASS pela tela** (2026-10-06, bancada fresca: Supabase local pg15 + `baseline.sql` + `bootstrap-owner.ts`, build de produção, receptor HTTP real) — Evidência: `evidence/conversoes-ga4/02-historico.png` |
-| J47.6 | Venda de contato sem anúncio nem site, opt-in desligado / ligado | desligado: nada sai nem é gravado; ligado: uma linha por plataforma ligada (`SemOrigem:<plataforma>:Purchase`), Meta com `ph`, Google com `hashedEmail`/`hashedPhoneNumber`; a venda já enviada sem origem não sai de novo quando a atribuição aparece depois | **PASS (unit)** — `tests/unit/conversoes-sem-origem.test.ts`, `tests/unit/conversoes-sem-origem-no-handler.test.ts` (com sabotagem medida da guarda de recontagem), `tests/unit/google-ads-sem-origem.test.ts`. O interruptor (nasce desligado, sobrevive ao recarregar, é auditado): **PASS pela tela** (2026-10-06, bancada fresca: Supabase local pg15 + `baseline.sql` + `bootstrap-owner.ts`, build de produção, receptor HTTP real) — Evidência: `evidence/conversoes-ga4/03-venda-sem-origem-ligada.png`. O envio sem origem até um receptor real: sem prova pela tela |
+| J49.1 | Dono cola Measurement ID e API secret, liga e salva | «Conexão com o GA4 salva.» | **PASS pela tela** (2026-10-06, bancada fresca: Supabase local pg15 + `baseline.sql` + `bootstrap-owner.ts`, build de produção, receptor HTTP real) — Evidência: `evidence/conversoes-ga4/01-conexao-salva.png` |
+| J49.2 | «Testar conexão» | o receptor recebe `/debug/mp/collect?measurement_id=…`; a tela diz «O GA4 aceitou o evento de teste.» | **PASS pela tela** (2026-10-06, bancada fresca: Supabase local pg15 + `baseline.sql` + `bootstrap-owner.ts`, build de produção, receptor HTTP real) |
+| J49.3 | Script do site com o GA4 ligado | o snippet leva `data-ga4="G-…"` | **PASS pela tela** (2026-10-06, bancada fresca: Supabase local pg15 + `baseline.sql` + `bootstrap-owner.ts`, build de produção, receptor HTTP real) |
+| J49.4 | Visitante com cookie `_ga` clica no WhatsApp do site | o clique leva `ga_client_id`/`ga_session_id`; a primeira mensagem pelo webhook do WAHA casa o ref e o contato ganha a identidade GA4 | **PASS pela tela** (2026-10-06, bancada fresca: Supabase local pg15 + `baseline.sql` + `bootstrap-owner.ts`, build de produção, receptor HTTP real). **Achado ao executar:** a rota `/api/v1/anuncios/google/[org]` gravava só cinco UTMs em `query_raw` e descartava a identidade GA4 — o ref casava e o contato ficava sem ela. Consertado em `fc0f497a9`, com caso em `tests/unit/google-captura-identificadores.test.ts` |
+| J49.5 | Negócio marcado como ganho no kanban, dreno rodado | o receptor recebe `/mp/collect` com o `client_id` do cookie, a sessão, valor e moeda; o Histórico mostra «Venda (GA4)» como «Entregue» | **PASS pela tela** (2026-10-06, bancada fresca: Supabase local pg15 + `baseline.sql` + `bootstrap-owner.ts`, build de produção, receptor HTTP real) — Evidência: `evidence/conversoes-ga4/02-historico.png` |
+| J49.6 | Venda de contato sem anúncio nem site, opt-in desligado / ligado | desligado: nada sai nem é gravado; ligado: uma linha por plataforma ligada (`SemOrigem:<plataforma>:Purchase`), Meta com `ph`, Google com `hashedEmail`/`hashedPhoneNumber`; a venda já enviada sem origem não sai de novo quando a atribuição aparece depois | **PASS (unit)** — `tests/unit/conversoes-sem-origem.test.ts`, `tests/unit/conversoes-sem-origem-no-handler.test.ts` (com sabotagem medida da guarda de recontagem), `tests/unit/google-ads-sem-origem.test.ts`. O interruptor (nasce desligado, sobrevive ao recarregar, é auditado): **PASS pela tela** (2026-10-06, bancada fresca: Supabase local pg15 + `baseline.sql` + `bootstrap-owner.ts`, build de produção, receptor HTTP real) — Evidência: `evidence/conversoes-ga4/03-venda-sem-origem-ligada.png`. O envio sem origem até um receptor real: sem prova pela tela |
 
-### J47 no staging, com a propriedade GA4 real (2026-10-06/07)
+### J49 no staging, com a propriedade GA4 real (2026-10-06/07)
 
 Ambiente: staging isolado (`staging.deskcomm.axisaceleradora.com.br`, imagens da branch
 `feat/conversoes-ga4`), org de teste, fluxo de dados GA4 "[TESTE] DeskcommCRM Staging". Confere no
-GA4 de verdade o que a J47 provou com receptor local.
+GA4 de verdade o que a J49 provou com receptor local.
 
 | # | Caso | Resultado |
 |---|------|-----------|
-| J47.S1 | Conexão salva e «Testar conexão» aceita pelo GA4 real | **PASS pela tela** — `evidence/conversoes-ga4-staging/01-conexao-ga4-salva.png`, `evidence/conversoes-ga4-staging/02-testar-conexao.png` |
-| J47.S2 | Regra `begin_checkout` na etapa e snippet com `data-ga4` | **PASS pela tela** — `evidence/conversoes-ga4-staging/03-regra-etapa.png`, `evidence/conversoes-ga4-staging/04-captura-e-snippet.png` |
-| J47.S3 | Canal de teste e visitante com `_ga` num site de teste | **PASS pela tela** — `evidence/conversoes-ga4-staging/05-novo-whatsapp.png`, `evidence/conversoes-ga4-staging/06-site-de-teste.png` |
-| J47.S4 | Mover para «Aguardando pagamento» e depois para «Pago» | `begin_checkout` e a venda saem e aparecem no Realtime do GA4 · **PASS pela tela** — `evidence/conversoes-ga4-staging/07-movido-aguardando-pagamento.png`, `evidence/conversoes-ga4-staging/08-movido-pago-ganho.png` |
-| J47.S5 | Histórico antes e depois do reenvio de linha entregue | linha «Entregue» não oferece reenvio · **PASS pela tela** — `evidence/conversoes-ga4-staging/09-historico-antes-reenvio.png`, `evidence/conversoes-ga4-staging/10-historico-depois-reenvio.png` |
-| J47.S6 | Envio GA4 com falha → «Verificar ou tentar novamente» | toast «Reprocessamento agendado», linha vira «Entregue», a venda do Google não sai de carona · **PASS pela tela** — `evidence/conversoes-ga4-staging/11-falha-antes-do-reenvio.png`, `evidence/conversoes-ga4-staging/12-reenvio-agendado.png` |
+| J49.S1 | Conexão salva e «Testar conexão» aceita pelo GA4 real | **PASS pela tela** — `evidence/conversoes-ga4-staging/01-conexao-ga4-salva.png`, `evidence/conversoes-ga4-staging/02-testar-conexao.png` |
+| J49.S2 | Regra `begin_checkout` na etapa e snippet com `data-ga4` | **PASS pela tela** — `evidence/conversoes-ga4-staging/03-regra-etapa.png`, `evidence/conversoes-ga4-staging/04-captura-e-snippet.png` |
+| J49.S3 | Canal de teste e visitante com `_ga` num site de teste | **PASS pela tela** — `evidence/conversoes-ga4-staging/05-novo-whatsapp.png`, `evidence/conversoes-ga4-staging/06-site-de-teste.png` |
+| J49.S4 | Mover para «Aguardando pagamento» e depois para «Pago» | `begin_checkout` e a venda saem e aparecem no Realtime do GA4 · **PASS pela tela** — `evidence/conversoes-ga4-staging/07-movido-aguardando-pagamento.png`, `evidence/conversoes-ga4-staging/08-movido-pago-ganho.png` |
+| J49.S5 | Histórico antes e depois do reenvio de linha entregue | linha «Entregue» não oferece reenvio · **PASS pela tela** — `evidence/conversoes-ga4-staging/09-historico-antes-reenvio.png`, `evidence/conversoes-ga4-staging/10-historico-depois-reenvio.png` |
+| J49.S6 | Envio GA4 com falha → «Verificar ou tentar novamente» | toast «Reprocessamento agendado», linha vira «Entregue», a venda do Google não sai de carona · **PASS pela tela** — `evidence/conversoes-ga4-staging/11-falha-antes-do-reenvio.png`, `evidence/conversoes-ga4-staging/12-reenvio-agendado.png` |
 
 ### Perfil do negócio e eventos do GA4 por funil, no staging (2026-10-08)
 
@@ -3585,7 +3622,7 @@ partir da lápide, com o 500 que não diz "nada foi apagado": medida por unidade
 `lib/tenants/exclusao.test.ts` e `…/delete/route.test.ts`, e o inventário da lápide em
 `tests/invariants/gestao-de-tenants.test.ts`.
 
-## J46 — Conectar a Nuvemshop e ver os pedidos na integração e no contato `[P1]` (2026-10-08)
+## J48 — Conectar a Nuvemshop e ver os pedidos na integração e no contato `[P1]` (2026-10-08)
 
 **Origem:** sincronização de pedidos da Nuvemshop (E1). A prova é pela tela, com um receptor HTTP
 que imita a API da Nuvemshop (`NUVEMSHOP_API_BASE_URL`, porta 3994); as credenciais do ambiente

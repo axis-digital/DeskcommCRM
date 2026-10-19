@@ -1,116 +1,180 @@
 /**
- * O OBJETIVO DO FUNIL no editor de funil (Entrega 1 / workstream B).
+ * Marcar como Contato um campo que o gatilho por data lê (#2791, achado do
+ * cético no #3051).
  *
- * `crm_pipelines.settings` tem vários donos (campos, motivos, reabertura). O
- * objetivo entra por MERGE: gravar o objetivo não pode apagar os campos do lead,
- * e "Sem objetivo" tira só a chave `objetivo`.
+ * A varredura `lead-date-field-due` lê `crm_leads.custom_fields`; o valor de um
+ * campo do contato mora em `contacts.custom_fields`. Mudar o escopo nas
+ * configurações do funil deixava a regra ligada e muda para sempre. O que se
+ * prova: a gravação é recusada com o nome das regras quando há regra ATIVA do
+ * gatilho por data, deste funil, lendo a chave — e passa em todo o resto.
  */
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+const FUNIL = "ffffffff-0000-4000-8000-00000000000f";
+const OUTRO_FUNIL = "eeeeeeee-0000-4000-8000-00000000000e";
 const ORG = "22222222-2222-4222-8222-222222222222";
-const PIPE = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa";
 
-const deps = vi.hoisted(() => ({
-  linha: null as null | Record<string, unknown>,
-  updates: [] as Array<Record<string, unknown>>,
-  user: { id: "u1", support: undefined as unknown } as Record<string, unknown>,
-  podeAdministrar: true,
+const h = vi.hoisted(() => ({
+  settings: {} as Record<string, unknown>,
+  regras: [] as Array<{ name: string; trigger_config: unknown }>,
+  filtrosDasRegras: [] as Array<[string, unknown]>,
+  gravou: null as unknown,
+  idioma: "pt-BR",
 }));
 
+vi.mock("next/cache", () => ({ revalidatePath: vi.fn() }));
 vi.mock("next/headers", () => ({ headers: async () => new Headers() }));
-vi.mock("next/cache", () => ({ revalidatePath: () => undefined }));
 vi.mock("@/lib/audit", () => ({ audit: vi.fn(async () => undefined) }));
+vi.mock("@/lib/impersonate/support", () => ({ supportWriteError: () => null }));
 vi.mock("@/lib/auth/server", () => ({
-  loadAuthUser: vi.fn(async () => deps.user),
-  resolveActiveOrg: vi.fn(async () => ({ orgId: ORG, name: "QA", role: "admin" })),
-}));
-vi.mock("@/lib/auth/pode-administrar-empresa", () => ({
-  podeAdministrarEmpresa: () => deps.podeAdministrar,
+  loadAuthUser: async () => ({
+    id: "11111111-1111-4111-8111-111111111111",
+    is_platform_admin: false,
+    platform_admin_scope: null,
+    support: null,
+    idioma: h.idioma,
+  }),
+  resolveActiveOrg: async () => ({ orgId: ORG, role: "admin" }),
 }));
 vi.mock("@/lib/supabase/server", () => ({
   createClient: async () => ({
-    from: () => {
-      const b = {
-        select: () => b,
-        eq: () => b,
-        maybeSingle: async () => ({ data: deps.linha, error: null }),
-        update: (payload: Record<string, unknown>) => {
-          deps.updates.push(payload);
+    from: (tabela: string) => {
+      const cadeia: Record<string, unknown> = {};
+      if (tabela === "crm_pipelines") {
+        cadeia.select = () => cadeia;
+        cadeia.eq = () => cadeia;
+        cadeia.maybeSingle = async () => ({
+          data: { vocabulary: {}, settings: h.settings, organization_id: ORG },
+          error: null,
+        });
+        cadeia.update = (payload: unknown) => {
+          h.gravou = payload;
           return { eq: async () => ({ error: null }) };
-        },
+        };
+        return cadeia;
+      }
+      expect(tabela).toBe("automation_rules");
+      // O dublê aplica os filtros de verdade: a regra de outra org, desligada ou
+      // de outro gatilho só some se a rota pedir que suma.
+      cadeia.select = () => cadeia;
+      cadeia.eq = (coluna: string, valor: unknown) => {
+        h.filtrosDasRegras.push([coluna, valor]);
+        return cadeia;
       };
-      return b;
+      cadeia.then = (resolve: (r: unknown) => unknown) => {
+        const linhas = h.regras.filter((r) =>
+          h.filtrosDasRegras.every(([coluna, valor]) => (r as Record<string, unknown>)[coluna] === valor),
+        );
+        return Promise.resolve({ data: linhas, error: null }).then(resolve);
+      };
+      return cadeia;
     },
   }),
 }));
 
 import { updatePipelineConfig } from "./updatePipelineConfig";
-import { audit } from "@/lib/audit";
+
+function regra(name: string, campo: string, extra: Record<string, unknown> = {}) {
+  return {
+    name,
+    organization_id: ORG,
+    is_active: true,
+    trigger_event: "lead.date_field_due",
+    trigger_config: { pipeline_id: FUNIL, campo, dias: 3 },
+    ...extra,
+  };
+}
+
+const NASCIMENTO_NEGOCIO = { key: "nascimento", label: "Nascimento", type: "date" as const };
+const NASCIMENTO_CONTATO = { ...NASCIMENTO_NEGOCIO, escopo: "contato" as const };
 
 beforeEach(() => {
-  vi.clearAllMocks();
-  deps.updates = [];
-  deps.podeAdministrar = true;
-  deps.user = { id: "u1", support: undefined };
-  deps.linha = {
-    organization_id: ORG,
-    vocabulary: { lead: "Paciente" },
-    settings: { fields: [{ key: "endereco" }], lost_reasons: ["caro"], reabertura: "novo_negocio" },
-  };
+  h.settings = { fields: [NASCIMENTO_NEGOCIO] };
+  h.regras = [];
+  h.filtrosDasRegras = [];
+  h.gravou = null;
+  h.idioma = "pt-BR";
 });
 
-describe("updatePipelineConfig — objetivo do funil", () => {
-  it("grava o objetivo por MERGE, preservando as outras chaves de settings", async () => {
-    expect(await updatePipelineConfig(PIPE, { objetivo: "vender_produto" })).toEqual({ ok: true });
-    expect(deps.updates).toHaveLength(1);
-    expect(deps.updates[0]!.settings).toEqual({
-      fields: [{ key: "endereco" }],
-      lost_reasons: ["caro"],
-      reabertura: "novo_negocio",
-      objetivo: "vender_produto",
+describe("updatePipelineConfig — campo que vira Contato e o gatilho por data", () => {
+  it("recusa quando uma regra ATIVA do gatilho por data lê o campo, e nomeia a regra", async () => {
+    h.regras = [regra("Parabéns", "nascimento")];
+
+    const r = await updatePipelineConfig(FUNIL, { fields: [NASCIMENTO_CONTATO] });
+
+    expect(r).toEqual({
+      ok: false,
+      error:
+        'A regra "Parabéns" usa no gatilho por data um campo que você marcou como Contato, e o gatilho só lê campos do negócio: ela deixaria de disparar. Troque o campo da regra ou desligue-a antes.',
     });
-    expect(vi.mocked(audit)).toHaveBeenCalledWith(
-      expect.objectContaining({
-        action: "pipeline.config_updated",
-        organizationId: ORG,
-        metadata: expect.objectContaining({ objetivo: "vender_produto" }),
+    expect(h.gravou).toBeNull();
+    expect(h.filtrosDasRegras).toContainEqual(["organization_id", ORG]);
+  });
+
+  it("o nome da regra sai como foi escrito, mesmo com $& ou $1", async () => {
+    h.regras = [regra("Cupom R$& 10 $1", "nascimento")];
+
+    const r = await updatePipelineConfig(FUNIL, { fields: [NASCIMENTO_CONTATO] });
+
+    expect(r.ok).toBe(false);
+    expect(!r.ok && r.error).toContain('"Cupom R$& 10 $1"');
+  });
+
+  it("cita até três regras e conta o resto, no idioma de quem salva", async () => {
+    h.idioma = "es";
+    h.regras = ["A", "B", "C", "D", "E"].map((n) => regra(n, "nascimento"));
+
+    const r = await updatePipelineConfig(FUNIL, { fields: [NASCIMENTO_CONTATO] });
+
+    expect(r).toEqual({
+      ok: false,
+      error:
+        'Las reglas "A", "B", "C" y 2 más usan en el disparador por fecha un campo que marcaste como Contacto, y el disparador solo lee campos del negocio: dejarían de dispararse. Cambia el campo de las reglas o desactívalas antes.',
+    });
+    expect(h.gravou).toBeNull();
+  });
+
+  it("aceita quando a regra está desligada, é de outra org ou de outro funil", async () => {
+    h.regras = [
+      regra("Desligada", "nascimento", { is_active: false }),
+      regra("Outra org", "nascimento", { organization_id: "99999999-9999-4999-8999-999999999999" }),
+      regra("Outro funil", "nascimento", {
+        trigger_config: { pipeline_id: OUTRO_FUNIL, campo: "nascimento", dias: 3 },
       }),
-    );
+    ];
+
+    expect(await updatePipelineConfig(FUNIL, { fields: [NASCIMENTO_CONTATO] })).toEqual({ ok: true });
+    expect(h.gravou).not.toBeNull();
   });
 
-  it("'Sem objetivo' (null) tira só a chave objetivo", async () => {
-    deps.linha = { ...deps.linha!, settings: { fields: [], objetivo: "agendar" } };
-    await updatePipelineConfig(PIPE, { objetivo: null });
-    expect(deps.updates[0]!.settings).toEqual({ fields: [] });
+  it("aceita marcar como Contato um campo que nenhuma regra lê", async () => {
+    h.regras = [regra("Entrega", "entrega")];
+
+    expect(await updatePipelineConfig(FUNIL, { fields: [NASCIMENTO_CONTATO] })).toEqual({ ok: true });
+    expect(h.gravou).not.toBeNull();
   });
 
-  it("patch sem objetivo não toca no objetivo que já existe", async () => {
-    deps.linha = { ...deps.linha!, settings: { objetivo: "agendar" } };
-    await updatePipelineConfig(PIPE, { won_reason_required: true });
-    expect(deps.updates[0]!.settings).toEqual({ objetivo: "agendar", won_reason_required: true });
+  it("aceita salvar com o campo que segue do Negócio, mesmo com regra ativa na chave", async () => {
+    // O caso mais comum: a regra de aniversário funciona e alguém só muda o
+    // vocabulário. Recusar aqui travaria a tela de Funis de toda org com regra.
+    h.regras = [regra("Parabéns", "nascimento")];
+
+    expect(await updatePipelineConfig(FUNIL, { fields: [NASCIMENTO_NEGOCIO] })).toEqual({ ok: true });
+    expect(h.gravou).not.toBeNull();
   });
 
-  it("objetivo fora do vocabulário é recusado pelo Zod e nada é gravado", async () => {
-    const r = await updatePipelineConfig(PIPE, { objetivo: "vender_tudo" } as never);
-    expect(r).toMatchObject({ ok: false, error: "validation_failed" });
-    expect(deps.updates).toHaveLength(0);
+  it("aceita trocar de Contato para Negócio, mesmo com regra ativa na chave", async () => {
+    h.settings = { fields: [NASCIMENTO_CONTATO] };
+    h.regras = [regra("Parabéns", "nascimento")];
+
+    expect(await updatePipelineConfig(FUNIL, { fields: [NASCIMENTO_NEGOCIO] })).toEqual({ ok: true });
+    expect(h.gravou).not.toBeNull();
   });
 
-  it("funil de outra organização é recusado", async () => {
-    deps.linha = { ...deps.linha!, organization_id: "outra" };
-    expect(await updatePipelineConfig(PIPE, { objetivo: "agendar" })).toEqual({
-      ok: false,
-      error: "forbidden_tenant",
-    });
-    expect(deps.updates).toHaveLength(0);
-  });
+  it("campo que JÁ era do Contato não é recusado de novo ao salvar outra coisa", async () => {
+    h.settings = { fields: [NASCIMENTO_CONTATO] };
+    h.regras = [regra("Antiga", "nascimento")];
 
-  it("quem não administra a empresa não grava objetivo", async () => {
-    deps.podeAdministrar = false;
-    expect(await updatePipelineConfig(PIPE, { objetivo: "agendar" })).toEqual({
-      ok: false,
-      error: "forbidden_role",
-    });
-    expect(deps.updates).toHaveLength(0);
+    expect(await updatePipelineConfig(FUNIL, { fields: [NASCIMENTO_CONTATO] })).toEqual({ ok: true });
   });
 });
