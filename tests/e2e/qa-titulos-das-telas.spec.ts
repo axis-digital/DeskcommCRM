@@ -69,6 +69,9 @@ test("as telas do app dizem o próprio nome na aba, e nenhuma cai no título da 
     // `page.title()` lê o DOM depois da hidratação do App Router — e é
     // FERRAMENTA, não olho: um título que "parece certo" na captura de tela
     // pode ser o default truncado pela largura da aba.
+    // Rota que redireciona (`/app/kanban` → quadro do funil padrão) lê o título
+    // do destino: enquanto o destino não chega, o navegador mostra "Loading <url>".
+    await expect.poll(() => page.title(), { timeout: 30_000 }).not.toMatch(/^Loading /);
     const titulo = await page.title();
     lidos.push({ rota, titulo });
 

@@ -147,11 +147,14 @@ test.describe("navegação agrupada", () => {
     await page.waitForURL(/\/app\/products/);
   });
 
-  test("e a lista de funis é o item vizinho, com nome próprio", async ({ page }) => {
+  test("Funis abre o quadro do funil padrão, e a lista de funis é a porta vizinha, com nome próprio", async ({ page }) => {
     await loginAdmin(page);
     await sidebar(page).getByRole("link", { name: "Funis", exact: true }).click();
-    await page.waitForURL(/\/app\/kanban/);
-    await expect(page.getByRole("heading", { name: "Funis", level: 1 })).toBeVisible();
+    // A aba abre o QUADRO (pedido do dono, 15/10/2026), não a lista.
+    await page.waitForURL(/\/app\/pipelines\/[0-9a-f-]+$/);
+    await page.getByRole("link", { name: "Todos os funis" }).click();
+    await page.waitForURL(/\/app\/kanban\/funis$/);
+    await expect(page.getByRole("heading", { name: "Todos os funis", level: 1 })).toBeVisible();
   });
 
   test("chega em Conhecimento, que só existia atrás das abas de IA", async ({ page }) => {
