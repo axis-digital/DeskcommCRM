@@ -49,6 +49,11 @@ interface Props {
   phone?: string | null;
   /** `card` = linha compacta do funil; `dossie` = bloco do painel do lead. */
   variante?: "card" | "dossie";
+  /**
+   * Quem já tem onde mostrar a conversa (o dossiê do funil) recebe o id aqui e
+   * fica na tela. Sem isto, o comportamento de sempre: ir para a Inbox.
+   */
+  onAberta?: (conversationId: string) => void;
 }
 
 /**
@@ -60,7 +65,7 @@ export function temAlvoParaAbrir(contactId?: string | null, phone?: string | nul
   return Boolean(contactId) || Boolean(phone?.trim());
 }
 
-export function AbrirConversaDoLead({ contactId, phone, variante = "card" }: Props) {
+export function AbrirConversaDoLead({ contactId, phone, variante = "card", onAberta }: Props) {
   const t = useT();
   const router = useRouter();
   const qc = useQueryClient();
@@ -77,6 +82,10 @@ export function AbrirConversaDoLead({ contactId, phone, variante = "card" }: Pro
   const semTelefone = t(
     "Sem telefone no contato: cadastre um telefone para abrir a conversa.",
   );
+
+  // Com `onAberta` o clique FICA na tela (o dossiê troca o painel): o rótulo e a
+  // seta que prometem "ir ao Inbox" mentiriam.
+  const rotuloDeAbrir = onAberta ? t("Abrir conversa") : t("Abrir conversa no Inbox");
 
   if (!temAlvo) return null;
 
@@ -102,6 +111,10 @@ export function AbrirConversaDoLead({ contactId, phone, variante = "card" }: Pro
       // O quadro é a fonte do card E do dossiê: sem invalidar, a linha continuaria
       // oferecendo "Abrir conversa" sobre uma conversa que acabou de nascer.
       await qc.invalidateQueries({ queryKey: ["board"] });
+      if (onAberta) {
+        onAberta(json.data.conversation_id);
+        return;
+      }
       router.push(`/app/inbox?id=${json.data.conversation_id}`);
     } catch (err) {
       toast.error(err instanceof Error ? t(err.message) : t("Não foi possível abrir a conversa."));
@@ -117,23 +130,19 @@ export function AbrirConversaDoLead({ contactId, phone, variante = "card" }: Pro
         onClick={() => void abrir()}
         disabled={!podeAbrir || abrindo}
         aria-busy={abrindo}
-        title={podeAbrir ? t("Abrir conversa no Inbox") : semTelefone}
-        className="group mt-3 flex w-full items-center gap-2.5 rounded-md border border-border bg-muted/40 px-3 py-2 text-left transition-colors hover:border-primary/40 hover:bg-muted disabled:cursor-not-allowed disabled:opacity-70"
+        title={podeAbrir ? rotuloDeAbrir : semTelefone}
+        className="group mt-4 flex w-full items-center gap-2.5 rounded-md border border-border bg-muted/40 px-3 py-2 text-left transition-colors hover:border-primary/40 hover:bg-muted disabled:cursor-not-allowed disabled:opacity-70"
       >
         <ChatCircle size={16} weight="regular" className="shrink-0 text-text-muted" aria-hidden />
         <span className="min-w-0 flex-1">
           <span className="block text-xs font-medium text-text">
-            {abrindo
-              ? t("Abrindo…")
-              : podeAbrir
-                ? t("Abrir conversa no Inbox")
-                : t("Abrir conversa")}
+            {abrindo ? t("Abrindo…") : podeAbrir ? rotuloDeAbrir : t("Abrir conversa")}
           </span>
           {!podeAbrir && (
             <span className="block text-[11px] text-text-muted">{semTelefone}</span>
           )}
         </span>
-        {podeAbrir && !abrindo && (
+        {podeAbrir && !abrindo && !onAberta && (
           <ArrowRight
             size={14}
             weight="regular"

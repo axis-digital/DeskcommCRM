@@ -226,8 +226,8 @@ test.describe("ciclo de vida do convite (ponta a ponta + adversarial)", () => {
     await page.goto("/app/inbox");
     await expect(page.getByText("Selecione uma conversa", { exact: true })).toBeVisible();
 
-    await page.goto("/app/kanban");
-    await expect(page.getByRole("heading", { name: "Funis" })).toBeVisible();
+    await page.goto("/app/kanban/funis");
+    await expect(page.getByRole("heading", { name: "Todos os funis" })).toBeVisible();
   });
 
   test("3. permissão pós-aceite: agent NÃO consegue convidar (403)", async ({ page }) => {

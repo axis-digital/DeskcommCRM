@@ -16,7 +16,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { ContactDetailClient } from "@/app/app/contacts/[id]/_client";
 import { ContactsListClient } from "@/app/app/contacts/_client";
 import { ContactsTable } from "@/components/contacts/ContactsTable";
-import { FunisClient } from "@/app/app/kanban/_client";
+import { FunisClient } from "@/app/app/kanban/funis/_client";
 import type { Contact } from "@/lib/types/contacts";
 
 let ligada = false;
@@ -57,7 +57,7 @@ vi.mock("@/hooks/pipelines/usePipelines", () => ({
   useEditarFunil: () => ({ isPending: false, mutate: vi.fn() }),
   useArquivarFunil: () => ({ isPending: false, mutate: vi.fn() }),
 }));
-vi.mock("@/app/app/kanban/_components/ImportarLeads", () => ({ ImportarLeads: () => null }));
+vi.mock("@/app/app/kanban/funis/_components/ImportarLeads", () => ({ ImportarLeads: () => null }));
 
 const CONTATO = {
   id: "c-1",

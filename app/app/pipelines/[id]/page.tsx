@@ -1,9 +1,14 @@
+import type { Metadata } from "next";
 import { notFound, redirect } from "next/navigation";
 import { requireAuth, resolveActiveOrg } from "@/lib/auth/server";
 import { createClient } from "@/lib/supabase/server";
 import { PipelinePageClient } from "./_client";
 
 export const dynamic = "force-dynamic";
+// A aba "Funis" abre ESTE quadro (`app/app/kanban/page.tsx` redireciona para
+// cá), então é ele que dá nome à aba do navegador. Sem isto a aba herdava o
+// título de venda da landing.
+export const metadata: Metadata = { title: "Funis" };
 
 export default async function PipelinePage({
   params,
@@ -27,11 +32,11 @@ export default async function PipelinePage({
     .maybeSingle();
   if (!pipeline) notFound();
   // A lista que alimenta o seletor de troca rápida: os mesmos vivos da tela de
-  // Funis (`app/app/kanban/page.tsx`), só `id` + `name`. Arquivado não entra —
+  // Funis (`app/app/kanban/funis/page.tsx`), só `id` + `name`. Arquivado não entra —
   // trocar para um funil que não recebe negócio seria destino que não existe.
   const { data: funis } = await supabase
     .from("crm_pipelines")
-    .select("id, name")
+    .select("id, name, is_default")
     .eq("organization_id", activeOrg.orgId)
     .eq("is_archived", false)
     .order("position");

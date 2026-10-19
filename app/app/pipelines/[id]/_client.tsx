@@ -1,5 +1,6 @@
 "use client";
 import { useCallback, useMemo, useState } from "react";
+import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useT } from "@/hooks/i18n/useT";
 import { useBoard } from "@/hooks/kanban/useBoard";
@@ -25,14 +26,8 @@ import { CalendarioDoFunil } from "@/components/kanban/CalendarioDoFunil";
 import { FilterBar } from "@/components/kanban/FilterBar";
 import { BulkActionBar } from "@/components/kanban/BulkActionBar";
 import { NewLeadDialog } from "@/components/kanban/NewLeadDialog";
+import { SeletorDeFunil } from "@/components/kanban/SeletorDeFunil";
 import { Button } from "@/components/ui/button";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { Plus } from "@/lib/ui/icons";
 import type { LeadFilters } from "@/lib/kanban/filters";
 import { applyFilters, filtersFromParams, filtersToParams } from "@/lib/kanban/filters";
@@ -54,7 +49,7 @@ export function PipelinePageClient({
    * partição da tela de Funis. É o que alimenta o seletor de troca rápida do
    * cabeçalho; sem ele o quadro não sabe que existem outros funis.
    */
-  funis: Array<{ id: string; name: string }>;
+  funis: Array<{ id: string; name: string; is_default: boolean }>;
 }) {
   const t = useT();
   const { data, isLoading, error, pulses, realtimeStatus, seguranca } = useBoard(pipelineId);
@@ -80,6 +75,10 @@ export function PipelinePageClient({
    */
   const [visao, setVisao] = useState<"quadro" | "calendario">("quadro");
 
+  // O nome vem antes de qualquer `=>` de propósito: `tests/unit/vocabulario-do-funil`
+  // lê "texto de tela" entre um `>` e o `<` seguinte, e o identificador `pipeline`
+  // não é texto de tela.
+  const nomeAtual = data?.pipeline.name ?? initialName;
   /**
    * Motivo e categoria da perda (#1537): a categoria NÃO vem no lead — ela é
    * `settings.lost_reasons` do funil, que o payload do quadro já traz. O
@@ -102,9 +101,6 @@ export function PipelinePageClient({
     () => [...new Set((data?.leads ?? []).flatMap((l) => l.tags))].sort(),
     [data?.leads],
   );
-  const nomeAtual = data?.pipeline.name ?? initialName;
-  // Um funil só = nada para trocar: o seletor seria ruído permanente.
-  const podeTrocar = funis.length > 1;
 
   return (
     <div
@@ -156,48 +152,20 @@ export function PipelinePageClient({
           uma linha só, como sempre foi. */}
       <header className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         {/*
-          O TÍTULO É O SELETOR. Com um funil só, `h1` puro (nada para trocar);
-          com vários, o gatilho do `Select` veste o título e o `h1` real vai
-          para `sr-only` — botão dentro de `h1` é HTML inválido, e sem o `h1`
-          o leitor de tela perde o título da página. Trocar zera a query
-          string: filtro de um funil aplicado no outro é resultado fantasma.
+          O TÍTULO É O SELETOR (`SeletorDeFunil`): um funil só, `h1` puro; de 2 a
+          4, pílulas-link; acima disso, o `Select`. O `h1` real vai para
+          `sr-only` quando há controle — botão dentro de `h1` é HTML inválido, e
+          sem o `h1` o leitor de tela perde o título da página.
         */}
-        <h1
-          className={
-            podeTrocar
-              ? "sr-only"
-              : "min-w-0 truncate text-2xl font-semibold tracking-tight"
-          }
-        >
-          {nomeAtual}
-        </h1>
-        {podeTrocar && (
-          <Select
-            value={funis.some((f) => f.id === pipelineId) ? pipelineId : undefined}
-            onValueChange={(id) => {
-              if (id !== pipelineId) router.push(`/app/pipelines/${id}`);
-            }}
+        <div className="flex min-w-0 items-center gap-3">
+          <SeletorDeFunil funis={funis} atualId={pipelineId} nomeAtual={nomeAtual} />
+          <Link
+            href="/app/kanban/funis"
+            className="shrink-0 text-xs text-muted-foreground underline-offset-4 hover:text-foreground hover:underline"
           >
-            <SelectTrigger
-              aria-label={`${t("Trocar de funil")}: ${nomeAtual}`}
-              data-testid="trocar-funil"
-              className="h-auto w-auto min-w-0 max-w-full gap-1.5 border-0 bg-transparent p-0 text-2xl font-semibold tracking-tight shadow-none focus:ring-1 focus:ring-ring sm:max-w-[60%] [&>span]:truncate"
-            >
-              <SelectValue placeholder={nomeAtual} />
-            </SelectTrigger>
-            <SelectContent>
-              {funis.map((f) => (
-                <SelectItem
-                  key={f.id}
-                  value={f.id}
-                  data-testid={`trocar-funil-opcao-${f.id}`}
-                >
-                  {f.name}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        )}
+            {t("Todos os funis")}
+          </Link>
+        </div>
         {/*
           A TERCEIRA ABA DO FUNIL (#2770), ao lado do quadro. O seletor fica no
           cabeçalho e não dentro do conteúdo: quem troca de visão está mudando

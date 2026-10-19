@@ -14,6 +14,7 @@ import { VersionFooter } from "@/components/shell/VersionFooter";
 import { LogotipoDoProduto, SimboloDoProduto } from "@/components/branding/MarcaDoProduto";
 import { marcaEhADoProduto } from "@/lib/branding";
 import { useMarcaDaInstalacao } from "@/lib/branding/contexto";
+import { rotaEstaAtiva } from "@/lib/navigation/rota-ativa";
 import { GRUPO_NO_RODAPE, sidebarGroups } from "@/lib/navigation/registry";
 
 const CHAVE_GRUPOS_FECHADOS = "sidebar-grupos-fechados";
@@ -332,7 +333,7 @@ export function SidebarContent({
                   className="space-y-1"
                 >
                   {items.map((item) => {
-                    const isActive = pathname === item.href || pathname.startsWith(item.href + "/");
+                    const isActive = rotaEstaAtiva(pathname, item);
                     const Icon = item.icon;
                     return (
                       <li key={item.href}>

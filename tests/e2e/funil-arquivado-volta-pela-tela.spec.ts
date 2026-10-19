@@ -5,7 +5,7 @@
  *
  * `tests/unit/funil-arquivado-caminho-de-volta.test.ts` prova a REGRA contra um
  * dublê de banco: `corpo()` separa as duas listas e o PATCH aceita `is_archived:
- * false` sozinho. Ele não renderiza uma linha de `app/app/kanban/_client.tsx` —
+ * false` sozinho. Ele não renderiza uma linha de `app/app/kanban/funis/_client.tsx` —
  * e a queixa que abriu a issue é sobre a TELA: *"tenho funis arquivados que não
  * consigo deletar"*. Uma rota que aceita o pedido e uma tela que não tem botão
  * para fazê-lo somam zero para quem usa.
@@ -104,15 +104,18 @@ const sidebar = (page: Page) => page.getByRole("navigation", { name: "Navegaçã
 /**
  * O caminho do leigo até a tela: o item do menu, não a URL digitada.
  *
- * Quem tem um funil arquivado não sabe que a tela dele mora em `/app/kanban` —
+ * Quem tem um funil arquivado não sabe que a tela dele mora em `/app/kanban/funis` —
  * ele clica em "Funis". `navegacao.spec.ts` prende que a porta existe no grupo
  * certo; percorrê-la aqui é o que garante que a gaveta seja alcançável pelo
  * mesmo gesto, e não só por quem já sabe o endereço.
  */
 async function irParaFunis(page: Page): Promise<void> {
   await sidebar(page).getByRole("link", { name: "Funis", exact: true }).click();
-  await page.waitForURL(/\/app\/kanban/);
-  await expect(page.getByRole("heading", { name: "Funis", level: 1 })).toBeVisible();
+  // A aba abre o quadro do funil padrão; a lista (e a gaveta) é "Todos os funis".
+  await page.waitForURL(/\/app\/pipelines\//);
+  await page.getByRole("link", { name: "Todos os funis" }).click();
+  await page.waitForURL(/\/app\/kanban\/funis/);
+  await expect(page.getByRole("heading", { name: "Todos os funis", level: 1 })).toBeVisible();
 }
 
 /** A linha do funil VIVO, pelo nome — o mesmo locator de `pipelines-gestao`. */

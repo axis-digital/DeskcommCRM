@@ -11,7 +11,7 @@ import { JANELA_DA_GRADE } from "./GradeDaAgenda";
 /**
  * Carregando com a FORMA da grade, não três barras genéricas.
  *
- * É o que o resto do produto faz (`app/app/kanban/loading.tsx` desenha 5 colunas
+ * É o que o resto do produto faz (`app/app/kanban/funis/loading.tsx` desenha 5 colunas
  * × 3 cards) e a razão é de percepção: um esqueleto com a silhueta certa faz a
  * espera parecer continuação, enquanto um retângulo genérico faz parecer que a
  * página trocou. As mesmas 7 colunas e a mesma janela de horas da grade real.
