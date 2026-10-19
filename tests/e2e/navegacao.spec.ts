@@ -110,7 +110,7 @@ test.describe("navegação agrupada", () => {
     // O caso que originou tudo: o usuário não sabia que esta tela existia.
     //
     // ⚠️ O ITEM MUDOU DE NOME, e o nome antigo ("Funis") passou para o VIZINHO —
-    // a lista de funis, em /app/kanban. Um teste que continuasse clicando em
+    // a lista de funis, em /app/kanban/funis. Um teste que continuasse clicando em
     // "Funis" seguiria verde medindo a outra tela; por isso a asserção de URL
     // abaixo é específica (`settings/tenant/pipelines`) e não o antigo
     // /pipelines/, que casa com as duas.
@@ -147,11 +147,14 @@ test.describe("navegação agrupada", () => {
     await page.waitForURL(/\/app\/products/);
   });
 
-  test("e a lista de funis é o item vizinho, com nome próprio", async ({ page }) => {
+  test("Funis abre o quadro do funil padrão, e a lista de funis é a porta vizinha, com nome próprio", async ({ page }) => {
     await loginAdmin(page);
     await sidebar(page).getByRole("link", { name: "Funis", exact: true }).click();
-    await page.waitForURL(/\/app\/kanban/);
-    await expect(page.getByRole("heading", { name: "Funis", level: 1 })).toBeVisible();
+    // A aba abre o QUADRO (pedido do dono, 15/10/2026), não a lista.
+    await page.waitForURL(/\/app\/pipelines\/[0-9a-f-]+$/);
+    await page.getByRole("link", { name: "Todos os funis" }).click();
+    await page.waitForURL(/\/app\/kanban\/funis$/);
+    await expect(page.getByRole("heading", { name: "Todos os funis", level: 1 })).toBeVisible();
   });
 
   test("chega em Conhecimento, que só existia atrás das abas de IA", async ({ page }) => {

@@ -151,19 +151,24 @@ describe("os elos que somem sem barulho", () => {
     // Reusa o `blockedReason` que já existe — um segundo mecanismo de bloqueio
     // divergiria, e o segundo esqueceria de cobrir o áudio ou o anexo.
     const fonte = readFileSync("components/inbox/InboxLayout.tsx", "utf8");
-    expect(fonte).toMatch(/motivoDaJanela/);
+    // A regra mora em `useEnvioDaConversa` (fonte única, usada também pelo
+    // dossiê do funil); a Inbox só a consome.
+    expect(fonte, "a Inbox não consome a fonte única").toMatch(/useEnvioDaConversa\(/);
     // Por prop PRÓPRIA, não por `blockedReason`: a primeira versão passava por
     // ali e levava a nota interna junto, que nunca chega ao cliente.
     expect(fonte, "o motivo da janela não chega ao composer").toMatch(
-      /janelaFechada=\{motivoDaJanela\}/,
+      /janelaFechada=\{envio\.motivoDaJanela\}/,
     );
+    const hook = readFileSync("hooks/inbox/useEnvioDaConversa.ts", "utf8");
+    expect(hook, "o hook não calcula o motivo da janela").toMatch(/motivoDaJanelaFechada\(/);
   });
 
   it("e o bloqueio VENCE sozinho com a aba aberta", () => {
     // Sem relógio, quem deixa o inbox aberto a tarde inteira seguiria com o
     // composer liberado numa conversa que já venceu.
-    const fonte = readFileSync("components/inbox/InboxLayout.tsx", "utf8");
-    expect(fonte).toMatch(/setAgoraJanela/);
+    // O relógio vive no hook, e é ele que a Inbox e o dossiê compartilham.
+    const fonte = readFileSync("hooks/inbox/useEnvioDaConversa.ts", "utf8");
+    expect(fonte).toMatch(/setAgora\(/);
     expect(fonte).toMatch(/setInterval/);
   });
 
@@ -185,7 +190,7 @@ describe("os elos que somem sem barulho", () => {
     const fonte = readFileSync("components/inbox/InboxLayout.tsx", "utf8");
     // A GUARDA junto com a tag: `{false && (` deixava a tag na linha seguinte e
     // o caso passava verde com a saída removida da tela.
-    expect(fonte).toMatch(/\{motivoDaJanela && \(\s*\n\s*<JanelaFechadaAviso/);
+    expect(fonte).toMatch(/\{envio\.motivoDaJanela && \(\s*\n\s*<JanelaFechadaAviso/);
     const aviso = readFileSync("components/inbox/JanelaFechadaAviso.tsx", "utf8");
     expect(aviso).toMatch(/type: "template"/);
     expect(aviso).toMatch(/template_name/);

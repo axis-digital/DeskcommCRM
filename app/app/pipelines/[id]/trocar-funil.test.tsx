@@ -65,9 +65,15 @@ vi.mock("@/components/kanban/KanbanBoard", () => ({ KanbanBoard: () => null }));
 vi.mock("@/components/kanban/BulkActionBar", () => ({ BulkActionBar: () => null }));
 
 const FUNIS = [
-  { id: "p-1", name: "Vendas" },
-  { id: "p-2", name: "Suporte" },
-  { id: "p-3", name: "Parcerias" },
+  { id: "p-1", name: "Vendas", is_default: true },
+  { id: "p-2", name: "Suporte", is_default: false },
+  { id: "p-3", name: "Parcerias", is_default: false },
+];
+// Acima de 4 funis o seletor volta a ser o `Select` (não cabe em pílulas).
+const MUITOS_FUNIS = [
+  ...FUNIS,
+  { id: "p-4", name: "Pós-venda", is_default: false },
+  { id: "p-5", name: "Renovação", is_default: false },
 ];
 
 beforeEach(() => push.mockClear());
@@ -79,7 +85,7 @@ describe("troca rápida de funil", () => {
         pipelineId="p-1"
         initialName="Vendas"
         role="admin"
-        funis={[{ id: "p-1", name: "Vendas" }]}
+        funis={[{ id: "p-1", name: "Vendas", is_default: true }]}
       />,
     );
 
@@ -87,25 +93,44 @@ describe("troca rápida de funil", () => {
     expect(screen.queryByRole("combobox")).toBeNull();
   });
 
-  it("com vários funis, o título vira seletor com os funis vivos", async () => {
+  it("com 2 a 4 funis, o título vira pílulas-link com os funis vivos", () => {
     render(
       <PipelinePageClient pipelineId="p-1" initialName="Vendas" role="admin" funis={FUNIS} />,
     );
 
     // O h1 continua existindo para leitor de tela, escondido do olho.
     expect(screen.getByRole("heading", { name: "Vendas" })).toBeTruthy();
+    expect(screen.queryByRole("combobox")).toBeNull();
+
+    expect(screen.getByTestId("trocar-funil-opcao-p-1").getAttribute("aria-current")).toBe("page");
+    expect(screen.getByTestId("trocar-funil-opcao-p-2").getAttribute("href")).toBe("/app/pipelines/p-2");
+    expect(screen.getByTestId("trocar-funil-opcao-p-3").getAttribute("href")).toBe("/app/pipelines/p-3");
+  });
+
+  it("o quadro oferece a porta para a lista de todos os funis", () => {
+    render(
+      <PipelinePageClient pipelineId="p-1" initialName="Vendas" role="admin" funis={FUNIS} />,
+    );
+
+    expect(screen.getByRole("link", { name: "Todos os funis" }).getAttribute("href")).toBe("/app/kanban/funis");
+  });
+
+  it("com mais de 4 funis, o título vira seletor com os funis vivos", async () => {
+    render(
+      <PipelinePageClient pipelineId="p-1" initialName="Vendas" role="admin" funis={MUITOS_FUNIS} />,
+    );
 
     const seletor = screen.getByRole("combobox", { name: "Trocar de funil: Vendas" });
     await userEvent.click(seletor);
 
     expect(await screen.findByRole("option", { name: "Vendas" })).toBeTruthy();
     expect(screen.getByRole("option", { name: "Suporte" })).toBeTruthy();
-    expect(screen.getByRole("option", { name: "Parcerias" })).toBeTruthy();
+    expect(screen.getByRole("option", { name: "Renovação" })).toBeTruthy();
   });
 
   it("escolher outro funil navega para o quadro dele, sem query string", async () => {
     render(
-      <PipelinePageClient pipelineId="p-1" initialName="Vendas" role="admin" funis={FUNIS} />,
+      <PipelinePageClient pipelineId="p-1" initialName="Vendas" role="admin" funis={MUITOS_FUNIS} />,
     );
 
     await userEvent.click(screen.getByRole("combobox", { name: "Trocar de funil: Vendas" }));
@@ -117,7 +142,7 @@ describe("troca rápida de funil", () => {
 
   it("escolher o funil atual não navega", async () => {
     render(
-      <PipelinePageClient pipelineId="p-1" initialName="Vendas" role="admin" funis={FUNIS} />,
+      <PipelinePageClient pipelineId="p-1" initialName="Vendas" role="admin" funis={MUITOS_FUNIS} />,
     );
 
     await userEvent.click(screen.getByRole("combobox", { name: "Trocar de funil: Vendas" }));

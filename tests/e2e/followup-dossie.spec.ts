@@ -103,7 +103,7 @@ interface Cenario {
   contactName: string;
   enrollmentId: string;
   leadId: string;
-  /** O quadro onde o card do negócio vive — `/app/kanban` é a LISTA de funis. */
+  /** O quadro onde o card do negócio vive — `/app/kanban/funis` é a LISTA de funis. */
   pipelineId: string;
 }
 

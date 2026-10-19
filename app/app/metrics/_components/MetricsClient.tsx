@@ -54,7 +54,7 @@ export function MetricsClient({ canCompare, currentUserId }: Props) {
   // Era `<p>Carregando…</p>`: uma linha de texto cinza no alto de uma tela
   // vazia. Esqueleto com a forma certa faz a espera parecer continuação;
   // retângulo genérico — ou uma frase — faz parecer que a página trocou. É o
-  // que o resto do produto já faz (`app/app/kanban/loading.tsx` desenha 5
+  // que o resto do produto já faz (`app/app/kanban/funis/loading.tsx` desenha 5
   // colunas × 3 cards, `components/agenda/estados.tsx` desenha a grade).
   //
   // As três faixas abaixo são as três seções reais: o filtro de atendente, os

@@ -362,6 +362,7 @@ export function CalendarioDoFunil({ pipelineId, pipeline: funil, stages, leads }
 
       {leadDoDossie && (
         <LeadDossier
+          key={leadDoDossie.id}
           open
           onOpenChange={(aberto) => {
             if (!aberto) setDossieId(null);
