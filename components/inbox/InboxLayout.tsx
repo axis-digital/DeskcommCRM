@@ -6,12 +6,11 @@ import { useAuth, usePermission } from "@/hooks/auth/AuthProvider";
 import { roleAtLeast } from "@/lib/auth/types";
 import { useBulkConversations, type AcaoEmLote } from "@/hooks/inbox/useBulkConversations";
 import { useSelecaoEmLote } from "@/hooks/inbox/useSelecaoEmLote";
-import { estadoDaJanela } from "@/lib/channels/janela";
-import { motivoDaJanelaFechada, motivoDoContato } from "@/lib/inbox/motivo-do-envio-bloqueado";
 import { JanelaFechadaAviso } from "@/components/inbox/JanelaFechadaAviso";
 import { NumeroForaDoAr } from "@/components/inbox/NumeroForaDoAr";
 import { useClaimConversation } from "@/hooks/inbox/useClaimConversation";
 import { useCloseConversation } from "@/hooks/inbox/useCloseConversation";
+import { useEnvioDaConversa } from "@/hooks/inbox/useEnvioDaConversa";
 import { useMarkAsRead } from "@/hooks/inbox/useMarkAsRead";
 import {
   useConversationsRealtime,
@@ -487,38 +486,12 @@ export function InboxLayout({
     close.mutate({ conversation_id: selectedConversation.id });
   }, [close, selectedConversation]);
 
-  // A janela vence SOZINHA com a aba aberta. Sem este relógio, quem deixa o
-  // inbox aberto a tarde inteira seguiria com o composer liberado numa conversa
-  // que já venceu — e o bloqueio só apareceria no próximo recarregamento.
-  const [agoraJanela, setAgoraJanela] = useState(() => new Date());
-  useEffect(() => {
-    const t = setInterval(() => setAgoraJanela(new Date()), 30_000);
-    return () => clearInterval(t);
-  }, []);
-
-  // A janela de 24h fecha o composer, e o motivo DIZ há quanto tempo fechou.
-  //
-  // Antes disto o texto livre saía, o CRM marcava `failed` e o operador via um
-  // `131047` — descobrindo a regra pelo erro, uma mensagem por vez. Barrar aqui
-  // é o pedido explícito do dono: se não dá para enviar, que não deixe tentar.
-  //
-  // Reusa o `blockedReason` que já existe (contato bloqueado/anonimizado) em vez
-  // de um segundo mecanismo de bloqueio: dois caminhos para desabilitar o mesmo
-  // composer divergem, e o segundo esquece de cobrir o áudio ou o anexo.
-  const janela = estadoDaJanela(
-    selectedConversation?.channel_sessions?.provider ?? null,
-    selectedConversation?.last_inbound_at ?? null,
-    agoraJanela,
-  );
-  // Os textos moram em lib/inbox/motivo-do-envio-bloqueado.ts: o "Enviar link"
-  // da videochamada desabilita na mesma conversa e mostra o MESMO motivo.
-  const motivoDaJanela = motivoDaJanelaFechada(
-    janela,
-    selectedConversation?.channel_sessions?.provider,
-    t,
-  );
-
-  const blockedReason = motivoDoContato(selectedConversation?.contacts, t);
+  // POR QUE O COMPOSER NÃO ENVIA AGORA (janela de 24h, contato bloqueado ou
+  // anonimizado, suporte somente-leitura, conversa fechada) mora em
+  // `useEnvioDaConversa`, a fonte única que o dossiê do funil também consome.
+  // Dois caminhos para desabilitar o mesmo composer divergem, e o segundo
+  // esquece de cobrir o áudio ou o anexo.
+  const envio = useEnvioDaConversa(selectedConversation);
 
   /* ─── DIVISÓRIAS ARRASTÁVEIS (#2579) ────────────────────────────────────
    *
@@ -909,11 +882,11 @@ export function InboxLayout({
                 onAbrirConversa={handleSelect}
               />
             )}
-            {motivoDaJanela && (
+            {envio.motivoDaJanela && (
               <JanelaFechadaAviso
                 conversationId={selectedConversation.id}
                 provider={selectedConversation.channel_sessions?.provider ?? null}
-                motivo={motivoDaJanela}
+                motivo={envio.motivoDaJanela}
               />
             )}
             <Composer
@@ -923,9 +896,9 @@ export function InboxLayout({
               key={rascunhoVivo ? `rascunho:${rascunhoVivo.conversationId}` : "composer"}
               ref={composerRef}
               conversationId={selectedConversation.id}
-              blockedReason={supportReadonly ? "Acompanhamento somente leitura" : blockedReason}
-              janelaFechada={motivoDaJanela}
-              disabled={selectedConversation.status === "closed"}
+              blockedReason={envio.blockedReason}
+              janelaFechada={envio.motivoDaJanela}
+              disabled={envio.fechada}
               contactName={selectedConversation.contacts?.name ?? null}
               contactDisplayName={selectedConversation.contacts?.display_name}
               respondendo={respondendo}
