@@ -59,6 +59,12 @@ describe("filtros do histórico vindos da URL", () => {
   it("aceita os eventos do livro-razão", () => {
     expect(lerFiltros({ evento: `Etapa:${ETAPA}` }).evento).toBe(`Etapa:${ETAPA}`);
     expect(lerFiltros({ evento: "QualifiedLead" }).evento).toBe("QualifiedLead");
+    expect(lerFiltros({ plataforma: "ga4" }).plataforma).toBe("ga4");
+    expect(lerFiltros({ evento: "GA4:Venda" }).evento).toBe("GA4:Venda");
+    expect(lerFiltros({ evento: `GA4Etapa:${ETAPA}` }).evento).toBe(`GA4Etapa:${ETAPA}`);
+    expect(lerFiltros({ evento: "SemOrigem:meta_ads:Purchase" }).evento).toBe(
+      "SemOrigem:meta_ads:Purchase",
+    );
   });
 });
 
@@ -164,7 +170,11 @@ describe("diagnóstico do Google", () => {
   });
   it("último envio antigo e falhas recentes acendem os cartões certos", async () => {
     const { admin } = adminGravador({
-      ad_conversion_dispatches: { data: { attempted_at: "2026-09-01T00:00:00Z" }, error: null, count: 2 },
+      ad_conversion_dispatches: {
+        data: { attempted_at: "2026-09-01T00:00:00Z" },
+        error: null,
+        count: 2,
+      },
       google_ads_conversion_rules: { data: [], error: null },
     });
     const itens = await lerDiagnosticoGoogle(
@@ -175,7 +185,10 @@ describe("diagnóstico do Google", () => {
     );
     const por = Object.fromEntries(itens.map((i) => [i.chave, i]));
     expect(por.conexao!.saude).toBe("ok");
-    expect(por.chegando).toMatchObject({ saude: "atencao", detalhe: expect.stringContaining("há 26 dias") });
+    expect(por.chegando).toMatchObject({
+      saude: "atencao",
+      detalhe: expect.stringContaining("há 26 dias"),
+    });
     expect(por.falhas!.saude).toBe("problema");
     expect(por.cobertura!.titulo).toContain("1 de 5");
   });

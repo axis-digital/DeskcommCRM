@@ -12,6 +12,10 @@ import {
 } from "@/lib/schemas/settings";
 import { loadAuthUser, resolveActiveOrg } from "@/lib/auth/server";
 import { podeAdministrarEmpresa } from "@/lib/auth/pode-administrar-empresa";
+import {
+  mensagemDasRegrasQuePerdemOCampo,
+  regrasDeDataQuePerdemOCampo,
+} from "@/lib/automation/campo-do-gatilho-de-data";
 
 export type UpdatePipelineConfigResult =
   | { ok: true }
@@ -72,6 +76,25 @@ export async function updatePipelineConfig(
   if (parsed.data.reabertura_campos !== undefined) {
     nextSettings.reabertura_campos = parsed.data.reabertura_campos;
   }
+  // "Sem objetivo" tira só a chave — as demais de `settings` ficam como estão.
+  if (parsed.data.objetivo === null) delete nextSettings.objetivo;
+  else if (parsed.data.objetivo !== undefined) nextSettings.objetivo = parsed.data.objetivo;
+
+  // Campo que passa a ser do Contato e que uma regra ativa do gatilho por data
+  // lê (#2791): a regra seguiria ligada e pararia de disparar em silêncio.
+  if (parsed.data.fields !== undefined) {
+    const perdem = await regrasDeDataQuePerdemOCampo(
+      supabase,
+      activeOrg.orgId,
+      pipelineId,
+      currentSettings,
+      nextSettings,
+    );
+    if ("erro" in perdem) return { ok: false, error: perdem.erro };
+    if (perdem.nomes.length > 0) {
+      return { ok: false, error: mensagemDasRegrasQuePerdemOCampo(perdem.nomes, authUser.idioma) };
+    }
+  }
 
   const { error } = await supabase
     .from("crm_pipelines")
@@ -93,6 +116,8 @@ export async function updatePipelineConfig(
       won_reasons_count: parsed.data.won_reasons?.length ?? null,
       won_reason_required: parsed.data.won_reason_required ?? null,
       reabertura: parsed.data.reabertura ?? null,
+      // Só quando o patch mexeu no objetivo; `null` aqui é "tirou o objetivo".
+      ...(parsed.data.objetivo !== undefined ? { objetivo: parsed.data.objetivo } : {}),
     },
   });
 

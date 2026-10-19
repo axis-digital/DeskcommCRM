@@ -11,6 +11,8 @@ import { Art15Form } from "./_art15";
 import { ZonaDePerigoDaOrganizacao } from "./_danger-zone";
 import { TenantForm } from "./_form";
 import { InterfaceDaEmpresaForm } from "./_interface";
+import { PerfilDeNegocioForm } from "./_perfil-de-negocio";
+import { lerPerfilDeNegocio } from "@/lib/onboarding/perfil-de-negocio";
 
 export const dynamic = "force-dynamic";
 
@@ -28,7 +30,11 @@ interface OrgRow {
   privacy_policy_url: string | null;
   /** Portas escolhidas pela EMPRESA (issue #1341). Opaco aqui: quem lê é `lerInterface`. */
   interface_settings: unknown;
-  /** `settings` inteiro é lido aqui; para o cliente vai SÓ o bloco `art15`. */
+  /**
+   * jsonb compartilhado: o perfil sai só por `lerPerfilDeNegocio`, o bloco
+   * `art15` por `art15DoControlador`. `settings` inteiro é lido aqui; para o
+   * cliente vai SÓ o que cada leitor extrai.
+   */
   settings: unknown;
 }
 
@@ -88,8 +94,10 @@ export default async function TenantSettingsPage() {
           }}
         />
       )}
+      {row && <PerfilDeNegocioForm initial={lerPerfilDeNegocio(row.settings)} />}
       {row && alineas && alineasDoArt15Visiveis(row.country) && (
         <Art15Form
+          pais={row.country}
           initial={{
             finalidades: alineas.finalidades ?? "",
             destinatarios: alineas.destinatarios ?? "",

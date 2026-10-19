@@ -54,6 +54,7 @@ import {
   faltaParaConectarOGoogleAds,
   googleAdsEstaConfigurado,
 } from "@/lib/plataformas-de-anuncio/google/config";
+import { lerEstadoDaConexaoGa4 } from "@/lib/plataformas-de-anuncio/ga4/credencial";
 import { lerEstadoDaConexaoGoogle } from "@/lib/plataformas-de-anuncio/google/estado-da-conexao";
 import { lerEstadoDaCaptura } from "@/lib/plataformas-de-anuncio/landing-config";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -73,11 +74,22 @@ import { FormularioDeConversoesGoogle } from "./_formGoogle";
 import { IdentidadeDaConversao } from "./_identidadeDaMeta";
 import { VendaPeloCanal } from "./_vendaPeloCanal";
 import { vendaPeloCanalLigada } from "@/lib/conversoes/venda-pelo-canal";
+import { enviarSemOrigemLigado } from "@/lib/conversoes/enviar-sem-origem";
+import { EnviarSemOrigem } from "./_enviarSemOrigem";
 import { identidadeDaMeta } from "@/lib/plataformas-de-anuncio/meta/identidade";
 import { RegrasDeConversaoGoogle, type EtapaAberta } from "./_regrasGoogle";
 import { listarRegrasGoogle } from "@/lib/conversoes/regras-google";
 import { RegrasDeConversaoMeta } from "./_regrasMeta";
 import { listarRegrasMeta, rotuloDoEventoDaMeta } from "@/lib/conversoes/regras-meta";
+import {
+  EVENTO_DE_VENDA_GA4,
+  listarRegrasGa4,
+  rotuloDoEventoDoGa4,
+} from "@/lib/conversoes/regras-ga4";
+import { FormularioDoGa4 } from "./_formGa4";
+import { RegrasDeConversaoGa4 } from "./_regrasGa4";
+import { RegrasSugeridasGa4 } from "./_regrasSugeridasGa4";
+import { lerSugestoesDeRegrasGa4 } from "@/lib/conversoes/ler-regras-sugeridas-ga4";
 
 export const metadata = { title: "Conversões" };
 export const dynamic = "force-dynamic";
@@ -129,6 +141,8 @@ export default async function ConversoesPage({
     etapas,
     regrasGoogle,
     regrasMeta,
+    estadoGa4,
+    regrasGa4,
   ] = await Promise.all([
     lerEstadoDaConexao(admin, activeOrg.orgId),
     lerPendencias(admin, activeOrg.orgId),
@@ -143,14 +157,16 @@ export default async function ConversoesPage({
     lerEstadoDaCaptura(admin, "google_ads_landing_pages", activeOrg.orgId),
     admin
       .from("crm_stages")
-      .select("id, name, pipeline_id, crm_pipelines(name)")
+      .select("id, name, pipeline_id, is_lost, crm_pipelines(name)")
       .eq("organization_id", activeOrg.orgId)
       .eq("is_won", false)
-      .eq("is_lost", false)
       .order("position"),
     // Falha na leitura das regras não derruba a tela: o editor some e o resto fica.
     listarRegrasGoogle(admin, activeOrg.orgId).catch(() => null),
     listarRegrasMeta(admin, activeOrg.orgId).catch(() => null),
+    // Conexão GA4 desligada ou sem Measurement ID não entra no script do site.
+    lerEstadoDaConexaoGa4(admin, activeOrg.orgId).catch(() => null),
+    listarRegrasGa4(admin, activeOrg.orgId).catch(() => null),
   ]);
   // O nome que a pessoa reconhece para cada evento de etapa, das duas
   // plataformas — o Histórico e as pendências leem daqui.
@@ -160,7 +176,17 @@ export default async function ConversoesPage({
       eventName: r.eventName,
       label: `${rotuloDoEventoDaMeta(r.metaEvent)} (Meta)`,
     })),
+    ...(regrasGa4 ?? []).map((r) => ({
+      eventName: r.eventName,
+      label: `${rotuloDoEventoDoGa4(r.ga4Event)} (GA4)`,
+    })),
+    { eventName: EVENTO_DE_VENDA_GA4, label: "Venda (GA4)" },
   ];
+  // As sugestões só existem com o GA4 configurado — sem conexão, não há a quem
+  // informar. Falhar aqui não derruba a tela: o painel some e o resto fica.
+  const sugestoesGa4 = estadoGa4?.configurada
+    ? await lerSugestoesDeRegrasGa4(admin, activeOrg.orgId).catch(() => null)
+    : null;
   const linhaDaOrganizacao = organizacao.data as { slug: string | null; settings?: unknown } | null;
   const slug = linhaDaOrganizacao?.slug ?? null;
   // Página / WABA gravadas pela tela (#2098) — a MESMA leitura que a credencial
@@ -172,12 +198,17 @@ export default async function ConversoesPage({
   const vendaPeloCanal = vendaPeloCanalLigada(linhaDaOrganizacao?.settings);
   // Etapas abertas agrupadas por funil, na ordem do funil; a primeira de cada
   // funil é onde o lead nasce (a sugestão "Novo lead" do recomendado).
-  const vistosOsFunis = new Set<string>();
-  const etapasAbertas: EtapaAberta[] = (
+  //
+  // A perdida só entra no editor do GA4: lá ela é `close_unconvert_lead` (o
+  // painel "Regras sugeridas" a cria). Meta e Google não convertem perda. Sem
+  // ela na lista do GA4, o "Salvar regras" desligaria em silêncio a regra que
+  // o painel criou — o editor desliga o que não vê.
+  const etapasNaoGanhas = (
     (etapas.data ?? []) as Array<{
       id: string;
       name: string;
       pipeline_id: string;
+      is_lost: boolean;
       crm_pipelines: { name: string } | Array<{ name: string }> | null;
     }>
   )
@@ -185,15 +216,21 @@ export default async function ConversoesPage({
       id: e.id,
       nome: e.name,
       pipelineId: e.pipeline_id,
+      perdida: e.is_lost === true,
       funil:
         (Array.isArray(e.crm_pipelines) ? e.crm_pipelines[0] : e.crm_pipelines)?.name ?? "Funil",
     }))
-    .sort((a, b) => a.funil.localeCompare(b.funil))
-    .map((e) => {
+    .sort((a, b) => a.funil.localeCompare(b.funil));
+  const comPrimeira = (lista: typeof etapasNaoGanhas): EtapaAberta[] => {
+    const vistosOsFunis = new Set<string>();
+    return lista.map((e) => {
       const primeira = !vistosOsFunis.has(e.pipelineId);
       vistosOsFunis.add(e.pipelineId);
       return { id: e.id, nome: e.nome, funil: e.funil, primeira };
     });
+  };
+  const etapasAbertas = comPrimeira(etapasNaoGanhas.filter((e) => !e.perdida));
+  const etapasDoGa4 = comPrimeira(etapasNaoGanhas);
   // As abas de leitura só consultam o que mostram: a de configuração não paga
   // o histórico, e o histórico não paga o diagnóstico.
   const filtrosDoHistorico = lerFiltros(parametros);
@@ -337,6 +374,10 @@ export default async function ConversoesPage({
 
           <FormularioDeConversoes estado={estado} idioma={idioma} />
           <VendaPeloCanal ligada={vendaPeloCanal} idioma={idioma} />
+          <EnviarSemOrigem
+            ligada={enviarSemOrigemLigado(linhaDaOrganizacao?.settings)}
+            idioma={idioma}
+          />
           {estado.conectada && (
             <IdentidadeDaConversao
               pageId={identidadeMeta.pageId}
@@ -345,8 +386,33 @@ export default async function ConversoesPage({
             />
           )}
           {(estado.conectada || vendaPeloCanal) && !etapas.error && regrasMeta && (
-            <RegrasDeConversaoMeta etapas={etapasAbertas} regras={regrasMeta} idioma={idioma} />
+            <RegrasDeConversaoMeta
+              etapas={etapasAbertas}
+              regras={regrasMeta}
+              idioma={idioma}
+              conexaoDireta={estado.conectada}
+            />
           )}
+          <section className="flex flex-col gap-4" aria-labelledby="titulo-ga4">
+            <h2 id="titulo-ga4" className="text-lg font-semibold">
+              {t("Google Analytics 4")}
+            </h2>
+            {estadoGa4 && <FormularioDoGa4 estado={estadoGa4} idioma={idioma} />}
+            {estadoGa4?.configurada && sugestoesGa4 && (
+              <RegrasSugeridasGa4 sugestoes={sugestoesGa4} idioma={idioma} />
+            )}
+            {estadoGa4?.configurada && !etapas.error && regrasGa4 && (
+              // A chave muda quando as regras mudam (ex.: "Aplicar sugestões"):
+              // o editor guarda rascunho em estado, e um rascunho velho salvo
+              // depois desligaria as regras recém-criadas.
+              <RegrasDeConversaoGa4
+                key={regrasGa4.map((r) => `${r.stageId}:${r.enabled}:${r.ga4Event}`).join("|")}
+                etapas={etapasDoGa4}
+                regras={regrasGa4}
+                idioma={idioma}
+              />
+            )}
+          </section>
           <FormularioDeConversoesGoogle
             estado={estadoGoogle}
             idioma={idioma}
@@ -428,9 +494,7 @@ export default async function ConversoesPage({
                             {p.tituloDoLead ?? t("(sem título)")}
                           </a>
                         </td>
-                        <td className="p-3">
-                          {t(rotuloDoEvento(p.evento, rotulosDeEtapa))}
-                        </td>
+                        <td className="p-3">{t(rotuloDoEvento(p.evento, rotulosDeEtapa))}</td>
                         <td className="p-3">
                           {p.plataforma === "meta_ads"
                             ? "Meta Ads"
@@ -482,6 +546,9 @@ export default async function ConversoesPage({
               slug={slug}
               google={capturaGoogle}
               meta={estadoDaCaptura}
+              ga4MeasurementId={
+                estadoGa4?.enabled && estadoGa4.measurementId ? estadoGa4.measurementId : null
+              }
               idioma={idioma}
             />
           ) : null}

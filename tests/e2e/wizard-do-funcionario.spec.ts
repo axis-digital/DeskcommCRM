@@ -119,7 +119,12 @@ test.describe("o wizard monta um funcionário", () => {
     await page.waitForURL(/\/onboarding\/welcome/, { timeout: 30_000 });
 
     await page.locator("#display_name").fill("Clínica Bem Viver");
-    await page.locator('input[type="checkbox"]').check();
+    await page.locator("#aceite_termos").check();
+    // Desde a Entrega 1 o passo pede ao menos um objetivo do perfil do negócio.
+    await page
+      .getByRole("group", { name: /o que vocês querem que a conversa vire/i })
+      .getByRole("checkbox", { name: /agendar horários/i })
+      .check();
     await page.getByRole("button", { name: /^continuar$/i }).click();
     await page.waitForURL(/\/onboarding\/connect-whatsapp/, { timeout: 30_000 });
 

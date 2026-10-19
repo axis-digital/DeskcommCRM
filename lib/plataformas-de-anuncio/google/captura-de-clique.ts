@@ -20,6 +20,8 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { logger } from "@/lib/logger";
 import { criarClickRef as criarClickRefNaTabela, type ClickRefCriado } from "../captura-de-clique";
 
+import { normalizarIdentidadeGa4, type IdentidadeGa4 } from "../ga4/identidade";
+
 import { lerIdentificadoresGoogle, type IdentificadoresGoogle } from "./identificadores";
 
 export type { ClickRefCriado };
@@ -41,7 +43,7 @@ export async function criarClickRef(
   });
 }
 
-export type ClickRefCasado = IdentificadoresGoogle;
+export type ClickRefCasado = IdentificadoresGoogle & { ga?: IdentidadeGa4 | null };
 
 /**
  * Casa um token com um contato — a UPDATE condicional que garante que um
@@ -61,7 +63,7 @@ export async function casarClickRef(
     .eq("organization_id", organizationId)
     .eq("token", token)
     .is("matched_at", null)
-    .select("gclid, gbraid, wbraid")
+    .select("gclid, gbraid, wbraid, query_raw")
     .maybeSingle();
 
   if (error) {
@@ -73,7 +75,14 @@ export async function casarClickRef(
     return null;
   }
   if (!data) return null;
-  return lerIdentificadoresGoogle(
-    Object.fromEntries(Object.entries(data).filter(([, v]) => v != null)),
+  const { query_raw: queryRaw, ...ids } = data as Record<string, unknown>;
+  const identificadores = lerIdentificadoresGoogle(
+    Object.fromEntries(Object.entries(ids).filter(([, v]) => v != null)),
   );
+  if (!identificadores) return null;
+  const ga =
+    queryRaw && typeof queryRaw === "object"
+      ? normalizarIdentidadeGa4(queryRaw as Record<string, unknown>)
+      : null;
+  return { ...identificadores, ga };
 }

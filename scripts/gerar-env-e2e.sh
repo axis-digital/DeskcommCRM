@@ -168,6 +168,11 @@ EXTENSIONS_LOCAL_CATALOG_ORIGIN=http://127.0.0.1:56331
 # escuta aqui, e não precisa: o Jev nasce desligado em toda organização.
 JEV_API_BASE_URL=http://127.0.0.1:3996
 
+# O Measurement Protocol do GA4 fala com o receptor que a spec
+# \`conversoes-ga4\` sobe nesta porta. Fora daquela spec nada escuta aqui, e
+# não precisa: o GA4 nasce desligado em toda organização.
+GA4_MP_BASE_URL=http://127.0.0.1:4599
+
 # A API da Nuvemshop fala com o receptor que a spec
 # \`nuvemshop-sincroniza-pedidos\` sobe nesta porta — a 3994, vizinha do dublê
 # da cobrança (3995), que é outro processo e não pode dividir a porta.

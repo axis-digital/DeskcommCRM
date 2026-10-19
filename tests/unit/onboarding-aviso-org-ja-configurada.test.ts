@@ -169,6 +169,8 @@ function formulario(nome = "Clínica Nova"): FormData {
   const fd = new FormData();
   fd.set("display_name", nome);
   fd.set("timezone", "America/Sao_Paulo");
+  // Desde a Entrega 1 o passo exige ao menos um objetivo do perfil do negócio.
+  fd.append("objetivos", "captar_lead");
   fd.set("organization_id", ORG);
   return fd;
 }

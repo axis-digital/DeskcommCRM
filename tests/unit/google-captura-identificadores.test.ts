@@ -57,6 +57,21 @@ describe("captura de identificadores Google", () => {
       expect(decodeURIComponent(response.headers.get("location") ?? "")).toContain("[ref:2ABCDE]");
     },
   );
+  it("guarda a identidade GA4 do clique (ga_client_id/ga_session_id) junto das UTMs", async () => {
+    await abrir(
+      "gclid=click-1&utm_source=google&ga_client_id=123456789.1700000000&ga_session_id=1700000001",
+    );
+    expect(mock.criar).toHaveBeenCalledWith(
+      expect.anything(),
+      "org",
+      { gclid: "click-1" },
+      { utm_source: "google", ga_client_id: "123456789.1700000000", ga_session_id: "1700000001" },
+    );
+  });
+  it("descarta identidade GA4 fora do formato do cookie _ga", async () => {
+    await abrir("gclid=click-1&ga_client_id=%3Cscript%3E&ga_session_id=1700000001");
+    expect(mock.criar).toHaveBeenCalledWith(expect.anything(), "org", { gclid: "click-1" }, {});
+  });
   it.each(["", "gclid=%7Bgclid%7D", "wbraid=%3Cscript%3E", `gclid=${"a".repeat(513)}`])(
     "preserva o acesso ao WhatsApp sem fabricar origem inválida (%s)",
     async (query) => {

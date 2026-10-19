@@ -146,3 +146,37 @@ describe("sugerir", () => {
     }
   });
 });
+
+describe("o perfil do negócio (Entrega 1 / workstream B)", () => {
+  const PERFIL = {
+    canais: ["WhatsApp", "Instagram"],
+    objetivos: ["Agendar horários", "Vender produtos"],
+    objetivoPrincipal: "agendar" as const,
+  };
+
+  it("sem perfil, o pedido continua o de antes — não fala de canal nem de objetivo", () => {
+    const { prompt } = pedidoDeSugestao(CTX, PACOTE_PADRAO);
+    expect(prompt).not.toMatch(/Vende por/);
+    expect(prompt).not.toMatch(/Objetivo/);
+  });
+
+  it("com perfil, o pedido leva os canais, os objetivos e diz qual é o deste quadro", () => {
+    const { prompt } = pedidoDeSugestao({ ...CTX, perfil: PERFIL }, PACOTE_PADRAO);
+    expect(prompt).toContain("Vende por: WhatsApp, Instagram");
+    expect(prompt).toContain("Agendar horários, Vender produtos");
+    expect(prompt).toMatch(/Objetivo deste quadro: Agendar horários/);
+  });
+
+  it("texto que não diz o ramo cai no pacote do OBJETIVO principal, não no genérico", async () => {
+    const s = await sugerirFunil(
+      { nome: "Xyz", oQueFaz: "", perfil: { ...PERFIL, objetivoPrincipal: "vender_produto" } },
+      responde("não"),
+    );
+    expect(s.origem === "pacote" && s.pacote.id).toBe("loja");
+  });
+
+  it("o texto que diz o ramo continua vencendo — é mais específico que o objetivo", async () => {
+    const s = await sugerirFunil({ ...CTX, perfil: { ...PERFIL, objetivoPrincipal: "vender_produto" } }, responde("não"));
+    expect(s.origem === "pacote" && s.pacote.id).toBe("clinica");
+  });
+});

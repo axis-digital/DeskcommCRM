@@ -9,6 +9,8 @@ import { wahaContactPayload } from "@/lib/waha/contact-card";
 import { fetchWahaMedia } from "@/lib/messaging/media/waha-source";
 import { getWahaClient } from "@/lib/waha/client";
 import { wahaSendPlanFor } from "@/lib/waha/media-send";
+import { reescreverOrigemDaMidia } from "@/lib/waha/media-url";
+import { baseDoStorage } from "@/lib/branding/logo";
 import {
   resolveCanonicalCusChatId,
   resolvePhoneJidDigitsForCall,
@@ -21,7 +23,7 @@ import {
   parseWahaMessageId,
   wahaEchoExternalIds,
 } from "@/lib/waha/message-id";
-import { resolveWahaChatId } from "@/lib/waha/send";
+import { marcarConversaComoLida, resolveWahaChatId } from "@/lib/waha/send";
 import type { FetchedMedia } from "@/lib/messaging/media/types";
 import { DETALHE_CREDENCIAL_RECUSADA } from "../health";
 import type { ChannelAdapter, ChannelHealth, OutboundEnvelope, RecipientInput } from "../types";
@@ -146,7 +148,10 @@ export const wahaAdapter: ChannelAdapter = {
    * `check-exists` nas duas grafias do nono dígito; só JID de telefone serve
    * (ver `phoneJidDigitsFromCheckResult`). Transporte não configurado é `null`.
    */
-  async resolveRegisteredPhone(input: { sessionRef: string; phone: string }): Promise<string | null> {
+  async resolveRegisteredPhone(input: {
+    sessionRef: string;
+    phone: string;
+  }): Promise<string | null> {
     const client = getWahaClient();
     if (!client) return null;
     return resolvePhoneJidDigitsForCall(client, input.sessionRef, input.phone);
@@ -292,11 +297,19 @@ export const wahaAdapter: ChannelAdapter = {
       res = await client.sendContactVcard(envelope.sessionRef, to, [contact]);
     } else if (envelope.media) {
       await envelope.beforeSend?.();
-      res = await client.sendMedia(
-        envelope.sessionRef,
-        to,
-        wahaSendPlanFor(envelope.kind, envelope.media),
-      );
+      const media = {
+        ...envelope.media,
+        // A origem pública vem de `baseDoStorage()`, nunca do acesso estático a
+        // `process.env.NEXT_PUBLIC_*`: o Next assa esse acesso com o placeholder
+        // do build, a origem nunca casa, a reescrita não acontece e o WAHA volta
+        // a pendurar 30s no hairpin. Medido no bundle de produção em 2026-10-14.
+        url: reescreverOrigemDaMidia(
+          envelope.media.url,
+          baseDoStorage(),
+          process.env.WAHA_MEDIA_BASE_URL ?? "",
+        ),
+      };
+      res = await client.sendMedia(envelope.sessionRef, to, wahaSendPlanFor(envelope.kind, media));
     } else {
       await envelope.beforeSend?.();
       res = await client.sendMessage(
@@ -308,6 +321,25 @@ export const wahaAdapter: ChannelAdapter = {
         envelope.replyToExternalId ? idCompletoDaMensagem(envelope.replyToExternalId, to) : null,
       );
     }
+
+    // O visto azul no aparelho do cliente (issue #2981): responder sem ter
+    // "lido" é o que denuncia automação. Vem DEPOIS de o transporte aceitar a
+    // mensagem, no MESMO endereço resolvido do envio — marcar outro deixaria a
+    // conversa respondida sem visto —, e o helper falha macio: a resposta já
+    // saiu, e um recibo de leitura que falha nunca custa a mensagem.
+    //
+    // `void`, e não `await`: o pedido do visto sai aqui mesmo, logo depois do
+    // aceite, mas NÃO segura o retorno. Quem chama só grava o `external_id`
+    // depois que este `send` volta, e o `message.ack` do webhook encontra a
+    // linha SÓ por esse id (`handleAck` em `lib/waha/ingest.ts`): um ack de
+    // "entregue" que chegasse durante o visto se perderia, e a mensagem ficaria
+    // em "enviada" (o efeito descrito em `session-reconciler.ts`). O helper
+    // nunca rejeita, então não há rejeição solta.
+    void marcarConversaComoLida({
+      organizationId: envelope.organizationId,
+      sessionName: envelope.sessionRef,
+      chatId: to,
+    });
 
     return { externalId: parseWahaMessageId(res) };
   },

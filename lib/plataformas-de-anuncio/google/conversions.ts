@@ -37,6 +37,7 @@ import { logger } from "@/lib/logger";
 import { configuracaoDoGoogleAds } from "./config";
 import { renovarToken } from "./token";
 import { telefoneCriptografado } from "./telefone";
+import { hashNormalizado } from "@/lib/plataformas-de-anuncio/hash";
 import { VERSAO_DA_API_DO_GOOGLE_ADS } from "./versao-da-api";
 import type {
   ConversaoOffline,
@@ -205,6 +206,20 @@ async function enviar(
   const customerId = soDigitos(google.customerId);
   // Opt-in da organização (0436): o telefone vai criptografado, nunca em claro.
   const telefone = google.enviarTelefone ? telefoneCriptografado(conversao.telefone) : null;
+  // Sem clique (fallback sem origem), o Google casa pelo que sobrar: e-mail e
+  // telefone em hash. Com clique, o `gclid` é o identificador e isto fica vazio.
+  const semClique = !conversao.identificadoresGoogle && !conversao.cliqueDeOrigem;
+  const emailHash =
+    semClique && conversao.emailDoContato ? hashNormalizado(conversao.emailDoContato) : null;
+  const identificadoresDeUsuario = [
+    ...(emailHash ? [{ hashedEmail: emailHash }] : []),
+    ...(telefone ? [{ hashedPhoneNumber: telefone }] : []),
+  ];
+  if (semClique && identificadoresDeUsuario.length === 0)
+    return {
+      tipo: "permanente",
+      detalhe: "sem clique, e-mail ou telefone em hash para o Google casar a venda",
+    };
   const corpo = {
     conversions: [
       {
@@ -213,7 +228,9 @@ async function enviar(
               conversao.identificadoresGoogle ?? { gclid: conversao.cliqueDeOrigem },
             )
           : {}),
-        ...(telefone ? { userIdentifiers: [{ hashedPhoneNumber: telefone }] } : {}),
+        ...(identificadoresDeUsuario.length > 0
+          ? { userIdentifiers: identificadoresDeUsuario }
+          : {}),
         conversionAction: `customers/${customerId}/conversionActions/${google.conversionActionId}`,
         conversionDateTime: formatarDataDeConversao(conversao.ocorridoEm),
         ...(conversao.valorCentavos !== null

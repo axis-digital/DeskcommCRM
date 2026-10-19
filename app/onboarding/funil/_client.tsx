@@ -6,10 +6,17 @@ import { useT } from "@/hooks/i18n/useT";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { aplicarQuadro, pularQuadro, type QuadroAtual } from "@/app/actions/onboarding/montarQuadro";
+import {
+  aplicarQuadro,
+  pularQuadro,
+  type FunilExtraOferecido,
+  type QuadroAtual,
+} from "@/app/actions/onboarding/montarQuadro";
 import { explicacaoDoPasso } from "@/lib/leads/agent-mapping";
 import { MAX_ETAPAS, MIN_ETAPAS, type PropostaDeFunil } from "@/lib/onboarding/proposta-de-funil";
 import { PACOTES } from "@/lib/onboarding/pacotes-de-funil";
+import { OBJETIVOS_DO_NEGOCIO, type ObjetivoDoNegocio } from "@/lib/onboarding/perfil-de-negocio";
+import { repeteQuadroAtivo } from "@/lib/onboarding/funis-por-objetivo";
 import type { Sugestao } from "@/lib/onboarding/sugerir-funil";
 
 /**
@@ -22,9 +29,12 @@ import type { Sugestao } from "@/lib/onboarding/sugerir-funil";
 export function QuadroClient({
   atual,
   sugestao,
+  extras = [],
 }: {
   atual: QuadroAtual | null;
   sugestao: Sugestao;
+  /** Um funil por objetivo do perfil além do primeiro — pré-marcados. */
+  extras?: FunilExtraOferecido[];
 }) {
   const t = useT();
   const inicial: PropostaDeFunil =
@@ -33,6 +43,9 @@ export function QuadroClient({
   const [quadro, setQuadro] = useState<PropostaDeFunil>(inicial);
   const [origem, setOrigem] = useState<"ia" | "pacote">(sugestao.origem);
   const [trocando, setTrocando] = useState(false);
+  const [marcados, setMarcados] = useState<ObjetivoDoNegocio[]>(() =>
+    extras.map((e) => e.objetivo),
+  );
   const [pending, startTransition] = useTransition();
 
   // Coluna sem nome é DESCARTADA por `normalizarProposta` — e descartar em
@@ -40,6 +53,13 @@ export function QuadroClient({
   // ela clica em salvar, avança, e a coluna simplesmente não existe. Barrar aqui
   // é o preço de ter o botão "Adicionar coluna".
   const semNome = quadro.etapas.some((e) => !e.nome.trim());
+
+  // Extra cujo quadro pronto é o mesmo de cima não é oferecido: numa clínica o
+  // quadro principal já é o de agendamento, e "Agendamentos 2" seria cópia. A
+  // conta segue o quadro EDITADO — trocar de modelo devolve a oferta. O servidor
+  // aplica a mesma regra ao gravar.
+  const colunasDoQuadro = quadro.etapas.map((e) => e.nome);
+  const extrasVisiveis = extras.filter((e) => !repeteQuadroAtivo(e.objetivo, colunasDoQuadro));
 
   function renomear(i: number, nome: string) {
     setQuadro((q) => ({ ...q, etapas: q.etapas.map((e, j) => (j === i ? { ...e, nome } : e)) }));
@@ -65,6 +85,14 @@ export function QuadroClient({
       etapas.splice(onde, 0, { nome: "", passo: null });
       return { ...q, etapas };
     });
+  }
+
+  function alternarExtra(objetivo: ObjetivoDoNegocio, ligado: boolean) {
+    setMarcados((atuais) =>
+      ligado
+        ? [...atuais.filter((o) => o !== objetivo), objetivo]
+        : atuais.filter((o) => o !== objetivo),
+    );
   }
 
   function usarPacote(id: string) {
@@ -95,7 +123,8 @@ export function QuadroClient({
         <div className="space-y-2 rounded-md border border-amber-500/30 bg-amber-500/5 p-3 text-sm">
           <p>
             {t("Não consegui pedir uma sugestão para o seu funcionário agora")}
-            {sugestao.porque ? <> — {t(sugestao.porque)}</> : null}. {t("Comecei por um quadro pronto de")}{" "}
+            {sugestao.porque ? <> — {t(sugestao.porque)}</> : null}.{" "}
+            {t("Comecei por um quadro pronto de")}{" "}
             <strong>{t(sugestao.pacote.comoSeApresenta)}</strong>.
           </p>
           <p className="text-xs text-muted-foreground">
@@ -149,7 +178,9 @@ export function QuadroClient({
                   salvar seria pior do que não oferecer o botão.
                 */}
                 {etapa.passo === "won" || etapa.passo === "lost" ? (
-                  <span className="mt-2 shrink-0 text-xs text-muted-foreground">{t("obrigatória")}</span>
+                  <span className="mt-2 shrink-0 text-xs text-muted-foreground">
+                    {t("obrigatória")}
+                  </span>
                 ) : (
                   <Button
                     type="button"
@@ -185,17 +216,46 @@ export function QuadroClient({
         </div>
       </div>
 
+      {/*
+        Os outros objetivos do perfil. Um funil tem UM objetivo — é ele que
+        escolhe o evento de conversão de cada passo —, então quem marcou mais de
+        um ganha um quadro por objetivo. Pré-marcados: foi o que a pessoa disse
+        querer duas telas atrás; desmarcar é a exceção.
+      */}
+      {extrasVisiveis.length > 0 ? (
+        <fieldset className="space-y-2 rounded-lg border bg-background p-4">
+          <legend className="px-1 text-sm font-medium">{t("Outros quadros do seu negócio")}</legend>
+          <p className="text-xs text-muted-foreground">
+            {t(
+              "Você marcou mais de um objetivo. Cada um ganha um quadro próprio, com colunas prontas que dá para ajustar depois em Configurações › Funis.",
+            )}
+          </p>
+          {OBJETIVOS_DO_NEGOCIO.map((o) =>
+            extrasVisiveis.some((e) => e.objetivo === o.valor) ? (
+              <label key={o.valor} className="flex items-center gap-2 text-sm">
+                <input
+                  type="checkbox"
+                  checked={marcados.includes(o.valor)}
+                  onChange={(ev) => alternarExtra(o.valor, ev.target.checked)}
+                />
+                {t("Também criar funil de")} {t(o.rotulo)}
+              </label>
+            ) : null,
+          )}
+        </fieldset>
+      ) : null}
+
       {/* O que a instalação trouxe, para a troca não parecer mágica. */}
       {atual && atual.colunas.length > 0 ? (
         <details className="rounded-md border p-3 text-sm">
           <summary className="cursor-pointer text-muted-foreground">
             {t("O que veio na instalação")} ({atual.nome})
           </summary>
+          <p className="mt-2 text-xs text-muted-foreground">{atual.colunas.join(" → ")}</p>
           <p className="mt-2 text-xs text-muted-foreground">
-            {atual.colunas.join(" → ")}
-          </p>
-          <p className="mt-2 text-xs text-muted-foreground">
-            {t("Este é o quadro padrão, feito para loja online. Ao continuar, ele é substituído pelo de cima.")}
+            {t(
+              "Este é o quadro padrão, feito para loja online. Ao continuar, ele é substituído pelo de cima.",
+            )}
           </p>
         </details>
       ) : null}
@@ -247,22 +307,28 @@ export function QuadroClient({
               {t("Dê um nome à coluna em branco.")}
             </span>
           ) : null}
-        <Button
-          type="button"
-          disabled={pending || semNome}
-          onClick={() =>
-            startTransition(async () => {
-              const fd = new FormData();
-              fd.set("quadro", JSON.stringify(quadro));
-              fd.set("origem", origem);
-              const res = await aplicarQuadro(fd);
-              // Sucesso redireciona no servidor; só o desfecho ruim volta.
-              if (res && !res.ok) toast.error(res.erro);
-            })
-          }
-        >
-          {pending ? t("Salvando...") : t("Usar este quadro")}
-        </Button>
+          <Button
+            type="button"
+            disabled={pending || semNome}
+            onClick={() =>
+              startTransition(async () => {
+                const fd = new FormData();
+                fd.set("quadro", JSON.stringify(quadro));
+                fd.set("origem", origem);
+                fd.set(
+                  "extras",
+                  JSON.stringify(
+                    marcados.filter((m) => extrasVisiveis.some((e) => e.objetivo === m)),
+                  ),
+                );
+                const res = await aplicarQuadro(fd);
+                // Sucesso redireciona no servidor; só o desfecho ruim volta.
+                if (res && !res.ok) toast.error(res.erro);
+              })
+            }
+          >
+            {pending ? t("Salvando...") : t("Usar este quadro")}
+          </Button>
         </div>
       </div>
     </div>

@@ -9,9 +9,13 @@ import { format, isToday, isYesterday } from "date-fns";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { MessageBubble } from "./MessageBubble";
+import { separarReacoes } from "@/lib/inbox/reacoes-no-fio";
 import { NoteCard } from "./NoteCard";
 import { PassagemCard } from "./PassagemCard";
 import { useMessagesRealtime } from "@/hooks/inbox/useMessagesRealtime";
+import { useEnviosDeMidia } from "@/hooks/inbox/useEnviosDeMidia";
+import { idsDeEnviosGravados } from "@/lib/messaging/media/envio-otimista";
+import { BolhaDeEnvioLocal } from "@/components/inbox/BolhaDeEnvioLocal";
 import { useConversationNotes } from "@/hooks/inbox/useConversationNotes";
 import { usePassagensDaConversa } from "@/hooks/inbox/usePassagensDaConversa";
 import { useClaimConversation } from "@/hooks/inbox/useClaimConversation";
@@ -170,10 +174,31 @@ export function ChatThread({
     [passagens, currentUser.id, dono?.userId, dono?.nome],
   );
 
+  const { falas, reacoesPorAlvo } = useMemo(() => separarReacoes(messages), [messages]);
+
   const items: ThreadItem[] = useMemo(
-    () => mergeThreadItems(messages, notes, cartoes),
-    [messages, notes, cartoes],
+    () => mergeThreadItems(falas, notes, cartoes),
+    [falas, notes, cartoes],
   );
+
+  /**
+   * Anexos que o atendente mandou e ainda não viraram linha (bolha otimista).
+   * Ficam no FIM do fio — são sempre o mais novo — e somem quando a linha real
+   * com a marca deles chega, seja pela resposta do POST, seja pelo Realtime.
+   */
+  const envios = useEnviosDeMidia(conversationId);
+  const gravados = useMemo(() => idsDeEnviosGravados(messages), [messages]);
+  const locais = envios.pendentes.filter((e) => !gravados.has(e.id));
+  // A bolha cresce ao falhar (motivo + botões): a troca de fase também rola o
+  // fio, senão "Tentar de novo" nasce abaixo da dobra (medido no staging).
+  const fasesDosLocais = locais.map((e) => e.fase).join(",");
+  const { descartar } = envios;
+  useEffect(() => {
+    // A linha real chegou antes da resposta do POST (o cliente desistiu, o
+    // servidor gravou): tira da fila, senão a retentativa ficaria disponível
+    // para uma mensagem que já existe.
+    for (const e of envios.pendentes) if (gravados.has(e.id) && e.fase === "falhou") descartar(e.id);
+  }, [envios.pendentes, gravados, descartar]);
 
   const paginas = q.data?.pages.length ?? 0;
 
@@ -252,7 +277,7 @@ export function ChatThread({
       behavior: primeiraAncoragem ? "auto" : "smooth",
       block: "end",
     });
-  }, [items.length, conversationId, paginas]);
+  }, [items.length, fasesDosLocais, conversationId, paginas]);
 
   /**
    * O ESTADO DO CANAL DESTE THREAD, PUBLICADO SEMPRE — inclusive quando não há
@@ -315,7 +340,7 @@ export function ChatThread({
     );
   }
 
-  if (items.length === 0) {
+  if (items.length === 0 && locais.length === 0) {
     return (
       <div
         {...sinalDoCanal}
@@ -411,6 +436,7 @@ export function ChatThread({
                   // citada é antiga demais e ficou fora da página, o fio some —
                   // que é melhor que segurar a conversa esperando.
                   citada={porId.get(item.data.reply_to_message_id ?? "") ?? null}
+                  reacoes={reacoesPorAlvo.get(item.data.id)}
                   // Sem isto o balão diz "Você" em toda mensagem digitada no
                   // CRM — inclusive nas do colega, porque `sent_via='user'` só
                   // registra que um humano digitou, nunca qual.
@@ -431,6 +457,15 @@ export function ChatThread({
               ),
             )}
           </div>
+        ))}
+
+        {locais.map((envio) => (
+          <BolhaDeEnvioLocal
+            key={`envio-${envio.id}`}
+            envio={envio}
+            onTentarDeNovo={() => envios.tentarDeNovo(envio.id)}
+            onDescartar={() => descartar(envio.id)}
+          />
         ))}
 
         <div ref={bottomRef} />

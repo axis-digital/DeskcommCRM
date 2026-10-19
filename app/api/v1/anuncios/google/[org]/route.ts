@@ -11,6 +11,7 @@ import { lerIdentificadoresGoogle } from "@/lib/plataformas-de-anuncio/google/id
 
 import { checkRateLimit } from "@/lib/ai/dispatcher/rate-limit";
 import { criarClickRef } from "@/lib/plataformas-de-anuncio/google/captura-de-clique";
+import { normalizarIdentidadeGa4 } from "@/lib/plataformas-de-anuncio/ga4/identidade";
 import { lerConfigDaLanding } from "@/lib/plataformas-de-anuncio/landing-config";
 import {
   clientIp,
@@ -91,11 +92,22 @@ export async function GET(req: NextRequest, ctx: RouteContext): Promise<Response
     return paginaDeSaida(whatsAppUrl(config.whatsappE164, textoSemRef(config.messageTemplate)));
   }
 
-  const queryRaw = Object.fromEntries(
-    ["utm_source", "utm_medium", "utm_campaign", "utm_content", "utm_term"].flatMap((key) =>
-      search.get(key) ? [[key, search.get(key)!.slice(0, 256)]] : [],
+  // A identidade GA4 (9002) viaja junto: o `rastreio/v1.js` a anexa ao clique
+  // quando o site liga `data-ga4`, e o ref casado a leva até o contato. Só
+  // entra no formato do cookie `_ga` — o mesmo normalizador da leitura.
+  const ga = normalizarIdentidadeGa4({
+    ga_client_id: search.get("ga_client_id"),
+    ga_session_id: search.get("ga_session_id"),
+  });
+  const queryRaw = {
+    ...Object.fromEntries(
+      ["utm_source", "utm_medium", "utm_campaign", "utm_content", "utm_term"].flatMap((key) =>
+        search.get(key) ? [[key, search.get(key)!.slice(0, 256)]] : [],
+      ),
     ),
-  );
+    ...(ga ? { ga_client_id: ga.clientId } : {}),
+    ...(ga?.sessionId ? { ga_session_id: ga.sessionId } : {}),
+  };
   const criado = await criarClickRef(admin, organizationId, ids, queryRaw);
   if (!criado) {
     // Falha ao gravar o clique: mesma régua — a pessoa não paga o preço de um
