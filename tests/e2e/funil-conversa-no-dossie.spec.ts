@@ -14,8 +14,8 @@
  *   5. Esc no campo só tira o foco; o segundo Esc fecha — e o quadro continua
  *      no mesmo funil;
  *   6. o deep link `?lead=` abre o funil DO NEGÓCIO e some da URL ao fechar;
- *   7. as medidas, por ferramenta: duas colunas a 1280px, abas a 390px, nada
- *      transborda na horizontal.
+ *   7. as medidas, por ferramenta: duas colunas a 1280px (conversa primeiro),
+ *      abas Conversa | Negócio a 390px, nada transborda na horizontal.
  *
  * O funil e o negócio são do teste (sufixo único); o funil PADRÃO da aba é o que
  * a organização tem — a spec calcula o esperado com a MESMA regra do produto
@@ -180,14 +180,19 @@ test.describe("Funil: a aba abre o padrão e o dossiê responde a conversa", () 
     const medida = await page.evaluate(() => {
       const d = document.querySelector('[role="dialog"]')!.getBoundingClientRect();
       const caixa = document.querySelector('[role="dialog"] textarea[aria-label="Mensagem"]');
+      const regiao = document.querySelector('[role="dialog"] section[aria-label="Conversa"]');
+      const titulo = document.querySelector('[role="dialog"] h2');
       return {
         larguraDoDossie: d.width,
         composerCabe: caixa ? caixa.getBoundingClientRect().bottom <= window.innerHeight : false,
+        conversaAntesDoNegocio:
+          regiao && titulo ? regiao.getBoundingClientRect().left < titulo.getBoundingClientRect().left : false,
       };
     });
     registra(`funil-dossie 1280x768 · ${JSON.stringify(medida)}`);
     expect(medida.larguraDoDossie, "a 1280px o dossiê alarga para duas colunas").toBeGreaterThan(900);
     expect(medida.composerCabe, "o composer cabe sem rolar a página").toBe(true);
+    expect(medida.conversaAntesDoNegocio, "a conversa é a primeira coluna, o negócio a segunda").toBe(true);
 
     await caixa.fill(RESPOSTA);
     await caixa.press("Enter");
@@ -229,7 +234,7 @@ test.describe("Funil: a aba abre o padrão e o dossiê responde a conversa", () 
     expect(new URL(page.url()).pathname).toBe(`/app/pipelines/${funilId}`);
   });
 
-  test("no celular: a alternância Negócio | Conversa aparece e nada transborda na horizontal", async ({ page }) => {
+  test("no celular: a alternância Conversa | Negócio abre na conversa e nada transborda na horizontal", async ({ page }) => {
     await login(page, c.users.manager!.email, c.password);
     await page.setViewportSize({ width: 390, height: 844 });
 
@@ -239,9 +244,8 @@ test.describe("Funil: a aba abre o padrão e o dossiê responde a conversa", () 
     // Só as abas do dossiê: a ficha do contato, dentro dele, também tem abas.
     const abas = dossie.getByRole("tablist", { name: "Seções do negócio" }).getByRole("tab");
     await expect(abas).toHaveCount(2);
+    await expect(abas.nth(0)).toHaveText(/Conversa/);
     await expect(abas.nth(0)).toHaveAttribute("aria-selected", "true");
-
-    await abas.nth(1).click();
     await expect(dossie.getByRole("region", { name: "Conversa" })).toBeVisible();
     await expect(dossie.getByRole("textbox", { name: "Mensagem" })).toBeVisible();
 
@@ -256,5 +260,11 @@ test.describe("Funil: a aba abre o padrão e o dossiê responde a conversa", () 
     expect(medida.corpo, "o corpo da página não rola na horizontal").toBe(true);
     expect(medida.dossie, "o dossiê não rola na horizontal").toBe(true);
     await foto(page, "03-celular-aba-conversa");
+
+    await abas.nth(1).click();
+    await expect(abas.nth(1)).toHaveAttribute("aria-selected", "true");
+    await expect(dossie.getByText("Dados do negócio")).toBeVisible();
+    await expect(dossie.getByRole("region", { name: "Conversa" })).toBeHidden();
+    await foto(page, "04-celular-aba-negocio");
   });
 });

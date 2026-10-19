@@ -56,12 +56,13 @@ function formatValor(cents: number | null, currency: string | null): string {
  * por último, e o cabeçalho tem um atalho para ele — ordem preservada, custo de
  * rolagem resolvido.
  *
- * A CONVERSA FICA AO LADO. Com conversa (ou com telefone para abrir uma), o
- * painel alarga para duas colunas a partir de `lg` — negócio | conversa — e,
- * abaixo disso, vira a alternância "Negócio | Conversa" no topo. A conversa é
- * a MESMA da Inbox (`ConversaEmbutida`): responder daqui não é uma segunda
- * implementação do composer. Sem contato e sem telefone o dossiê continua
- * estreito, sem painel que prometa conversa que não existe.
+ * A CONVERSA FICA AO LADO, E VEM PRIMEIRO. Com conversa (ou com telefone para
+ * abrir uma), o painel alarga para duas colunas a partir de `lg` — conversa |
+ * negócio — e, abaixo disso, vira a alternância "Conversa | Negócio" no topo,
+ * abrindo na conversa. A conversa é a MESMA da Inbox (`ConversaEmbutida`):
+ * responder daqui não é uma segunda implementação do composer. Sem contato e sem
+ * telefone o dossiê continua estreito, sem painel que prometa conversa que não
+ * existe.
  *
  * SALVAR NÃO FECHA. Quem edita precisa ver a atividade que acabou de gerar
  * entrar na timeline; fechar esconderia o registro justamente de quem o
@@ -87,7 +88,7 @@ export function LeadDossier({
   const [conversaEscolhida, setConversaEscolhida] = useState<string | null>(null);
   const conversaId = conversaEscolhida ?? lead.conversa?.id ?? null;
   const temPainel = Boolean(conversaId) || temAlvoParaAbrir(lead.contact_id, lead.contact_phone);
-  const [aba, setAba] = useState<"negocio" | "conversa">("negocio");
+  const [aba, setAba] = useState<"conversa" | "negocio">("conversa");
   const timeline = useLeadTimeline(open ? lead.id : null, lead.contact_id);
   const owner = resolveLeadOwner(lead, ownerNames);
   const score = lead.score ?? null;
@@ -152,7 +153,7 @@ export function LeadDossier({
             aria-label={t("Seções do negócio")}
             className="flex gap-1 border-b border-border p-2 pr-12 lg:hidden"
           >
-            {(["negocio", "conversa"] as const).map((a) => (
+            {(["conversa", "negocio"] as const).map((a) => (
               <button
                 key={a}
                 type="button"
@@ -174,14 +175,28 @@ export function LeadDossier({
             ))}
           </div>
         )}
-        <div className={cn("min-h-0 flex-1", temPainel && "lg:grid lg:grid-cols-[minmax(22rem,26rem)_1fr]")}>
+        {/* A CONVERSA VEM PRIMEIRO (ordem de leitura, de Tab e visual): é o que se
+            faz com o negócio aberto — responder —, e o negócio é o contexto ao
+            lado. A coluna larga é a dela. */}
+        <div className={cn("min-h-0 flex-1", temPainel && "lg:grid lg:grid-cols-[1fr_minmax(22rem,26rem)]")}>
+          {temPainel && (
+            <section
+              aria-label={t("Conversa")}
+              className={cn(
+                "h-full min-h-0 flex-col border-border lg:flex lg:border-r",
+                aba === "conversa" ? "flex" : "hidden",
+              )}
+            >
+              {painelDaConversa}
+            </section>
+          )}
           <div
             className={cn(
               "flex h-full flex-col overflow-y-auto p-6",
               temPainel && aba !== "negocio" && "hidden lg:flex",
             )}
           >
-            <SheetHeader className="pb-3">
+            <SheetHeader className={cn("pb-3", temPainel && "lg:pr-8")}>
               <SheetTitle className="text-base leading-6">{lead.title}</SheetTitle>
             </SheetHeader>
 
@@ -288,17 +303,6 @@ export function LeadDossier({
               podeCriar={podeCriarProposta}
             />
           </div>
-          {temPainel && (
-            <section
-              aria-label={t("Conversa")}
-              className={cn(
-                "h-full min-h-0 flex-col border-border lg:flex lg:border-l",
-                aba === "conversa" ? "flex" : "hidden",
-              )}
-            >
-              {painelDaConversa}
-            </section>
-          )}
         </div>
       </SheetContent>
     </Sheet>

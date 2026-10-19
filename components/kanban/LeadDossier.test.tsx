@@ -94,24 +94,35 @@ describe("LeadDossier com a conversa ao lado", () => {
     expect(screen.getByTestId("conversa-embutida")).toHaveTextContent("conv-nova");
   });
 
-  it("no celular a alternância Negócio | Conversa troca o que aparece", () => {
+  it("a conversa vem ANTES do negócio: primeiro no documento (ordem de leitura e de Tab) e na primeira coluna", () => {
+    montar(lead());
+    const conversa = screen.getByRole("region", { name: "Conversa" });
+    const titulo = screen.getByText("Negócio de teste");
+    // Ordem de leitura = ordem visual: a conversa precede o título do negócio.
+    expect(conversa.compareDocumentPosition(titulo) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    // E o grid dá a coluna larga à conversa, a estreita ao negócio.
+    expect(conversa.parentElement?.className).toContain("lg:grid-cols-[1fr_minmax(22rem,26rem)]");
+  });
+
+  it("no celular a alternância Conversa | Negócio começa na conversa e troca o que aparece", () => {
     montar(lead());
     const abas = screen.getAllByRole("tab");
-    expect(abas.map((a) => a.textContent)).toEqual(["Negócio", "Conversa"]);
+    expect(abas.map((a) => a.textContent)).toEqual(["Conversa", "Negócio"]);
     expect(abas[0]).toHaveAttribute("aria-selected", "true");
+    expect(screen.getByRole("region", { name: "Conversa" }).className).toMatch(/\bflex\b/);
 
     fireEvent.click(abas[1]!);
 
     expect(screen.getAllByRole("tab")[1]).toHaveAttribute("aria-selected", "true");
-    expect(screen.getByRole("region", { name: "Conversa" }).className).toMatch(/\bflex\b/);
+    expect(screen.getByRole("region", { name: "Conversa" }).className).toMatch(/\bhidden\b/);
   });
 
   it("a aba Conversa mostra o número de não lidas, e só quando há", () => {
     const { unmount } = montar(lead({ conversa: { id: "c1", preview: null, last_message_at: null, unread: 4 } }));
-    expect(screen.getAllByRole("tab")[1]).toHaveTextContent("4");
+    expect(screen.getAllByRole("tab")[0]).toHaveTextContent("4");
     unmount();
     montar(lead());
-    expect(screen.getAllByRole("tab")[1]!.textContent).toBe("Conversa");
+    expect(screen.getAllByRole("tab")[0]!.textContent).toBe("Conversa");
   });
 });
 
