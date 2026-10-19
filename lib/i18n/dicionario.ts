@@ -9490,6 +9490,8 @@ export const DICIONARIO: Traducoes = {
   "Descer": { es: "Bajar" },
   "Novo nome de": { es: "Nuevo nombre de" },
   "Padrão": { es: "Predeterminado" },
+  "Este negócio ainda não tem conversa.": { es: "Este negocio aún no tiene conversación." },
+  "Seções do negócio": { es: "Secciones del negocio" },
   "Carregando conversa…": { es: "Cargando conversación…" },
   "Não foi possível carregar a conversa.": { es: "No se pudo cargar la conversación." },
   "padrão": { es: "predeterminado" },

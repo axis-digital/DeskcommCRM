@@ -1,0 +1,141 @@
+import { fireEvent, render, screen } from "@testing-library/react";
+import { describe, expect, it, vi } from "vitest";
+
+import type { Lead } from "@/lib/types/leads";
+import type * as AbrirConversa from "./AbrirConversaDoLead";
+
+vi.mock("@/components/inbox/ConversaEmbutida", () => ({
+  ConversaEmbutida: ({ conversationId }: { conversationId: string }) => (
+    <div data-testid="conversa-embutida">{conversationId}</div>
+  ),
+}));
+// O botão de abrir é o real só no que importa aqui: entrega o id novo a `onAberta`.
+vi.mock("./AbrirConversaDoLead", async (original) => ({
+  ...(await original<typeof AbrirConversa>()),
+  AbrirConversaDoLead: ({ onAberta }: { onAberta?: (id: string) => void }) => (
+    <button type="button" onClick={() => onAberta?.("conv-nova")}>
+      abrir-aqui
+    </button>
+  ),
+}));
+vi.mock("@/hooks/i18n/useT", () => ({ useT: () => (s: string) => s }));
+vi.mock("@/hooks/i18n/useLocaleDeData", () => ({ useTagDeIdioma: () => "pt-BR" }));
+vi.mock("@/hooks/auth/AuthProvider", () => ({
+  useUser: () => ({ id: "u-1", is_platform_admin: false, support: null }),
+  useActiveOrg: () => ({ orgId: "org-1", role: "agent" }),
+}));
+vi.mock("@/hooks/leads/useLeadTimeline", () => ({
+  useLeadTimeline: () => ({
+    itens: [],
+    chegouAoVivo: new Set(),
+    isLoading: false,
+    isError: false,
+    realtimeStatus: "SUBSCRIBED",
+    seguranca: { divergencias: 0, ultimaVerificacao: null },
+  }),
+}));
+// O que não é assunto deste teste (cada um tem o seu) sai do caminho.
+vi.mock("./ContatoDoNegocio", () => ({ ContatoDoNegocio: () => null }));
+vi.mock("./LeadFieldsForm", () => ({ LeadFieldsForm: () => null }));
+vi.mock("./LeadTimeline", () => ({ LeadTimeline: () => null }));
+vi.mock("./PropostasDoNegocio", () => ({ PropostasDoNegocio: () => null }));
+vi.mock("./TarefasDoNegocio", () => ({ TarefasDoNegocio: () => null }));
+vi.mock("./ScoreSlot", () => ({ ScoreSlot: () => null }));
+vi.mock("./OwnerBadge", () => ({ OwnerBadge: () => null }));
+
+import { LeadDossier } from "./LeadDossier";
+
+const lead = (over: Partial<Lead> = {}): Lead =>
+  ({
+    id: "l-1",
+    organization_id: "org-1",
+    pipeline_id: "p-1",
+    stage_id: "s-1",
+    contact_id: "k-1",
+    title: "Negócio de teste",
+    description: null,
+    status: "open",
+    lost_reason: null,
+    position_in_stage: 1000,
+    value_cents: null,
+    currency: null,
+    owner_user_id: null,
+    owner_kind: "none",
+    owner_agent_id: null,
+    contact_phone: "5585999999999",
+    conversa: { id: "c1", preview: "oi", last_message_at: null, unread: 0 },
+    ...over,
+  }) as unknown as Lead;
+
+const montar = (l: Lead, onOpenChange = vi.fn()) =>
+  render(<LeadDossier open onOpenChange={onOpenChange} lead={l} pipelineId="p-1" stageName="Novo" />);
+
+describe("LeadDossier com a conversa ao lado", () => {
+  it("negócio com conversa: monta a conversa embutida, numa região nomeada", () => {
+    montar(lead());
+    expect(screen.getByTestId("conversa-embutida")).toHaveTextContent("c1");
+    expect(screen.getByRole("region", { name: "Conversa" })).toBeInTheDocument();
+  });
+
+  it("negócio sem contato e sem telefone: sem painel de conversa (o dossiê não alarga)", () => {
+    montar(lead({ conversa: null, contact_id: null, contact_phone: undefined }));
+    expect(screen.queryByTestId("conversa-embutida")).toBeNull();
+    expect(screen.queryByRole("region", { name: "Conversa" })).toBeNull();
+    expect(screen.queryByRole("tablist")).toBeNull();
+  });
+
+  it("negócio com telefone e sem conversa: oferece iniciar ali, e a conversa nova aparece no painel", () => {
+    montar(lead({ conversa: null }));
+    expect(screen.getByText("Este negócio ainda não tem conversa.")).toBeVisible();
+    expect(screen.queryByTestId("conversa-embutida")).toBeNull();
+
+    fireEvent.click(screen.getByText("abrir-aqui"));
+
+    expect(screen.getByTestId("conversa-embutida")).toHaveTextContent("conv-nova");
+  });
+
+  it("no celular a alternância Negócio | Conversa troca o que aparece", () => {
+    montar(lead());
+    const abas = screen.getAllByRole("tab");
+    expect(abas.map((a) => a.textContent)).toEqual(["Negócio", "Conversa"]);
+    expect(abas[0]).toHaveAttribute("aria-selected", "true");
+
+    fireEvent.click(abas[1]!);
+
+    expect(screen.getAllByRole("tab")[1]).toHaveAttribute("aria-selected", "true");
+    expect(screen.getByRole("region", { name: "Conversa" }).className).toMatch(/\bflex\b/);
+  });
+
+  it("a aba Conversa mostra o número de não lidas, e só quando há", () => {
+    const { unmount } = montar(lead({ conversa: { id: "c1", preview: null, last_message_at: null, unread: 4 } }));
+    expect(screen.getAllByRole("tab")[1]).toHaveTextContent("4");
+    unmount();
+    montar(lead());
+    expect(screen.getAllByRole("tab")[1]!.textContent).toBe("Conversa");
+  });
+});
+
+describe("LeadDossier: Esc seguro", () => {
+  it("Esc dentro de um campo de texto tira o foco do campo e NÃO fecha o dossiê", () => {
+    const onOpenChange = vi.fn();
+    montar(lead(), onOpenChange);
+    const campo = document.createElement("textarea");
+    screen.getByRole("dialog").appendChild(campo);
+    campo.focus();
+
+    fireEvent.keyDown(campo, { key: "Escape" });
+
+    expect(onOpenChange).not.toHaveBeenCalledWith(false);
+    expect(document.activeElement).not.toBe(campo);
+  });
+
+  it("Esc fora de qualquer campo fecha o dossiê", () => {
+    const onOpenChange = vi.fn();
+    montar(lead(), onOpenChange);
+    (document.activeElement as HTMLElement | null)?.blur();
+
+    fireEvent.keyDown(screen.getByRole("dialog"), { key: "Escape" });
+
+    expect(onOpenChange).toHaveBeenCalledWith(false);
+  });
+});

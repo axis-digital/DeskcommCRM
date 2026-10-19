@@ -152,6 +152,21 @@ export function KanbanBoard({
   // o histórico de captação tinha o id e nenhum lugar para levá-lo. Uma vez
   // aberto, o estado local manda (fechar não reabre pela URL).
   const [dossieId, setDossieId] = useState<string | null>(leadInicial ?? null);
+  // Fechar o dossiê: (1) atualiza o quadro, porque a resposta enviada por ele
+  // muda a prévia e o contador do card; (2) tira o deep link da URL, porque
+  // recarregar a página não pode reabrir um dossiê que a pessoa fechou. O
+  // endereço é reescrito pelo `history` nativo (o Next sincroniza
+  // `useSearchParams` com ele) e não por `router.replace`: o quadro também é
+  // montado fora do App Router, nos testes e no calendário.
+  const fecharDossie = useCallback(() => {
+    setDossieId(null);
+    void qc.invalidateQueries({ queryKey: chaveDoQuadro(pipelineId) });
+    const url = new URL(window.location.href);
+    if (url.searchParams.has("lead")) {
+      url.searchParams.delete("lead");
+      window.history.replaceState(null, "", url);
+    }
+  }, [qc, pipelineId]);
   const [internalSelected, setInternalSelected] = useState<Set<string>>(new Set());
   const selectedLeadIds = useMemo(
     () => (selectedIds ? new Set(selectedIds) : internalSelected),
@@ -328,8 +343,11 @@ export function KanbanBoard({
       </div>
       {leadDoDossie && (
         <LeadDossier
+          // Remonta ao trocar de negócio: a conversa escolhida e a aba não
+          // vazam de um card para o outro.
+          key={leadDoDossie.id}
           open
-          onOpenChange={(v: boolean) => !v && setDossieId(null)}
+          onOpenChange={(v: boolean) => !v && fecharDossie()}
           lead={leadDoDossie}
           pipelineId={pipelineId}
           fieldDefs={camposPorEscopo(camposDoFunil(data.pipeline.settings ?? null), "negocio")}

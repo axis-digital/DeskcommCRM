@@ -1,15 +1,18 @@
 "use client";
 
 import { useTagDeIdioma } from "@/hooks/i18n/useLocaleDeData";
-import { useRef } from "react";
+import { useRef, useState } from "react";
 
 import { useT } from "@/hooks/i18n/useT";
 import { useActiveOrg, useUser } from "@/hooks/auth/AuthProvider";
 import { ROLE_RANK } from "@/lib/auth/types";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { useLeadTimeline } from "@/hooks/leads/useLeadTimeline";
+import { ConversaEmbutida } from "@/components/inbox/ConversaEmbutida";
+import { cn } from "@/lib/utils";
 import type { Lead } from "@/lib/types/leads";
 import { ContatoDoNegocio } from "./ContatoDoNegocio";
+import { AbrirConversaDoLead, temAlvoParaAbrir } from "./AbrirConversaDoLead";
 import { ConversaNoDossie } from "./ConversaNoDossie";
 import { LeadFieldsForm } from "./LeadFieldsForm";
 import { ScoreSlot } from "./ScoreSlot";
@@ -45,6 +48,13 @@ function formatValor(cents: number | null, currency: string | null): string {
  * por último, e o cabeçalho tem um atalho para ele — ordem preservada, custo de
  * rolagem resolvido.
  *
+ * A CONVERSA FICA AO LADO. Com conversa (ou com telefone para abrir uma), o
+ * painel alarga para duas colunas a partir de `lg` — negócio | conversa — e,
+ * abaixo disso, vira a alternância "Negócio | Conversa" no topo. A conversa é
+ * a MESMA da Inbox (`ConversaEmbutida`): responder daqui não é uma segunda
+ * implementação do composer. Sem contato e sem telefone o dossiê continua
+ * estreito, sem painel que prometa conversa que não existe.
+ *
  * SALVAR NÃO FECHA. Quem edita precisa ver a atividade que acabou de gerar
  * entrar na timeline; fechar esconderia o registro justamente de quem o
  * produziu, e a funcionalidade que prova "sua ação fica registrada" provaria
@@ -62,6 +72,14 @@ export function LeadDossier({
   const tagDoIdioma = useTagDeIdioma();
   const t = useT();
   const campos = useRef<HTMLDivElement | null>(null);
+  // Conversa escolhida AQUI (aberta pelo botão ou trocada pelo "número fora do
+  // ar"); sem escolha vale a do negócio, que acompanha o quadro quando ele
+  // atualiza. Não é cópia da prop: copiar congelaria o valor da primeira
+  // renderização.
+  const [conversaEscolhida, setConversaEscolhida] = useState<string | null>(null);
+  const conversaId = conversaEscolhida ?? lead.conversa?.id ?? null;
+  const temPainel = Boolean(conversaId) || temAlvoParaAbrir(lead.contact_id, lead.contact_phone);
+  const [aba, setAba] = useState<"negocio" | "conversa">("negocio");
   const timeline = useLeadTimeline(open ? lead.id : null, lead.contact_id);
   const owner = resolveLeadOwner(lead, ownerNames);
   const score = lead.score ?? null;
@@ -78,11 +96,39 @@ export function LeadDossier({
     (user.is_platform_admin && !user.support) ||
     (activeOrg ? ROLE_RANK[activeOrg.role] >= ROLE_RANK.agent : false);
 
+  const painelDaConversa = conversaId ? (
+    <ConversaEmbutida conversationId={conversaId} onTrocarConversa={setConversaEscolhida} />
+  ) : (
+    <div className="flex h-full flex-col items-center justify-center gap-3 px-6 text-center">
+      <p className="text-sm text-muted-foreground">{t("Este negócio ainda não tem conversa.")}</p>
+      <AbrirConversaDoLead
+        contactId={lead.contact_id}
+        phone={lead.contact_phone}
+        variante="dossie"
+        onAberta={setConversaEscolhida}
+      />
+    </div>
+  );
+
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent
         side="right"
-        className="flex w-full flex-col gap-0 overflow-y-auto sm:max-w-md"
+        className={cn(
+          "flex w-full flex-col gap-0 overflow-hidden p-0 sm:max-w-md",
+          temPainel && "lg:max-w-[min(72rem,95vw)]",
+        )}
+        // Esc num campo de texto tira o foco do campo, não fecha o painel: quem
+        // digita uma resposta e aperta Esc para fechar um emoji ou uma menção
+        // não pode perder o dossiê inteiro. Um segundo Esc, já fora do campo,
+        // fecha.
+        onEscapeKeyDown={(e) => {
+          const alvo = document.activeElement;
+          if (alvo instanceof HTMLTextAreaElement || alvo instanceof HTMLInputElement) {
+            e.preventDefault();
+            alvo.blur();
+          }
+        }}
         // Observável pelo mesmo motivo do board: "a assinatura morreu" e "nada
         // aconteceu" têm a mesma aparência, que é silêncio.
         data-realtime-status={timeline.realtimeStatus.toLowerCase()}
@@ -91,113 +137,161 @@ export function LeadDossier({
         // negócio sem novidade é um estado normal.
         data-refetch-divergencias={timeline.seguranca.divergencias}
       >
-        <SheetHeader className="pb-3">
-          <SheetTitle className="text-base leading-6">{lead.title}</SheetTitle>
-        </SheetHeader>
-
-        {/* ① cabeçalho vivo */}
-        <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5 border-b border-border pb-3 text-xs">
-          <span className="font-medium tabular-nums text-text">
-            {formatValor(lead.value_cents, lead.currency)}
-          </span>
-          <span className="text-text-muted">{stageName}</span>
-          <OwnerBadge
-            ownerKind={owner.kind}
-            ownerName={owner.name}
-            agentVersion={owner.agentVersion}
-          />
-          {score && (
-            // O MESMO componente do card, não uma cópia do medidor.
-            // "Superfície nova herda as decisões da antiga" só vale como
-            // mecanismo: herdar por cópia é como as duas listas do evidence —
-            // funciona hoje e diverge no mês em que alguém mudar um dos dois.
-            // De brinde, o rótulo honesto da âncora ("registro que sustenta",
-            // nunca "momento da conversa") vem junto, sem eu reescrever nada.
-            <ScoreSlot
-              probability={score.probability}
-              band={score.band}
-              reason={score.reason}
-              factors={score.factors.slice(0, 3)}
-            />
-          )}
-
-          <button
-            type="button"
-            onClick={() => campos.current?.scrollIntoView({ behavior: "smooth", block: "start" })}
-            className="ml-auto text-text-muted underline-offset-2 hover:text-text hover:underline"
+        {temPainel && (
+          // `pr-12` deixa o X de fechar (canto do painel) livre das abas.
+          <div
+            role="tablist"
+            aria-label={t("Seções do negócio")}
+            className="flex gap-1 border-b border-border p-2 pr-12 lg:hidden"
           >
-            {t("Editar campos")}
-          </button>
-        </div>
-
-        {/* O score NÃO aparece na timeline: recálculo é telemetria e não emite
-            atividade (silêncio para telemetria, pulso para mudança de estado).
-            Sem esta linha, quem visse o número mudando no cabeçalho e nunca na
-            timeline concluiria que a timeline está incompleta. */}
-        {score?.at && (
-          <p className="pt-2 text-[11px] text-text-muted">
-            {t("Probabilidade recalculada automaticamente")} ·{" "}
-            {new Date(score.at).toLocaleString(tagDoIdioma)}
-          </p>
+            {(["negocio", "conversa"] as const).map((a) => (
+              <button
+                key={a}
+                type="button"
+                role="tab"
+                aria-selected={aba === a}
+                onClick={() => setAba(a)}
+                className={cn(
+                  "min-h-11 flex-1 rounded-md text-sm font-medium",
+                  aba === a ? "bg-muted text-foreground" : "text-muted-foreground",
+                )}
+              >
+                {a === "negocio" ? t("Negócio") : t("Conversa")}
+                {a === "conversa" && (lead.conversa?.unread ?? 0) > 0 && (
+                  <span className="ml-1.5 rounded-full bg-primary px-1.5 text-xs text-primary-foreground">
+                    {lead.conversa?.unread}
+                  </span>
+                )}
+              </button>
+            ))}
+          </div>
         )}
+        <div className={cn("min-h-0 flex-1", temPainel && "lg:grid lg:grid-cols-[minmax(22rem,26rem)_1fr]")}>
+          <div
+            className={cn(
+              "flex h-full flex-col overflow-y-auto p-6",
+              temPainel && aba !== "negocio" && "hidden lg:flex",
+            )}
+          >
+            <SheetHeader className="pb-3">
+              <SheetTitle className="text-base leading-6">{lead.title}</SheetTitle>
+            </SheetHeader>
 
-        <ConversaNoDossie
-          conversa={lead.conversa}
-          contactId={lead.contact_id}
-          phone={lead.contact_phone}
-        />
+            {/* ① cabeçalho vivo */}
+            <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5 border-b border-border pb-3 text-xs">
+              <span className="font-medium tabular-nums text-text">
+                {formatValor(lead.value_cents, lead.currency)}
+              </span>
+              <span className="text-text-muted">{stageName}</span>
+              <OwnerBadge
+                ownerKind={owner.kind}
+                ownerName={owner.name}
+                agentVersion={owner.agentVersion}
+              />
+              {score && (
+                // O MESMO componente do card, não uma cópia do medidor.
+                // "Superfície nova herda as decisões da antiga" só vale como
+                // mecanismo: herdar por cópia é como as duas listas do evidence —
+                // funciona hoje e diverge no mês em que alguém mudar um dos dois.
+                // De brinde, o rótulo honesto da âncora ("registro que sustenta",
+                // nunca "momento da conversa") vem junto, sem eu reescrever nada.
+                <ScoreSlot
+                  probability={score.probability}
+                  band={score.band}
+                  reason={score.reason}
+                  factors={score.factors.slice(0, 3)}
+                />
+              )}
 
-        {/* Os dados do CLIENTE: telefone e e-mail numa aba, links (Instagram,
-            site, Google Meu Negócio…) na outra. Vêm do contato, não do lead. */}
-        <section className="border-b border-border py-3">
-          <h3 className="mb-2 text-xs font-medium uppercase tracking-wide text-text-muted">
-            {t("Contato")}
-          </h3>
-          <ContatoDoNegocio
-            contactId={lead.contact_id}
-            pipelineId={pipelineId}
-            leadId={lead.id}
-          />
-        </section>
+              <button
+                type="button"
+                onClick={() => campos.current?.scrollIntoView({ behavior: "smooth", block: "start" })}
+                className="ml-auto text-text-muted underline-offset-2 hover:text-text hover:underline"
+              >
+                {t("Editar campos")}
+              </button>
+            </div>
 
-        {/* As tarefas ANTES da linha do tempo: a timeline conta o que já
-            aconteceu, a tarefa é o que ainda falta fazer — e quem abre o card
-            para agir procura o próximo passo primeiro. */}
-        <TarefasDoNegocio
-          leadId={lead.id}
-          contactId={lead.contact_id}
-          podeEditar={podeEditarTarefas}
-          aberto={open}
-        />
+            {/* O score NÃO aparece na timeline: recálculo é telemetria e não emite
+                atividade (silêncio para telemetria, pulso para mudança de estado).
+                Sem esta linha, quem visse o número mudando no cabeçalho e nunca na
+                timeline concluiria que a timeline está incompleta. */}
+            {score?.at && (
+              <p className="pt-2 text-[11px] text-text-muted">
+                {t("Probabilidade recalculada automaticamente")} ·{" "}
+                {new Date(score.at).toLocaleString(tagDoIdioma)}
+              </p>
+            )}
 
-        {/* ② timeline */}
-        <section className="flex-1 py-3">
-          <h3 className="mb-2 text-xs font-medium uppercase tracking-wide text-text-muted">
-            {t("Linha do tempo")}
-          </h3>
-          <LeadTimeline
-            itens={timeline.itens}
-            chegouAoVivo={timeline.chegouAoVivo}
-            isLoading={timeline.isLoading}
-            isError={timeline.isError}
-          />
-        </section>
+            {/* O link para a Inbox em tela cheia. O botão de INICIAR conversa mora
+                no painel ao lado (sem `contactId`/`phone` aqui, para não haver dois
+                botões iguais, um deles mandando para fora do funil). */}
+            <ConversaNoDossie conversa={lead.conversa} />
 
-        {/* ③ campos, por último */}
-        <div ref={campos} className="border-t border-border pt-3">
-          <h3 className="mb-2 text-xs font-medium uppercase tracking-wide text-text-muted">
-            {t("Dados do negócio")}
-          </h3>
-          <LeadFieldsForm lead={lead} pipelineId={pipelineId} fieldDefs={fieldDefs} />
+            {/* Os dados do CLIENTE: telefone e e-mail numa aba, links (Instagram,
+                site, Google Meu Negócio…) na outra. Vêm do contato, não do lead. */}
+            <section className="border-b border-border py-3">
+              <h3 className="mb-2 text-xs font-medium uppercase tracking-wide text-text-muted">
+                {t("Contato")}
+              </h3>
+              <ContatoDoNegocio
+                contactId={lead.contact_id}
+                pipelineId={pipelineId}
+                leadId={lead.id}
+              />
+            </section>
+
+            {/* As tarefas ANTES da linha do tempo: a timeline conta o que já
+                aconteceu, a tarefa é o que ainda falta fazer — e quem abre o card
+                para agir procura o próximo passo primeiro. */}
+            <TarefasDoNegocio
+              leadId={lead.id}
+              contactId={lead.contact_id}
+              podeEditar={podeEditarTarefas}
+              aberto={open}
+            />
+
+            {/* ② timeline */}
+            <section className="flex-1 py-3">
+              <h3 className="mb-2 text-xs font-medium uppercase tracking-wide text-text-muted">
+                {t("Linha do tempo")}
+              </h3>
+              <LeadTimeline
+                itens={timeline.itens}
+                chegouAoVivo={timeline.chegouAoVivo}
+                isLoading={timeline.isLoading}
+                isError={timeline.isError}
+              />
+            </section>
+
+            {/* ③ campos, por último */}
+            <div ref={campos} className="border-t border-border pt-3">
+              <h3 className="mb-2 text-xs font-medium uppercase tracking-wide text-text-muted">
+                {t("Dados do negócio")}
+              </h3>
+              <LeadFieldsForm lead={lead} pipelineId={pipelineId} fieldDefs={fieldDefs} />
+            </div>
+
+            {/* N1 — seção "Propostas", depois de "Dados do negócio". Some sozinha
+                (null) quando a capacidade está desligada — ver PropostasDoNegocio. */}
+            <PropostasDoNegocio
+              leadId={lead.id}
+              pipelineId={pipelineId}
+              podeCriar={podeCriarProposta}
+            />
+          </div>
+          {temPainel && (
+            <section
+              aria-label={t("Conversa")}
+              className={cn(
+                "h-full min-h-0 flex-col border-border lg:flex lg:border-l",
+                aba === "conversa" ? "flex" : "hidden",
+              )}
+            >
+              {painelDaConversa}
+            </section>
+          )}
         </div>
-
-        {/* N1 — seção "Propostas", depois de "Dados do negócio". Some sozinha
-            (null) quando a capacidade está desligada — ver PropostasDoNegocio. */}
-        <PropostasDoNegocio
-          leadId={lead.id}
-          pipelineId={pipelineId}
-          podeCriar={podeCriarProposta}
-        />
       </SheetContent>
     </Sheet>
   );
