@@ -64,8 +64,8 @@ export function TarefasDoNegocio({ leadId, contactId, podeEditar, aberto }: Prop
   }
 
   return (
-    <section className="border-b border-border py-3" aria-labelledby="dossie-tarefas">
-      <div className="mb-2 flex items-center justify-between gap-2">
+    <section className="border-b border-border py-5" aria-labelledby="dossie-tarefas">
+      <div className="mb-3 flex items-center justify-between gap-2">
         <h3
           id="dossie-tarefas"
           className="text-xs font-medium uppercase tracking-wide text-text-muted"

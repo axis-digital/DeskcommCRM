@@ -131,7 +131,7 @@ export function AbrirConversaDoLead({ contactId, phone, variante = "card", onAbe
         disabled={!podeAbrir || abrindo}
         aria-busy={abrindo}
         title={podeAbrir ? rotuloDeAbrir : semTelefone}
-        className="group mt-3 flex w-full items-center gap-2.5 rounded-md border border-border bg-muted/40 px-3 py-2 text-left transition-colors hover:border-primary/40 hover:bg-muted disabled:cursor-not-allowed disabled:opacity-70"
+        className="group mt-4 flex w-full items-center gap-2.5 rounded-md border border-border bg-muted/40 px-3 py-2 text-left transition-colors hover:border-primary/40 hover:bg-muted disabled:cursor-not-allowed disabled:opacity-70"
       >
         <ChatCircle size={16} weight="regular" className="shrink-0 text-text-muted" aria-hidden />
         <span className="min-w-0 flex-1">

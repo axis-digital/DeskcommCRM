@@ -14,7 +14,9 @@
  *   5. Esc no campo só tira o foco; o segundo Esc fecha — e o quadro continua
  *      no mesmo funil;
  *   6. o deep link `?lead=` abre o funil DO NEGÓCIO e some da URL ao fechar;
- *   7. as medidas, por ferramenta: duas colunas a 1280px (conversa primeiro),
+ *   7. no dossiê: o responsável se troca pelo círculo, nome e e-mail do contato
+ *      se editam ali, e as seções têm respiro (medido);
+ *   8. as medidas, por ferramenta: duas colunas a 1280px (conversa primeiro),
  *      abas Conversa | Negócio a 390px, nada transborda na horizontal.
  *
  * O funil e o negócio são do teste (sufixo único); o funil PADRÃO da aba é o que
@@ -232,6 +234,91 @@ test.describe("Funil: a aba abre o padrão e o dossiê responde a conversa", () 
     await expect(dossie).toBeHidden();
     await expect.poll(() => new URL(page.url()).search).toBe("");
     expect(new URL(page.url()).pathname).toBe(`/app/pipelines/${funilId}`);
+  });
+
+  test("pelo dossiê: troca o responsável, edita nome e e-mail do contato e as seções têm respiro", async ({ page }) => {
+    await login(page, c.users.manager!.email, c.password);
+    await page.setViewportSize({ width: 1280, height: 768 });
+
+    await page.goto(`/app/pipelines/${funilId}?lead=${leadId}`);
+    const dossie = page.getByRole("dialog");
+    await expect(dossie).toBeVisible({ timeout: 60_000 });
+    await expect(dossie.getByText("Dados do negócio")).toBeVisible({ timeout: 60_000 });
+
+    // ── respiro entre as seções: medido, não a olho ────────────────────────────
+    const respiro = await page.evaluate(() => {
+      const secao = Array.from(document.querySelectorAll('[role="dialog"] section')).find(
+        (el) => el.querySelector("h3")?.textContent?.trim().toLowerCase() === "contato",
+      );
+      if (!secao) return null;
+      const cs = getComputedStyle(secao);
+      return { paddingTop: parseFloat(cs.paddingTop), paddingBottom: parseFloat(cs.paddingBottom) };
+    });
+    registra(`funil-dossie respiro entre seções · ${JSON.stringify(respiro)}`);
+    expect(respiro, "a seção Contato existe no dossiê").not.toBeNull();
+    expect(respiro!.paddingTop, "respiro acima da seção (era 12px)").toBeGreaterThanOrEqual(20);
+    expect(respiro!.paddingBottom, "respiro abaixo da seção (era 12px)").toBeGreaterThanOrEqual(20);
+    await foto(page, "05-dossie-com-respiro");
+
+    // ── responsável: o círculo pontilhado abre a lista e a escolha vai ao banco ──
+    const gatilho = dossie.getByRole("button", { name: /Alterar responsável/ });
+    await expect(gatilho).toBeVisible();
+    await gatilho.click();
+    const opcoes = page.getByRole("menuitemradio");
+    await expect(opcoes.first()).toBeVisible();
+    const nomes = (await opcoes.allInnerTexts()).map((n) => n.trim());
+    registra(`funil-dossie responsável · opções = ${JSON.stringify(nomes)}`);
+    expect(nomes[0]).toBe("Sem responsável");
+    expect(nomes.length, "além de 'Sem responsável', há pessoas para escolher").toBeGreaterThan(1);
+    const escolhido = nomes[1]!;
+    await foto(page, "06-lista-de-responsaveis");
+    await opcoes.filter({ hasText: escolhido }).first().click();
+
+    await expect
+      .poll(async () => {
+        const { data } = await admin.from("crm_leads").select("owner_user_id, owner_kind").eq("id", leadId).single();
+        return (data as { owner_user_id: string | null; owner_kind: string | null }).owner_user_id;
+      }, { timeout: 30_000 })
+      .not.toBeNull();
+    await expect(dossie.getByRole("button", { name: new RegExp(`Alterar responsável: ${escolhido}`) })).toBeVisible({
+      timeout: 30_000,
+    });
+
+    // …e volta para "Sem responsável".
+    await dossie.getByRole("button", { name: /Alterar responsável/ }).click();
+    await page.getByRole("menuitemradio", { name: "Sem responsável" }).click();
+    await expect
+      .poll(async () => {
+        const { data } = await admin.from("crm_leads").select("owner_user_id").eq("id", leadId).single();
+        return (data as { owner_user_id: string | null }).owner_user_id;
+      }, { timeout: 30_000 })
+      .toBeNull();
+
+    // ── contato: nome e e-mail editados ali mesmo ───────────────────────────────
+    await dossie.getByRole("button", { name: "Editar contato" }).click();
+    const nome = dossie.getByLabel("Nome");
+    const email = dossie.getByLabel("E-mail");
+    await expect(nome).toHaveValue(`Cliente Funil ${SUFIXO}`);
+    await nome.fill(`Cliente Funil Editado ${SUFIXO}`);
+    await email.fill("isto-nao-e-email");
+    // O dossiê tem outro "Salvar" (dados do negócio): o do contato é o do formulário dele.
+    const edicao = dossie.getByTestId("edicao-do-contato");
+    await edicao.getByRole("button", { name: "Salvar" }).click();
+    await expect(dossie.getByText("E-mail inválido.")).toBeVisible();
+    await foto(page, "07-edicao-do-contato-com-erro");
+
+    await email.fill(`funil.${SUFIXO}@exemplo.com`);
+    await edicao.getByRole("button", { name: "Salvar" }).click();
+    await expect(dossie.getByLabel("Nome")).toBeHidden({ timeout: 30_000 });
+    await expect
+      .poll(async () => {
+        const { data } = await admin.from("contacts").select("name, email").eq("id", contatoId).single();
+        return JSON.stringify(data);
+      }, { timeout: 30_000 })
+      .toBe(JSON.stringify({ name: `Cliente Funil Editado ${SUFIXO}`, email: `funil.${SUFIXO}@exemplo.com` }));
+    await expect(dossie.getByText(`Cliente Funil Editado ${SUFIXO}`)).toBeVisible();
+    await expect(dossie.getByRole("link", { name: `funil.${SUFIXO}@exemplo.com` })).toBeVisible();
+    await foto(page, "08-contato-editado");
   });
 
   test("no celular: a alternância Conversa | Negócio abre na conversa e nada transborda na horizontal", async ({ page }) => {

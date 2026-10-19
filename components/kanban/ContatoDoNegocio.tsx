@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useState, type FormEvent } from "react";
+import { useState, type FormEvent, type ReactNode } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 
@@ -36,6 +36,11 @@ interface Props {
    * `useContatosRelacionados` segura a chamada sem `leadId`.
    */
   leadId?: string | null;
+  /**
+   * Quem pode editar nome e e-mail aqui (`agent`+, como a rota `PATCH /contacts/[id]`).
+   * Ausente = só leitura: um botão que a rota recusaria seria controle decorativo.
+   */
+  podeEditar?: boolean;
 }
 
 /**
@@ -43,10 +48,12 @@ interface Props {
  * links (Instagram, site, Google Meu Negócio…) na outra, e ABAIXO do principal
  * as outras pessoas do mesmo negócio (#1506 F1).
  *
- * Telefone e e-mail são LEITURA aqui, de propósito: o telefone exige E.164 e
- * passa por normalização e checagem de duplicidade no cadastro do contato, e
- * reimplementar isso num painel lateral seria uma segunda regra para divergir.
- * A ficha completa (`/app/contacts/[id]`) é um clique, e é onde essa regra mora.
+ * O TELEFONE é LEITURA aqui, de propósito: ele exige E.164 e passa por
+ * normalização e checagem de duplicidade no cadastro do contato, e reimplementar
+ * isso num painel lateral seria uma segunda regra para divergir. A ficha completa
+ * (`/app/contacts/[id]`) é um clique, e é onde essa regra mora. NOME e E-MAIL
+ * editam aqui (quem pode, pelo mesmo `PATCH` da ficha): são o que o funil mais
+ * corrige de passagem, e não têm regra além do formato.
  *
  * Os LINKS são editáveis aqui: não têm regra além de "ser um endereço http(s)",
  * e são o dado que o funil mais precisa preencher de passagem.
@@ -54,12 +61,12 @@ interface Props {
  * As PESSOAS RELACIONADAS são só leitura nesta fatia: escrever (adicionar,
  * remover, dar papel) é a F2 da mesma issue, com `POST`/`DELETE` nesta rota.
  */
-export function ContatoDoNegocio({ contactId, pipelineId, leadId }: Props) {
+export function ContatoDoNegocio({ contactId, pipelineId, leadId, podeEditar = false }: Props) {
   const t = useT();
   return (
     <>
       {contactId ? (
-        <ContatoVinculado contactId={contactId} pipelineId={pipelineId} />
+        <ContatoVinculado contactId={contactId} pipelineId={pipelineId} podeEditar={podeEditar} />
       ) : (
         <p className="text-xs text-text-muted">{t("Este negócio não tem contato vinculado.")}</p>
       )}
@@ -68,7 +75,15 @@ export function ContatoDoNegocio({ contactId, pipelineId, leadId }: Props) {
   );
 }
 
-function ContatoVinculado({ contactId, pipelineId }: { contactId: string; pipelineId: string }) {
+function ContatoVinculado({
+  contactId,
+  pipelineId,
+  podeEditar,
+}: {
+  contactId: string;
+  pipelineId: string;
+  podeEditar: boolean;
+}) {
   const t = useT();
   const { data, isLoading, isError } = useContact(contactId);
   const contato = data?.data;
@@ -87,7 +102,7 @@ function ContatoVinculado({ contactId, pipelineId }: { contactId: string; pipeli
         <TabsTrigger value="links">{t("Links")}</TabsTrigger>
       </TabsList>
       <TabsContent value="dados">
-        <DadosDoContato contato={contato} />
+        <DadosDoContato contato={contato} pipelineId={pipelineId} podeEditar={podeEditar} />
       </TabsContent>
       <TabsContent value="links">
         {/* `key` = updated_at: quando o contato é relido depois de salvar (ou
@@ -144,37 +159,67 @@ function PessoasRelacionadas({ leadId }: { leadId: string | null }) {
   );
 }
 
-function DadosDoContato({ contato }: { contato: Contact }) {
+/** Formato mínimo de e-mail; a rota valida de novo (`z.string().email()`). */
+const EMAIL_VALIDO = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+function DadosDoContato({
+  contato,
+  pipelineId,
+  podeEditar,
+}: {
+  contato: Contact;
+  pipelineId: string;
+  podeEditar: boolean;
+}) {
   const t = useT();
+  const [editando, setEditando] = useState(false);
   const nome = nomeDoContato(contato);
   const digitos = (contato.phone_number ?? "").replace(/\D/g, "");
 
+  const telefone = (
+    <>
+      <dt className="text-xs text-text-muted">{t("Telefone")}</dt>
+      <dd className="min-w-0 tabular-nums">
+        {contato.phone_number ? (
+          <span className="inline-flex flex-wrap items-center gap-x-2">
+            {contato.phone_number}
+            {digitos && (
+              <a
+                href={`https://wa.me/${digitos}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-xs text-accent underline-offset-2 hover:underline"
+              >
+                {t("Abrir no WhatsApp")}
+              </a>
+            )}
+          </span>
+        ) : (
+          "—"
+        )}
+      </dd>
+    </>
+  );
+
+  if (editando) {
+    return (
+      <EdicaoDeNomeEEmail
+        contato={contato}
+        pipelineId={pipelineId}
+        nomeInicial={nome ?? ""}
+        telefone={telefone}
+        aoEncerrar={() => setEditando(false)}
+      />
+    );
+  }
+
   return (
-    <div className="space-y-2 text-sm">
-      <dl className="grid grid-cols-[5rem_1fr] gap-x-3 gap-y-1.5">
+    <div className="space-y-3 text-sm">
+      <dl className="grid grid-cols-[5rem_1fr] gap-x-3 gap-y-2">
         <dt className="text-xs text-text-muted">{t("Nome")}</dt>
         <dd className="min-w-0 truncate">{nome ?? "—"}</dd>
 
-        <dt className="text-xs text-text-muted">{t("Telefone")}</dt>
-        <dd className="min-w-0 tabular-nums">
-          {contato.phone_number ? (
-            <span className="inline-flex flex-wrap items-center gap-x-2">
-              {contato.phone_number}
-              {digitos && (
-                <a
-                  href={`https://wa.me/${digitos}`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="text-xs text-accent underline-offset-2 hover:underline"
-                >
-                  {t("Abrir no WhatsApp")}
-                </a>
-              )}
-            </span>
-          ) : (
-            "—"
-          )}
-        </dd>
+        {telefone}
 
         <dt className="text-xs text-text-muted">{t("E-mail")}</dt>
         <dd className="min-w-0 truncate">
@@ -187,13 +232,129 @@ function DadosDoContato({ contato }: { contato: Contact }) {
           )}
         </dd>
       </dl>
-      <Link
-        href={`/app/contacts/${contato.id}`}
-        className="inline-block text-xs text-text-muted underline-offset-2 hover:text-text hover:underline"
-      >
-        {t("Ver ficha completa do contato")}
-      </Link>
+      <div className="flex flex-wrap items-center gap-x-4 gap-y-1">
+        {podeEditar && (
+          <button
+            type="button"
+            onClick={() => setEditando(true)}
+            className="text-xs text-accent underline-offset-2 hover:underline"
+          >
+            {t("Editar contato")}
+          </button>
+        )}
+        <Link
+          href={`/app/contacts/${contato.id}`}
+          className="inline-block text-xs text-text-muted underline-offset-2 hover:text-text hover:underline"
+        >
+          {t("Ver ficha completa do contato")}
+        </Link>
+      </div>
     </div>
+  );
+}
+
+/**
+ * Nome e e-mail do contato, editáveis no dossiê.
+ *
+ * Manda SÓ o que mudou: o `PATCH` é parcial, e reenviar o que a pessoa não tocou
+ * só criaria chance de sobrescrever uma edição feita em outra tela. A rota não
+ * aceita LIMPAR o e-mail (`z.string().email().optional()`), então apagar o campo
+ * de um e-mail já cadastrado é recusado AQUI, com a razão — em vez de a pessoa
+ * apertar Salvar e achar que apagou.
+ */
+function EdicaoDeNomeEEmail({
+  contato,
+  pipelineId,
+  nomeInicial,
+  telefone,
+  aoEncerrar,
+}: {
+  contato: Contact;
+  pipelineId: string;
+  nomeInicial: string;
+  telefone: ReactNode;
+  aoEncerrar: () => void;
+}) {
+  const t = useT();
+  const qc = useQueryClient();
+  const atualizar = useUpdateContact(contato.id);
+  const [nome, setNome] = useState(nomeInicial);
+  const [email, setEmail] = useState(contato.email ?? "");
+  const [erros, setErros] = useState<{ nome?: string; email?: string }>({});
+
+  async function salvar(e: FormEvent) {
+    e.preventDefault();
+    const nomeLimpo = nome.trim();
+    const emailLimpo = email.trim();
+    const novosErros: { nome?: string; email?: string } = {};
+    if (!nomeLimpo) novosErros.nome = t("Informe o nome.");
+    if (emailLimpo && !EMAIL_VALIDO.test(emailLimpo)) novosErros.email = t("E-mail inválido.");
+    if (!emailLimpo && contato.email) novosErros.email = t("O e-mail não pode ficar em branco aqui.");
+    setErros(novosErros);
+    if (novosErros.nome || novosErros.email) return;
+
+    const patch: { name?: string; email?: string } = {};
+    if (nomeLimpo !== nomeInicial) patch.name = nomeLimpo;
+    if (emailLimpo && emailLimpo !== (contato.email ?? "")) patch.email = emailLimpo;
+    if (Object.keys(patch).length === 0) {
+      aoEncerrar();
+      return;
+    }
+    try {
+      await atualizar.mutateAsync(patch);
+      // O card do funil mostra o nome do contato lido do QUADRO: sem reler o
+      // quadro, salvar aqui pareceria "não fez nada" onde a pessoa mais olha.
+      await qc.invalidateQueries({ queryKey: chaveDoQuadro(pipelineId) });
+      toast.success(t("Contato atualizado."));
+      aoEncerrar();
+    } catch {
+      // `useUpdateContact` já mostra o erro da API; a edição fica aberta para
+      // a pessoa corrigir sem perder o que digitou.
+    }
+  }
+
+  return (
+    <form onSubmit={salvar} className="space-y-4 text-sm" data-testid="edicao-do-contato" noValidate>
+      <div className="space-y-1.5">
+        <Label htmlFor="contato-nome" className="text-xs">
+          {t("Nome")}
+        </Label>
+        <Input
+          id="contato-nome"
+          value={nome}
+          onChange={(e) => setNome(e.target.value)}
+          maxLength={200}
+          autoComplete="off"
+          aria-invalid={erros.nome ? true : undefined}
+          className={erros.nome ? "border-destructive" : undefined}
+        />
+        {erros.nome && <p className="text-[11px] text-destructive">{erros.nome}</p>}
+      </div>
+      <div className="space-y-1.5">
+        <Label htmlFor="contato-email" className="text-xs">
+          {t("E-mail")}
+        </Label>
+        <Input
+          id="contato-email"
+          type="email"
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
+          autoComplete="off"
+          aria-invalid={erros.email ? true : undefined}
+          className={erros.email ? "border-destructive" : undefined}
+        />
+        {erros.email && <p className="text-[11px] text-destructive">{erros.email}</p>}
+      </div>
+      <dl className="grid grid-cols-[5rem_1fr] gap-x-3">{telefone}</dl>
+      <div className="flex items-center gap-2">
+        <Button type="submit" size="sm" disabled={atualizar.isPending}>
+          {atualizar.isPending ? t("Salvando…") : t("Salvar")}
+        </Button>
+        <Button type="button" size="sm" variant="ghost" onClick={aoEncerrar} disabled={atualizar.isPending}>
+          {t("Cancelar")}
+        </Button>
+      </div>
+    </form>
   );
 }
 
