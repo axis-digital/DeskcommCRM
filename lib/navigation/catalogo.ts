@@ -46,6 +46,11 @@ export interface NavMetadata {
   sidebar?: boolean;
   healthDot?: boolean;
   /**
+   * Outras rotas em que este item conta como ATIVO, além do próprio `href` e
+   * das filhas dele. Ver `lib/navigation/rota-ativa.ts`.
+   */
+  ativoEm?: readonly string[];
+  /**
    * Contador de pendências ao lado do rótulo. `casos`: casos em que a IA espera
    * uma pessoa (`awaiting_human`) — quem desenha é `ContadorDeCasos`. `fila`:
    * conversas que esperam uma pessoa (a aba Fila do Inbox) — `ContadorDaFila`.
@@ -230,11 +235,24 @@ export const NAV_CATALOG = [
     // sistema; "funil de vendas" é palavra de quem vende.
     href: "/app/kanban",
     label: "Funis",
-    description: "Seus funis de venda — clique em um para abrir o quadro de clientes.",
+    description: "O quadro do seu funil padrão — troque de funil pelo seletor no topo.",
     icon: "Kanban",
     group: "crm",
     section: "O dia a dia da venda",
     sidebar: true,
+    ativoEm: ["/app/pipelines"],
+  },
+  {
+    // A lista que ERA a aba "Funis". A aba passou a abrir o quadro do funil
+    // padrão (pedido do dono, 2026-10-15); criar, renomear, reordenar,
+    // arquivar e importar continuam aqui. O nome diz o que a tela mostra a
+    // TODOS os papéis: quem não gerencia vê a lista sem os botões.
+    href: "/app/kanban/funis",
+    label: "Todos os funis",
+    description: "Criar, renomear, reordenar e arquivar funis, e importar planilhas de leads.",
+    icon: "Kanban",
+    group: "crm",
+    section: "Preparar a venda",
   },
   {
     // A campanha vive no CRM e não em Conexões: quem a usa está pensando em

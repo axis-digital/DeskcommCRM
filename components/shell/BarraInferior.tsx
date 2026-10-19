@@ -8,6 +8,7 @@ import { ContadorDeCasos } from "@/components/shell/ContadorDeCasos";
 import { GavetaDeNavegacao } from "@/components/shell/MobileSidebar";
 import { useAuth } from "@/hooks/auth/AuthProvider";
 import { useT } from "@/hooks/i18n/useT";
+import { rotaEstaAtiva } from "@/lib/navigation/rota-ativa";
 import { sidebarGroups, type NavDestination } from "@/lib/navigation/registry";
 import { usePecaDoRodape, type PecaDoRodape } from "@/lib/ui/rodape-ocupado";
 import { cn } from "@/lib/utils";
@@ -155,7 +156,7 @@ export function BarraInferior() {
           // continua sendo onde a pessoa está. A igualdade deixaria a barra
           // inteira apagada justamente na tela de conversa, que é onde se passa
           // mais tempo no celular.
-          const aqui = pathname === aba.href || pathname.startsWith(`${aba.href}/`);
+          const aqui = rotaEstaAtiva(pathname, aba);
           return (
             <li key={aba.href} className="flex min-w-0 flex-1">
               <Link

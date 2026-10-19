@@ -110,7 +110,7 @@ test.describe("navegação agrupada", () => {
     // O caso que originou tudo: o usuário não sabia que esta tela existia.
     //
     // ⚠️ O ITEM MUDOU DE NOME, e o nome antigo ("Funis") passou para o VIZINHO —
-    // a lista de funis, em /app/kanban. Um teste que continuasse clicando em
+    // a lista de funis, em /app/kanban/funis. Um teste que continuasse clicando em
     // "Funis" seguiria verde medindo a outra tela; por isso a asserção de URL
     // abaixo é específica (`settings/tenant/pipelines`) e não o antigo
     // /pipelines/, que casa com as duas.

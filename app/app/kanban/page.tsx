@@ -1,89 +1,52 @@
-import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 
-import { Kanban } from "@/lib/ui/icons";
 import { requireAuth, resolveActiveOrg } from "@/lib/auth/server";
-import { ROLE_RANK } from "@/lib/auth/types";
 import { createClient } from "@/lib/supabase/server";
-import { traduzir } from "@/lib/i18n/dicionario";
-import { FunisClient, type FunilDaLista } from "./_client";
+import { escolherFunilPadrao } from "@/lib/kanban/funil-padrao";
 
 export const dynamic = "force-dynamic";
-export const metadata: Metadata = { title: "Funis" };
 
 /**
- * A lista de funis — e o lugar onde eles se gerenciam.
+ * A aba "Funis" abre o QUADRO, não a lista (pedido do dono, 2026-10-15).
  *
- * ⚠️ O FILTRO DE `organization_id` NÃO É REDUNDANTE COM A RLS, e a falta dele era
- * um bug visível: a policy `crm_pipelines_select` libera TODAS as organizações do
- * usuário (`organization_id in fn_user_org_ids()`) e libera tudo para
- * `fn_is_platform_admin()`. Quem participa de duas organizações via as duas
- * listas misturadas — e como o gatilho `trg_seed_default_pipeline_for_org` semeia
- * um funil "Pedidos" em toda organização nova, a tela mostrava várias linhas
- * idênticas, indistinguíveis, cada uma levando a um quadro diferente. A RLS
- * responde "pode ver?"; a tela precisa responder "quer ver agora?".
- *
- * ⚠️ A LEITURA É ABERTA, A ESCRITA É manager+. Ver a lista e abrir o quadro é
- * trabalho de qualquer papel; criar, renomear, reordenar e arquivar é
- * configuração — e é o que `requireRole("manager")` cobra nas rotas.
- * `podeGerenciar` usa o MESMO critério delas (o papel na organização ativa, sem
- * atalho de platform admin, que as rotas não concedem por padrão): mostrar um
- * botão que o servidor recusaria seria prometer o que não se cumpre.
+ * - `?lead=<id>` é deep link de negócio: abre o funil DELE, não o padrão.
+ *   No padrão o dossiê não abriria, porque o negócio não está naquele quadro.
+ * - Sem nenhum funil vivo, a lista em `/app/kanban/funis` tem o estado vazio
+ *   que ensina a criar o primeiro.
+ * - O filtro de `organization_id` não é redundante com a RLS: ela libera todas
+ *   as organizações do usuário (ver o cabeçalho de `funis/page.tsx`).
  */
-export default async function KanbanPickerPage() {
+export default async function FunilDaAbaPage({
+  searchParams,
+}: {
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+}) {
   const user = await requireAuth();
   const activeOrg = await resolveActiveOrg(user);
   if (!activeOrg) redirect("/app");
 
+  const params = await searchParams;
+  const leadId = typeof params.lead === "string" ? params.lead : null;
   const supabase = await createClient();
+
+  if (leadId) {
+    const { data: lead } = await supabase
+      .from("crm_leads")
+      .select("pipeline_id")
+      .eq("organization_id", activeOrg.orgId)
+      .eq("id", leadId)
+      .maybeSingle();
+    if (lead?.pipeline_id) {
+      redirect(`/app/pipelines/${lead.pipeline_id}?lead=${encodeURIComponent(leadId)}`);
+    }
+  }
+
   const { data } = await supabase
     .from("crm_pipelines")
-    // `is_client_pipeline` entra: sem ela o selo "Clientes" não aparecia ao
-    // carregar a página e o botão sempre oferecia "Funil de clientes", mesmo no
-    // funil já marcado — só o corpo de um PATCH trazia a coluna.
-    //
-    // ⚠️ `is_archived` DEIXOU DE SER FILTRO E VIROU COLUNA (#979). Antes a
-    // consulta cortava os arquivados no banco, e o resultado era um funil
-    // invisível e indestrutível: quem arquivou não tinha como ver, tirar do
-    // arquivo nem excluir o que arquivou. A separação passou para a partição
-    // abaixo — a lista de trabalho continua só com os vivos.
-    .select("id, name, slug, description, position, is_default, is_client_pipeline, is_archived")
-    .eq("organization_id", activeOrg.orgId)
-    .order("position");
+    .select("id, name, position, is_default, is_archived")
+    .eq("organization_id", activeOrg.orgId);
 
-  const todos = (data ?? []) as Array<FunilDaLista & { is_archived: boolean }>;
-  const funis = todos.filter((f) => !f.is_archived);
-  const podeGerenciar = ROLE_RANK[activeOrg.role] >= ROLE_RANK.manager;
-  // O arquivo só vai para quem pode mexer nele: tirar do arquivo e excluir são
-  // `requireRole("manager")` nas rotas, e mostrar a gaveta a quem receberia 403
-  // seria prometer o que não se cumpre — mesmo critério de `podeGerenciar`.
-  const arquivados = podeGerenciar ? todos.filter((f) => f.is_archived) : [];
-  // Importar planilha é ESCRITA DE OPERAÇÃO, não configuração: quem atende
-  // sobe a lista que recebeu. Espelha o `requireRole("agent")` da rota.
-  const podeImportar = ROLE_RANK[activeOrg.role] >= ROLE_RANK.agent;
-  const idioma = user.idioma;
-  const t = (texto: string) => traduzir(texto, idioma);
-
-  return (
-    <div className="flex h-full flex-col gap-4 p-6">
-      <header className="flex items-center gap-3">
-        <Kanban size={28} className="text-muted-foreground" weight="duotone" />
-        {/* Era "Pipelines" — nome de quem construiu o sistema, não de quem
-            vende. O comentário anterior aqui listava o preço de trocá-lo
-            (`rbac-roles.spec.ts` e `invite-lifecycle.spec.ts`) e dizia que
-            uniformizar era decisão do dono do produto. Ela foi tomada, e o preço
-            era maior do que o comentário contava: são QUATRO assertions em TRÊS
-            specs, e `pipelines-gestao.spec.ts` — a spec da própria feature que
-            gerou o comentário — é uma delas. Todas atualizadas junto. */}
-        <h1 className="text-2xl font-semibold tracking-tight">{t("Funis")}</h1>
-      </header>
-
-      <FunisClient
-        funis={funis}
-        arquivados={arquivados}
-        podeGerenciar={podeGerenciar}
-        podeImportar={podeImportar}
-      />
-    </div>
-  );
+  const padrao = escolherFunilPadrao(data ?? []);
+  if (!padrao) redirect("/app/kanban/funis");
+  redirect(`/app/pipelines/${padrao.id}`);
 }

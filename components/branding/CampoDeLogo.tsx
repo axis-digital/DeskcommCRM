@@ -195,7 +195,7 @@ export function CampoDeLogo({
    * Reposição pela prop DURANTE o render (não em efeito): é o padrão do React
    * para "a prop mudou, reponha o estado", e mantém o servidor no comando quando
    * é ele que traz novidade — navegação, refresh que chegou, outra aba. Mesmo
-   * padrão de `app/app/kanban/_client.tsx:72-80`, pela mesma medição. Lá o
+   * padrão de `app/app/kanban/funis/_client.tsx:72-80`, pela mesma medição. Lá o
    * discriminador é a identidade do ARRAY de funis; aqui é a do objeto
    * `logoDaCamada`, e o tipo dele existe por essa razão (ver os Props).
    */

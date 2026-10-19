@@ -20,7 +20,7 @@ import userEvent from "@testing-library/user-event";
 import type { ReactNode } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import { FunisClient, type FunilDaLista } from "@/app/app/kanban/_client";
+import { FunisClient, type FunilDaLista } from "@/app/app/kanban/funis/_client";
 
 /** As mutações do arquivo, para escolher se a rota aceita ou recusa. */
 const mocks = vi.hoisted(() => ({
@@ -44,7 +44,7 @@ vi.mock("@/hooks/pipelines/usePipelines", () => ({
   useEditarFunil: () => ({ isPending: false, mutate: mocks.editar }),
   useArquivarFunil: () => ({ isPending: false, mutate: mocks.arquivar }),
 }));
-vi.mock("@/app/app/kanban/_components/ImportarLeads", () => ({ ImportarLeads: () => null }));
+vi.mock("@/app/app/kanban/funis/_components/ImportarLeads", () => ({ ImportarLeads: () => null }));
 
 const ARQUIVADO: FunilDaLista = {
   id: "funil-velho",
