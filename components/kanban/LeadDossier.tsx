@@ -34,6 +34,14 @@ interface Props {
   ownerNames?: Map<string, string | null>;
 }
 
+/** Tipos de `<input>` em que não se digita texto: Esc ali continua fechando o painel. */
+const INPUT_SEM_TEXTO = new Set(["checkbox", "radio", "button", "submit", "reset", "file", "range", "color", "image"]);
+
+function ehCampoDeTexto(el: Element | null): el is HTMLTextAreaElement | HTMLInputElement {
+  if (el instanceof HTMLTextAreaElement) return true;
+  return el instanceof HTMLInputElement && !INPUT_SEM_TEXTO.has(el.type);
+}
+
 function formatValor(cents: number | null, currency: string | null): string {
   // Mesma régua e mesmo locale do card e do total da coluna (`formatValorDoNegocio`).
   if (cents === null) return "—";
@@ -124,7 +132,7 @@ export function LeadDossier({
         // fecha.
         onEscapeKeyDown={(e) => {
           const alvo = document.activeElement;
-          if (alvo instanceof HTMLTextAreaElement || alvo instanceof HTMLInputElement) {
+          if (ehCampoDeTexto(alvo)) {
             e.preventDefault();
             alvo.blur();
           }

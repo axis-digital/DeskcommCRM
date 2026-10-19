@@ -4,6 +4,7 @@ import { useState, type ComponentProps } from "react";
 import { useT } from "@/hooks/i18n/useT";
 import { isNotFound, useConversation } from "@/hooks/inbox/useConversation";
 import { useEnvioDaConversa } from "@/hooks/inbox/useEnvioDaConversa";
+import { useMarkAsRead } from "@/hooks/inbox/useMarkAsRead";
 import { JanelaFechadaAviso } from "@/components/inbox/JanelaFechadaAviso";
 import { NumeroForaDoAr } from "@/components/inbox/NumeroForaDoAr";
 import { ChatThread } from "./ChatThread";
@@ -12,20 +13,40 @@ import { RetentionNotice } from "./RetentionNotice";
 
 type Respondendo = Parameters<NonNullable<ComponentProps<typeof ChatThread>["onResponder"]>>[0];
 
+type ModoDoRascunho = "reply" | "note";
+
 /**
  * Rascunho por conversa, vivo enquanto a aba vive. Fechar o dossiê (Esc,
  * clique fora, X) desmonta o composer; sem isto a resposta pela metade
  * sumiria, e o atendente aprenderia que no funil "não dá para confiar".
+ *
+ * Guarda também o MODO: uma nota interna que voltasse como resposta iria para o
+ * cliente. Campo vazio apaga a entrada — o texto velho nunca ressuscita, e o
+ * mapa não cresce com uma linha vazia por conversa aberta. (As menções de uma
+ * nota não são guardadas: o nome volta como texto, sem o vínculo com a pessoa.)
  */
-const rascunhos = new Map<string, string>();
-export const rascunhoEmbutido = (conversationId: string) => rascunhos.get(conversationId) ?? "";
+const rascunhos = new Map<string, { texto: string; modo: ModoDoRascunho }>();
+export const rascunhoEmbutido = (conversationId: string) => rascunhos.get(conversationId)?.texto ?? "";
+const modoDoRascunho = (conversationId: string): ModoDoRascunho =>
+  rascunhos.get(conversationId)?.modo ?? "reply";
 
 /**
  * A conversa da Inbox fora da Inbox: os MESMOS `ChatThread` e `Composer`, com
  * as guardas de `useEnvioDaConversa`. Não é uma segunda implementação. O que
  * fica só na Inbox: busca, atalhos J/K, painel CRM e rascunho sugerido pela IA.
  */
-export function ConversaEmbutida({
+export function ConversaEmbutida(props: {
+  conversationId: string;
+  onTrocarConversa?: (id: string) => void;
+}) {
+  // Uma instância por conversa: a citação escolhida (`respondendo`) e o aviso de
+  // "número fora do ar" são DESTA conversa. Sem a chave, trocar de conversa
+  // (pelo "Abrir conversa" do aviso, ou quando o quadro atualiza o negócio)
+  // levava a citação da conversa A para o composer da B.
+  return <ConversaDaVez key={props.conversationId} {...props} />;
+}
+
+function ConversaDaVez({
   conversationId,
   onTrocarConversa,
 }: {
@@ -36,6 +57,9 @@ export function ConversaEmbutida({
   const q = useConversation(conversationId, true);
   const conversa = q.data ?? null;
   const envio = useEnvioDaConversa(conversa);
+  // Ler no dossiê é ler: sem isto o contador do card, o selo da aba e a lista da
+  // Inbox seguiam acesos até alguém abrir a conversa na Inbox.
+  useMarkAsRead(conversa?.id ?? null, conversa?.unread_count_for_assignee ?? 0);
   const [respondendo, setRespondendo] = useState<Respondendo | null>(null);
 
   if (q.isLoading) {
@@ -95,8 +119,10 @@ export function ConversaEmbutida({
         onCancelarResposta={() => setRespondendo(null)}
         currentContactId={conversa.contact_id}
         initialDraft={rascunhoEmbutido(conversa.id)}
+        initialMode={modoDoRascunho(conversa.id)}
         onDraftChange={(texto, modo) => {
-          if (modo === "reply") rascunhos.set(conversa.id, texto);
+          if (texto === "") rascunhos.delete(conversa.id);
+          else rascunhos.set(conversa.id, { texto, modo });
         }}
       />
     </div>

@@ -129,6 +129,19 @@ describe("LeadDossier: Esc seguro", () => {
     expect(document.activeElement).not.toBe(campo);
   });
 
+  it("Esc num checkbox NÃO é 'sair do campo de texto': fecha o dossiê, como sempre", () => {
+    const onOpenChange = vi.fn();
+    montar(lead(), onOpenChange);
+    const caixa = document.createElement("input");
+    caixa.type = "checkbox";
+    screen.getByRole("dialog").appendChild(caixa);
+    caixa.focus();
+
+    fireEvent.keyDown(caixa, { key: "Escape" });
+
+    expect(onOpenChange).toHaveBeenCalledWith(false);
+  });
+
   it("Esc fora de qualquer campo fecha o dossiê", () => {
     const onOpenChange = vi.fn();
     montar(lead(), onOpenChange);

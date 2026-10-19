@@ -16,7 +16,7 @@
   ],
   "mainPath": ["lista", "hooks", "post", "regras", "pipelines"],
   "nodes": [
-    { "id": "lista", "lane": "humano", "col": 1, "type": "frontend", "label": "/app/kanban (page)", "sublabel": "Server Component · filtra organization_id da org ATIVA" },
+    { "id": "lista", "lane": "humano", "col": 1, "type": "frontend", "label": "/app/kanban/funis (page)", "sublabel": "Server Component · filtra organization_id da org ATIVA" },
     { "id": "client", "lane": "humano", "col": 2, "type": "frontend", "label": "FunisClient", "sublabel": "criar · renomear · ↑↓ · padrão · arquivar" },
     { "id": "hooks", "lane": "humano", "col": 3, "type": "frontend", "label": "usePipelines", "sublabel": "só mutations — a leitura é do servidor" },
     { "id": "board", "lane": "humano", "col": 4, "type": "frontend", "label": "/app/pipelines/[id]", "sublabel": "o quadro do funil escolhido" },
@@ -86,7 +86,7 @@
       "dot": "amber",
       "title": "Não-ligações deliberadas",
       "items": [
-        "a tela NÃO chama GET /api/v1/pipelines: essa rota é manager+, e /app/kanban é aberta a qualquer papel — um agent relendo por ali levaria 403 e ficaria sem quadro. A releitura é router.refresh() (e8)",
+        "a tela NÃO chama GET /api/v1/pipelines: essa rota é manager+, e /app/kanban/funis é aberta a qualquer papel — um agent relendo por ali levaria 403 e ficaria sem quadro. A releitura é router.refresh() (e8)",
         "a tela NÃO conta negócios para decidir se mostra 'Excluir de vez': quem conta é o servidor, e uma segunda contagem discordaria dele",
         "o POST NÃO usa função SQL transacional: são duas escritas com compensação (e23), para não custar migration + apêndice de baseline aos self-hosters"
       ]

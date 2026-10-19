@@ -41,6 +41,19 @@ describe("AbrirConversaDoLead", () => {
     expect(screen.getByRole("button")).toBeEnabled();
   });
 
+  it("com onAberta o rótulo não promete a Inbox (o clique fica no dossiê); sem ele, promete", () => {
+    const { unmount } = render(
+      <QueryClientProvider client={new QueryClient()}>
+        <AbrirConversaDoLead contactId="k1" phone="5585999999999" variante="dossie" onAberta={vi.fn()} />
+      </QueryClientProvider>,
+    );
+    expect(screen.getByRole("button")).toHaveTextContent(/^Abrir conversa$/);
+    expect(screen.getByRole("button")).toHaveAttribute("title", "Abrir conversa");
+    unmount();
+    montar();
+    expect(screen.getByRole("button")).toHaveTextContent("Abrir conversa no Inbox");
+  });
+
   it("sem onAberta, mantém o comportamento de sempre: vai para a Inbox", async () => {
     montar();
     fireEvent.click(screen.getByRole("button"));
