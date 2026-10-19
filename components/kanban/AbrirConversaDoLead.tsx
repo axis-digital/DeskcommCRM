@@ -49,6 +49,11 @@ interface Props {
   phone?: string | null;
   /** `card` = linha compacta do funil; `dossie` = bloco do painel do lead. */
   variante?: "card" | "dossie";
+  /**
+   * Quem já tem onde mostrar a conversa (o dossiê do funil) recebe o id aqui e
+   * fica na tela. Sem isto, o comportamento de sempre: ir para a Inbox.
+   */
+  onAberta?: (conversationId: string) => void;
 }
 
 /**
@@ -60,7 +65,7 @@ export function temAlvoParaAbrir(contactId?: string | null, phone?: string | nul
   return Boolean(contactId) || Boolean(phone?.trim());
 }
 
-export function AbrirConversaDoLead({ contactId, phone, variante = "card" }: Props) {
+export function AbrirConversaDoLead({ contactId, phone, variante = "card", onAberta }: Props) {
   const t = useT();
   const router = useRouter();
   const qc = useQueryClient();
@@ -102,6 +107,10 @@ export function AbrirConversaDoLead({ contactId, phone, variante = "card" }: Pro
       // O quadro é a fonte do card E do dossiê: sem invalidar, a linha continuaria
       // oferecendo "Abrir conversa" sobre uma conversa que acabou de nascer.
       await qc.invalidateQueries({ queryKey: ["board"] });
+      if (onAberta) {
+        onAberta(json.data.conversation_id);
+        return;
+      }
       router.push(`/app/inbox?id=${json.data.conversation_id}`);
     } catch (err) {
       toast.error(err instanceof Error ? t(err.message) : t("Não foi possível abrir a conversa."));
