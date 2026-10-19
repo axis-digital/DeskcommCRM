@@ -36,7 +36,7 @@ export default async function PipelinePage({
   // trocar para um funil que não recebe negócio seria destino que não existe.
   const { data: funis } = await supabase
     .from("crm_pipelines")
-    .select("id, name")
+    .select("id, name, is_default")
     .eq("organization_id", activeOrg.orgId)
     .eq("is_archived", false)
     .order("position");

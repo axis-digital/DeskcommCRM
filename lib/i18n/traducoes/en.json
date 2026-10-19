@@ -5286,6 +5286,8 @@
   "Descer": "Move down",
   "Novo nome de": "New name for",
   "Padrão": "Default",
+  "padrão": "default",
+  "Trocar de funil": "Switch pipeline",
   "O quadro do seu funil padrão — troque de funil pelo seletor no topo.": "Your default pipeline's board — switch pipelines with the selector at the top.",
   "Criar, renomear, reordenar e arquivar funis, e importar planilhas de leads.": "Create, rename, reorder and archive pipelines, and import lead spreadsheets.",
   "Tornar padrão": "Make default",
