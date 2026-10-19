@@ -9490,6 +9490,8 @@ export const DICIONARIO: Traducoes = {
   "Descer": { es: "Bajar" },
   "Novo nome de": { es: "Nuevo nombre de" },
   "Padrão": { es: "Predeterminado" },
+  "Carregando conversa…": { es: "Cargando conversación…" },
+  "Não foi possível carregar a conversa.": { es: "No se pudo cargar la conversación." },
   "padrão": { es: "predeterminado" },
   "O quadro do seu funil padrão — troque de funil pelo seletor no topo.": { es: "El tablero de tu embudo predeterminado: cambia de embudo con el selector de arriba." },
   "Criar, renomear, reordenar e arquivar funis, e importar planilhas de leads.": { es: "Crear, renombrar, reordenar y archivar embudos, e importar planillas de leads." },

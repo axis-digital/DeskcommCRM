@@ -5286,6 +5286,8 @@
   "Descer": "Move down",
   "Novo nome de": "New name for",
   "Padrão": "Default",
+  "Carregando conversa…": "Loading conversation…",
+  "Não foi possível carregar a conversa.": "Couldn't load the conversation.",
   "padrão": "default",
   "Trocar de funil": "Switch pipeline",
   "O quadro do seu funil padrão — troque de funil pelo seletor no topo.": "Your default pipeline's board — switch pipelines with the selector at the top.",
