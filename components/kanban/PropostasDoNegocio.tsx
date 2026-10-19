@@ -32,8 +32,8 @@ export function PropostasDoNegocio({ leadId, podeCriar = false }: Props): React.
   if (isError) return null;
 
   return (
-    <div className="border-t border-border pt-3">
-      <h3 className="mb-2 text-xs font-medium uppercase tracking-wide text-text-muted">{t("Propostas")}</h3>
+    <div className="border-t border-border pt-5">
+      <h3 className="mb-3 text-xs font-medium uppercase tracking-wide text-text-muted">{t("Propostas")}</h3>
       {isLoading && <p className="text-xs text-text-muted">{t("Carregando…")}</p>}
       {!isLoading && (propostas?.length ?? 0) === 0 && (
         <p className="text-xs text-text-muted">{t("Nenhuma proposta ainda")}</p>

@@ -19,7 +19,7 @@ import { ScoreSlot } from "./ScoreSlot";
 import { LeadTimeline } from "./LeadTimeline";
 import { PropostasDoNegocio } from "./PropostasDoNegocio";
 import { TarefasDoNegocio } from "./TarefasDoNegocio";
-import { OwnerBadge } from "./OwnerBadge";
+import { ResponsavelDoNegocio } from "./ResponsavelDoNegocio";
 import { resolveLeadOwner } from "@/lib/kanban/owner";
 import { formatValorDoNegocio, MOEDA_PADRAO } from "@/lib/money";
 import type { CustomFieldDef } from "@/components/contacts/CustomFieldsEditor";
@@ -99,11 +99,17 @@ export function LeadDossier({
   const activeOrg = useActiveOrg();
   const podeCriarProposta =
     user.is_platform_admin || (activeOrg && ROLE_RANK[activeOrg.role] >= ROLE_RANK.manager) || false;
+  // Atribuir o responsável é ≥ manager NA ROTA (a do lote, que o seletor usa);
+  // a mesma régua da proposta acima. Sem isto o selo é só leitura.
+  const podeAtribuir = podeCriarProposta;
   // Tarefas são `agent`+, a mesma régua da tela de Tarefas e da rota — e o
   // suporte temporário só lê, como lá (`requireSupportWrite`).
   const podeEditarTarefas =
     (user.is_platform_admin && !user.support) ||
     (activeOrg ? ROLE_RANK[activeOrg.role] >= ROLE_RANK.agent : false);
+  // Editar nome e e-mail do contato é `agent`+ e respeita o suporte somente-leitura,
+  // como a rota (`requireRole("agent")` + `requireSupportWrite`): a mesma régua das tarefas.
+  const podeEditarContato = podeEditarTarefas;
 
   const painelDaConversa = conversaId ? (
     <ConversaEmbutida conversationId={conversaId} onTrocarConversa={setConversaEscolhida} />
@@ -196,20 +202,22 @@ export function LeadDossier({
               temPainel && aba !== "negocio" && "hidden lg:flex",
             )}
           >
-            <SheetHeader className={cn("pb-3", temPainel && "lg:pr-8")}>
+            <SheetHeader className={cn("pb-4", temPainel && "lg:pr-8")}>
               <SheetTitle className="text-base leading-6">{lead.title}</SheetTitle>
             </SheetHeader>
 
             {/* ① cabeçalho vivo */}
-            <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5 border-b border-border pb-3 text-xs">
+            <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5 border-b border-border pb-4 text-xs">
               <span className="font-medium tabular-nums text-text">
                 {formatValor(lead.value_cents, lead.currency)}
               </span>
               <span className="text-text-muted">{stageName}</span>
-              <OwnerBadge
-                ownerKind={owner.kind}
-                ownerName={owner.name}
-                agentVersion={owner.agentVersion}
+              <ResponsavelDoNegocio
+                leadId={lead.id}
+                pipelineId={pipelineId}
+                donoUserId={lead.owner_user_id}
+                owner={{ kind: owner.kind, name: owner.name, agentVersion: owner.agentVersion }}
+                podeAtribuir={podeAtribuir}
               />
               {score && (
                 // O MESMO componente do card, não uma cópia do medidor.
@@ -240,7 +248,7 @@ export function LeadDossier({
                 Sem esta linha, quem visse o número mudando no cabeçalho e nunca na
                 timeline concluiria que a timeline está incompleta. */}
             {score?.at && (
-              <p className="pt-2 text-[11px] text-text-muted">
+              <p className="pt-3 text-[11px] text-text-muted">
                 {t("Probabilidade recalculada automaticamente")} ·{" "}
                 {new Date(score.at).toLocaleString(tagDoIdioma)}
               </p>
@@ -253,14 +261,15 @@ export function LeadDossier({
 
             {/* Os dados do CLIENTE: telefone e e-mail numa aba, links (Instagram,
                 site, Google Meu Negócio…) na outra. Vêm do contato, não do lead. */}
-            <section className="border-b border-border py-3">
-              <h3 className="mb-2 text-xs font-medium uppercase tracking-wide text-text-muted">
+            <section className="border-b border-border py-5">
+              <h3 className="mb-3 text-xs font-medium uppercase tracking-wide text-text-muted">
                 {t("Contato")}
               </h3>
               <ContatoDoNegocio
                 contactId={lead.contact_id}
                 pipelineId={pipelineId}
                 leadId={lead.id}
+                podeEditar={podeEditarContato}
               />
             </section>
 
@@ -275,8 +284,8 @@ export function LeadDossier({
             />
 
             {/* ② timeline */}
-            <section className="flex-1 py-3">
-              <h3 className="mb-2 text-xs font-medium uppercase tracking-wide text-text-muted">
+            <section className="flex-1 py-5">
+              <h3 className="mb-3 text-xs font-medium uppercase tracking-wide text-text-muted">
                 {t("Linha do tempo")}
               </h3>
               <LeadTimeline
@@ -288,8 +297,8 @@ export function LeadDossier({
             </section>
 
             {/* ③ campos, por último */}
-            <div ref={campos} className="border-t border-border pt-3">
-              <h3 className="mb-2 text-xs font-medium uppercase tracking-wide text-text-muted">
+            <div ref={campos} className="border-t border-border pt-5">
+              <h3 className="mb-3 text-xs font-medium uppercase tracking-wide text-text-muted">
                 {t("Dados do negócio")}
               </h3>
               <LeadFieldsForm lead={lead} pipelineId={pipelineId} fieldDefs={fieldDefs} />

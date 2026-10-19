@@ -20,9 +20,10 @@ vi.mock("./AbrirConversaDoLead", async (original) => ({
 }));
 vi.mock("@/hooks/i18n/useT", () => ({ useT: () => (s: string) => s }));
 vi.mock("@/hooks/i18n/useLocaleDeData", () => ({ useTagDeIdioma: () => "pt-BR" }));
+const papel = vi.hoisted(() => ({ atual: "agent" as "agent" | "manager" }));
 vi.mock("@/hooks/auth/AuthProvider", () => ({
   useUser: () => ({ id: "u-1", is_platform_admin: false, support: null }),
-  useActiveOrg: () => ({ orgId: "org-1", role: "agent" }),
+  useActiveOrg: () => ({ orgId: "org-1", role: papel.atual }),
 }));
 vi.mock("@/hooks/leads/useLeadTimeline", () => ({
   useLeadTimeline: () => ({
@@ -35,13 +36,21 @@ vi.mock("@/hooks/leads/useLeadTimeline", () => ({
   }),
 }));
 // O que não é assunto deste teste (cada um tem o seu) sai do caminho.
-vi.mock("./ContatoDoNegocio", () => ({ ContatoDoNegocio: () => null }));
+vi.mock("./ContatoDoNegocio", () => ({
+  ContatoDoNegocio: ({ podeEditar }: { podeEditar?: boolean }) => (
+    <div data-testid="contato" data-pode-editar={String(Boolean(podeEditar))} />
+  ),
+}));
+vi.mock("./ResponsavelDoNegocio", () => ({
+  ResponsavelDoNegocio: ({ podeAtribuir, leadId }: { podeAtribuir: boolean; leadId: string }) => (
+    <div data-testid="responsavel" data-pode-atribuir={String(podeAtribuir)} data-lead={leadId} />
+  ),
+}));
 vi.mock("./LeadFieldsForm", () => ({ LeadFieldsForm: () => null }));
 vi.mock("./LeadTimeline", () => ({ LeadTimeline: () => null }));
 vi.mock("./PropostasDoNegocio", () => ({ PropostasDoNegocio: () => null }));
 vi.mock("./TarefasDoNegocio", () => ({ TarefasDoNegocio: () => null }));
 vi.mock("./ScoreSlot", () => ({ ScoreSlot: () => null }));
-vi.mock("./OwnerBadge", () => ({ OwnerBadge: () => null }));
 
 import { LeadDossier } from "./LeadDossier";
 
@@ -123,6 +132,23 @@ describe("LeadDossier com a conversa ao lado", () => {
     unmount();
     montar(lead());
     expect(screen.getAllByRole("tab")[0]!.textContent).toBe("Conversa");
+  });
+});
+
+describe("LeadDossier: responsável e contato editáveis conforme o papel", () => {
+  it("agente edita o contato, mas não atribui responsável (atribuir é de gerente, como no lote)", () => {
+    papel.atual = "agent";
+    montar(lead());
+    expect(screen.getByTestId("contato")).toHaveAttribute("data-pode-editar", "true");
+    expect(screen.getByTestId("responsavel")).toHaveAttribute("data-pode-atribuir", "false");
+    expect(screen.getByTestId("responsavel")).toHaveAttribute("data-lead", "l-1");
+  });
+
+  it("gerente atribui o responsável", () => {
+    papel.atual = "manager";
+    montar(lead());
+    expect(screen.getByTestId("responsavel")).toHaveAttribute("data-pode-atribuir", "true");
+    papel.atual = "agent";
   });
 });
 
