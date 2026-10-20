@@ -1,5 +1,21 @@
 # Funil direto na aba + conversa dentro do dossiê — Implementation Plan
 
+> ## Status: EXECUTADO (2026-10-19/20) — em produção desde 2026-10-20
+>
+> | Entrega | PR (fork) | Observação |
+> |---|---|---|
+> | Base atualizada (Task 0) | #25 | sync com a upstream, 20 commits |
+> | Tasks 1–8 | #26 | funil padrão, seletor, `useEnvioDaConversa`, `ConversaEmbutida`, `onAberta`, dossiê com conversa, spec e2e |
+> | Pedido posterior: conversa antes do negócio | #27 | coluna esquerda no desktop; abas Conversa \| Negócio no celular |
+> | Pedido posterior: responsável, contato, respiro | #28 | `ResponsavelDoNegocio`, edição de nome e e-mail, `py-3` → `py-5` |
+> | Promoção | #29 | `develop` → `main` (`d236fc355`) |
+>
+> **Desvios do plano** (todos decididos durante a execução): `useAuth()` no lugar de `useUser()` no hook; `window.history.replaceState` no lugar de `router.replace` ao fechar o dossiê; h1 da lista passou a "Todos os funis"; o quadro ganhou `metadata.title`; traduções também em zh-CN; `ConversaNoDossie` perdeu `contactId`/`phone` (o botão de iniciar mora no painel); a feature nasceu empilhada no #25; a conversa embutida ganhou marcação de lida, uma instância por conversa (a citação não vazava) e rascunho com modo (nota nunca volta como resposta). Os rulings completos estão no corpo dos PRs e na memória do projeto (`mem_20261020_a861c5b9715c49ab8974`).
+>
+> **Prova:** `tests/e2e/funil-conversa-no-dossie.spec.ts` (5 casos, `SPECS_PARTE_6`), evidência em `evidence/funil-conversa-no-dossie/01–08`, jornada J4.43. Única falha da suíte unitária: `pdf-extractor.test.ts`, já presente na linha de base.
+>
+> **Fica para depois (menores, não corrigidos):** padrão ARIA completo nas abas do celular; painel da conversa monta oculto no celular; `Map` de rascunhos não é limpo no logout/troca de organização; `?lead=` permanece na URL ao trocar de card; 404/erro de carga sem "tentar de novo"; fechar o dossiê do Calendário não invalida o quadro. Pendência de produção separada: [2026-10-20-reacao-do-cliente-webhook-por-sessao.md](2026-10-20-reacao-do-cliente-webhook-por-sessao.md).
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** A aba "Funis" abre direto o quadro do funil padrão, com troca rápida entre funis por um seletor segmentado; e o dossiê do negócio mostra a conversa do contato com o composer da Inbox, para responder sem sair do quadro.
@@ -69,7 +85,7 @@
 
 **Files:** nenhum arquivo de código.
 
-- [ ] **Step 1: Atualizar o fork com a upstream**
+- [x] **Step 1: Atualizar o fork com a upstream**
 
 ```bash
 cd /root/projects/DeskcommCRM
@@ -82,14 +98,14 @@ git push -u origin merge/upstream-2026-10-15
 gh pr create -R axis-digital/DeskcommCRM --base main --title "merge: upstream 2026-10-15" --body "Sincroniza o fork com melgarafael/DeskcommCRM@main."
 ```
 
-- [ ] **Step 2: Depois do merge do PR acima, criar a branch da feature**
+- [x] **Step 2: Depois do merge do PR acima, criar a branch da feature**
 
 ```bash
 git fetch origin && git switch -c feat/funil-direto-e-conversa-no-dossie origin/main
 git rev-list --count HEAD..upstream/main   # esperado: 0
 ```
 
-- [ ] **Step 3: Medir a linha de base** (o vermelho que já existe não é seu)
+- [x] **Step 3: Medir a linha de base** (o vermelho que já existe não é seu)
 
 ```bash
 pnpm install
@@ -109,7 +125,7 @@ grep -aE "Test Files|Tests |Errors " /tmp/vt-base.log | tail -3
 **Interfaces:**
 - Produces: `escolherFunilPadrao<T extends FunilCandidato>(funis: readonly T[]): T | null` e o tipo `FunilCandidato`.
 
-- [ ] **Step 1: Escrever o teste que falha**
+- [x] **Step 1: Escrever o teste que falha**
 
 ```ts
 // lib/kanban/funil-padrao.test.ts
@@ -151,12 +167,12 @@ describe("escolherFunilPadrao", () => {
 });
 ```
 
-- [ ] **Step 2: Rodar e ver falhar**
+- [x] **Step 2: Rodar e ver falhar**
 
 Run: `pnpm vitest run lib/kanban/funil-padrao.test.ts`
 Expected: FAIL com `Failed to resolve import "./funil-padrao"`.
 
-- [ ] **Step 3: Implementar**
+- [x] **Step 3: Implementar**
 
 ```ts
 // lib/kanban/funil-padrao.ts
@@ -182,12 +198,12 @@ export function escolherFunilPadrao<T extends FunilCandidato>(funis: readonly T[
 }
 ```
 
-- [ ] **Step 4: Rodar e ver passar**
+- [x] **Step 4: Rodar e ver passar**
 
 Run: `pnpm vitest run lib/kanban/funil-padrao.test.ts`
 Expected: PASS (4 testes).
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add lib/kanban/funil-padrao.ts lib/kanban/funil-padrao.test.ts
@@ -210,7 +226,7 @@ git commit -m "feat(funil): regra pura do funil padrão da aba"
 - Consumes: `escolherFunilPadrao` (Task 1).
 - Produces: `rotaEstaAtiva(pathname: string, item: { href: string; ativoEm?: readonly string[] }): boolean`; campo opcional `ativoEm?: readonly string[]` em `NavMetadata`.
 
-- [ ] **Step 1: Teste da regra de item ativo (falha)**
+- [x] **Step 1: Teste da regra de item ativo (falha)**
 
 ```ts
 // lib/navigation/rota-ativa.test.ts
@@ -243,7 +259,7 @@ describe("rotaEstaAtiva", () => {
 
 Run: `pnpm vitest run lib/navigation/rota-ativa.test.ts` → FAIL (módulo inexistente).
 
-- [ ] **Step 2: Implementar a regra**
+- [x] **Step 2: Implementar a regra**
 
 ```ts
 // lib/navigation/rota-ativa.ts
@@ -268,7 +284,7 @@ export function rotaEstaAtiva(
 
 Run: `pnpm vitest run lib/navigation/rota-ativa.test.ts` → PASS.
 
-- [ ] **Step 3: Catálogo — tipo, entrada de Funis e entrada nova**
+- [x] **Step 3: Catálogo — tipo, entrada de Funis e entrada nova**
 
 Em `lib/navigation/catalogo.ts`, na interface `NavMetadata` (perto da linha 35), acrescentar:
 
@@ -312,7 +328,7 @@ Logo depois dessa entrada, acrescentar a porta da lista (sem `sidebar`: mora no 
 
 Acrescentar as três strings novas (`"O quadro do seu funil padrão — troque de funil pelo seletor no topo."`, `"Todos os funis"` e `"Criar, renomear, reordenar e arquivar funis, e importar planilhas de leads."`) ao espanhol em `lib/i18n/dicionario.ts` e ao inglês em `lib/i18n/traducoes/en.json`, seguindo o formato das entradas vizinhas.
 
-- [ ] **Step 4: Sidebar e barra inferior usam a regra**
+- [x] **Step 4: Sidebar e barra inferior usam a regra**
 
 `components/shell/Sidebar.tsx:330`:
 
@@ -328,7 +344,7 @@ Acrescentar as três strings novas (`"O quadro do seu funil padrão — troque d
 
 Nos dois arquivos: `import { rotaEstaAtiva } from "@/lib/navigation/rota-ativa";`. Se o tipo de `aba` em `BarraInferior` não carrega `ativoEm`, propagar o campo de onde a aba é montada a partir do catálogo (`grep -n "href" components/shell/BarraInferior.tsx`).
 
-- [ ] **Step 5: Mover a lista**
+- [x] **Step 5: Mover a lista**
 
 ```bash
 mkdir -p app/app/kanban/funis
@@ -342,7 +358,7 @@ grep -rn '"\.\./' app/app/kanban/funis | head   # imports relativos que subiram 
 
 Em `app/app/kanban/funis/page.tsx`: renomear a função para `TodosOsFunisPage` e trocar `metadata.title` para `"Todos os funis"`. O resto fica igual.
 
-- [ ] **Step 6: Escrever o redirecionador**
+- [x] **Step 6: Escrever o redirecionador**
 
 ```tsx
 // app/app/kanban/page.tsx
@@ -402,7 +418,7 @@ export default async function FunilDaAbaPage({
 
 Confirmar o nome da coluna antes de rodar: `grep -n "pipeline_id" lib/database.types.ts | head -3`.
 
-- [ ] **Step 7: Atualizar quem tratava `/app/kanban` como lista**
+- [x] **Step 7: Atualizar quem tratava `/app/kanban` como lista**
 
 ```bash
 git grep -nE "/app/kanban\b" -- tests app components lib hooks | grep -v "kanban/funis"
@@ -410,7 +426,7 @@ git grep -nE "/app/kanban\b" -- tests app components lib hooks | grep -v "kanban
 
 Para cada ocorrência que espera ver a LISTA (cards de funil, "Criar funil", "Importar", arquivados), trocar o destino para `/app/kanban/funis`. Ocorrências que só querem "chegar num quadro" podem continuar em `/app/kanban`. Specs conhecidas na upstream: `pipelines-gestao.spec.ts`, `funil-arquivado-volta-pela-tela.spec.ts`, `rbac-roles.spec.ts`, `invite-lifecycle.spec.ts`, `qa-l12-funil.spec.ts` e mais 6 (o grep dá a lista exata).
 
-- [ ] **Step 8: Rodar os gates da task**
+- [x] **Step 8: Rodar os gates da task**
 
 ```bash
 pnpm vitest run lib/navigation lib/kanban app/app/kanban tests/unit/navegacao-completude.test.ts tests/unit/i18n-catalogo-do-menu.test.ts tests/unit/i18n-espanhol-cobre-a-tela.test.ts
@@ -419,7 +435,7 @@ pnpm typecheck
 
 Expected: tudo PASS. Se `navegacao-completude` reclamar de `/app/kanban` sem tela própria, a entrada continua válida porque a rota existe (o redirect é uma página).
 
-- [ ] **Step 9: Commit**
+- [x] **Step 9: Commit**
 
 ```bash
 git add -A app/app/kanban lib/navigation components/shell lib/i18n tests
@@ -437,7 +453,7 @@ git commit -m "feat(funil): a aba Funis abre o quadro do funil padrão; lista vi
 **Interfaces:**
 - Produces: `SeletorDeFunil({ funis, atualId, nomeAtual }: { funis: ReadonlyArray<{ id: string; name: string; is_default?: boolean }>; atualId: string; nomeAtual: string })` e `LIMITE_EM_PILULAS = 4`.
 
-- [ ] **Step 1: Teste que falha**
+- [x] **Step 1: Teste que falha**
 
 ```tsx
 // components/kanban/SeletorDeFunil.test.tsx
@@ -478,7 +494,7 @@ describe("SeletorDeFunil", () => {
 
 Run: `pnpm vitest run components/kanban/SeletorDeFunil.test.tsx` → FAIL.
 
-- [ ] **Step 2: Implementar**
+- [x] **Step 2: Implementar**
 
 ```tsx
 // components/kanban/SeletorDeFunil.tsx
@@ -581,7 +597,7 @@ export function SeletorDeFunil({ funis, atualId, nomeAtual }: Props) {
 
 Run: `pnpm vitest run components/kanban/SeletorDeFunil.test.tsx` → PASS.
 
-- [ ] **Step 3: Ligar no quadro**
+- [x] **Step 3: Ligar no quadro**
 
 `app/app/pipelines/[id]/page.tsx`: trocar `.select("id, name")` da lista `funis` por `.select("id, name, is_default")`.
 
@@ -604,7 +620,7 @@ Run: `pnpm vitest run components/kanban/SeletorDeFunil.test.tsx` → PASS.
 
 com `import Link from "next/link";` e `import { SeletorDeFunil } from "@/components/kanban/SeletorDeFunil";`.
 
-- [ ] **Step 4: Ajustar o teste antigo do quadro**
+- [x] **Step 4: Ajustar o teste antigo do quadro**
 
 `app/app/pipelines/[id]/trocar-funil.test.tsx` hoje dirige um `Select`. Para fixtures com 2 a 4 funis, trocar a interação "abrir o combobox e clicar a opção" por "o link `trocar-funil-opcao-<id>` aponta para `/app/pipelines/<id>`". Manter um caso com 5 funis que segue dirigindo o `Select`. O mesmo vale para `tests/e2e/qa-l12-troca-de-funil.spec.ts`: no fixture dele, contar quantos funis existem e escolher o ramo certo.
 
@@ -614,7 +630,7 @@ pnpm vitest run "app/app/pipelines" components/kanban/SeletorDeFunil.test.tsx
 
 Expected: PASS.
 
-- [ ] **Step 5: i18n e commit**
+- [x] **Step 5: i18n e commit**
 
 Acrescentar `"padrão"` ao espanhol e ao inglês, se a chave ainda não existir (`grep -n '"padrão"' lib/i18n/dicionario.ts`). `"Todos os funis"` já entrou na Task 2.
 
@@ -635,7 +651,7 @@ git commit -m "feat(funil): seletor segmentado de funil no título do quadro"
 - Consumes: `estadoDaJanela` (`@/lib/channels/janela`), `motivoDaJanelaFechada` e `motivoDoContato` (`@/lib/inbox/motivo-do-envio-bloqueado`), `useUser` (`@/hooks/auth/AuthProvider`), `ConversationWithContact` (`@/hooks/inbox/useConversationsRealtime`).
 - Produces: `useEnvioDaConversa(conversa: ConversationWithContact | null): { motivoDaJanela: string | null; blockedReason: string | null; fechada: boolean; somenteLeitura: boolean }`.
 
-- [ ] **Step 0: Conferir as assinaturas reais antes de escrever**
+- [x] **Step 0: Conferir as assinaturas reais antes de escrever**
 
 ```bash
 grep -nE "export function (estadoDaJanela|motivoDaJanelaFechada|motivoDoContato)" -A4 lib/channels/janela.ts lib/inbox/motivo-do-envio-bloqueado.ts
@@ -645,7 +661,7 @@ sed -n 150,165p components/inbox/InboxLayout.tsx    # de onde vem `user` no Inbo
 
 Se `useUser()` não expuser `support`, o hook recebe `somenteLeitura: boolean` como segundo parâmetro, e o `InboxLayout` passa o `supportReadonly` que já calcula. Os testes abaixo mudam só no `renderHook`.
 
-- [ ] **Step 1: Teste que falha**
+- [x] **Step 1: Teste que falha**
 
 ```ts
 // hooks/inbox/useEnvioDaConversa.test.ts
@@ -706,7 +722,7 @@ Ajustar o valor de `provider` e o campo de bloqueio do contato ao que `estadoDaJ
 
 Run: `pnpm vitest run hooks/inbox/useEnvioDaConversa.test.ts` → FAIL.
 
-- [ ] **Step 2: Implementar**
+- [x] **Step 2: Implementar**
 
 ```ts
 // hooks/inbox/useEnvioDaConversa.ts
@@ -754,7 +770,7 @@ export function useEnvioDaConversa(conversa: ConversationWithContact | null) {
 
 Run: `pnpm vitest run hooks/inbox/useEnvioDaConversa.test.ts` → PASS.
 
-- [ ] **Step 3: O `InboxLayout` passa a consumir o hook (sem mudar comportamento)**
+- [x] **Step 3: O `InboxLayout` passa a consumir o hook (sem mudar comportamento)**
 
 Em `components/inbox/InboxLayout.tsx`:
 - remover `agoraJanela` + `useEffect` (≈387-392), `janela` (≈402-406), `motivoDaJanela` (≈409-413) e `blockedReason` (≈415);
@@ -770,7 +786,7 @@ pnpm typecheck
 
 Expected: PASS, sem alterar nenhum teste existente da Inbox. Um teste da Inbox que quebre aqui é sinal de mudança de comportamento: investigue antes de ajustar.
 
-- [ ] **Step 4: Commit**
+- [x] **Step 4: Commit**
 
 ```bash
 git add hooks/inbox/useEnvioDaConversa.ts hooks/inbox/useEnvioDaConversa.test.ts components/inbox/InboxLayout.tsx
@@ -788,13 +804,13 @@ git commit -m "refactor(inbox): guardas de envio do composer numa fonte única"
 - Consumes: `useEnvioDaConversa` (Task 4), `useConversation`/`isNotFound` (`@/hooks/inbox/useConversation`), `ChatThread`, `Composer`, `RetentionNotice`, `JanelaFechadaAviso`, `NumeroForaDoAr`.
 - Produces: `ConversaEmbutida({ conversationId, onTrocarConversa? }: { conversationId: string; onTrocarConversa?: (id: string) => void })` e `rascunhoEmbutido(conversationId: string): string` (o rascunho guardado, para a Task 7 testar).
 
-- [ ] **Step 0: Conferir a assinatura do `onAbrirConversa` de `NumeroForaDoAr`**
+- [x] **Step 0: Conferir a assinatura do `onAbrirConversa` de `NumeroForaDoAr`**
 
 ```bash
 grep -nE "onAbrirConversa" components/inbox/NumeroForaDoAr.tsx | head -3
 ```
 
-- [ ] **Step 1: Teste que falha**
+- [x] **Step 1: Teste que falha**
 
 ```tsx
 // components/inbox/ConversaEmbutida.test.tsx
@@ -844,7 +860,7 @@ describe("ConversaEmbutida", () => {
 
 Run: `pnpm vitest run components/inbox/ConversaEmbutida.test.tsx` → FAIL.
 
-- [ ] **Step 2: Implementar**
+- [x] **Step 2: Implementar**
 
 ```tsx
 // components/inbox/ConversaEmbutida.tsx
@@ -958,7 +974,7 @@ Acrescentar ao espanhol e ao inglês: `"Carregando conversa…"` e `"Não foi po
 
 Run: `pnpm vitest run components/inbox/ConversaEmbutida.test.tsx && pnpm typecheck` → PASS.
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit**
 
 ```bash
 git add components/inbox/ConversaEmbutida.tsx components/inbox/ConversaEmbutida.test.tsx lib/i18n
@@ -976,7 +992,7 @@ git commit -m "feat(inbox): ConversaEmbutida — thread e composer da Inbox mont
 **Interfaces:**
 - Produces: prop opcional `onAberta?: (conversationId: string) => void`. Com ela, o componente NÃO navega para a Inbox.
 
-- [ ] **Step 1: Teste que falha**
+- [x] **Step 1: Teste que falha**
 
 ```tsx
 // components/kanban/AbrirConversaDoLead.test.tsx
@@ -1010,7 +1026,7 @@ describe("AbrirConversaDoLead com onAberta", () => {
 
 Run → FAIL (`onAberta` ignorado; `push` chamado).
 
-- [ ] **Step 2: Implementar**
+- [x] **Step 2: Implementar**
 
 Na interface `Props`:
 
@@ -1036,7 +1052,7 @@ Conferir que o estado `abrindo` volta a `false` no caminho do `return` (se o res
 
 Run: `pnpm vitest run components/kanban/AbrirConversaDoLead.test.tsx components/kanban/ConversaSlot.test.tsx` → PASS.
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit**
 
 ```bash
 git add components/kanban/AbrirConversaDoLead.tsx components/kanban/AbrirConversaDoLead.test.tsx
@@ -1056,7 +1072,7 @@ git commit -m "feat(kanban): Abrir conversa aceita abrir no lugar (onAberta)"
 - Consumes: `ConversaEmbutida`, `rascunhoEmbutido` (Task 5); `AbrirConversaDoLead` com `onAberta` e `temAlvoParaAbrir` (Task 6).
 - Produces: nenhuma API nova; mudança de layout e de fechamento.
 
-- [ ] **Step 1: Teste que falha**
+- [x] **Step 1: Teste que falha**
 
 ```tsx
 // components/kanban/LeadDossier.test.tsx
@@ -1103,7 +1119,7 @@ Completar as props obrigatórias de `LeadDossier` conforme a interface real (`se
 
 Run: `pnpm vitest run components/kanban/LeadDossier.test.tsx` → FAIL.
 
-- [ ] **Step 2: Implementar o layout**
+- [x] **Step 2: Implementar o layout**
 
 Em `LeadDossier.tsx`:
 
@@ -1197,7 +1213,7 @@ Notas:
 - Se o `SheetContent` atual tem `p-6` próprio, o `p-0` acima zera e o `p-6` passa para a coluna do negócio, para a conversa ir de borda a borda.
 - Acrescentar ao espanhol e ao inglês: `"Este negócio ainda não tem conversa."`, `"Seções do negócio"`, `"Negócio"` e `"Conversa"`.
 
-- [ ] **Step 3: Fechar volta ao funil ativo e atualiza o quadro**
+- [x] **Step 3: Fechar volta ao funil ativo e atualiza o quadro**
 
 Em `KanbanBoard.tsx`:
 
@@ -1238,7 +1254,7 @@ O `key` remonta o dossiê ao trocar de negócio: o `conversaId` e a aba não vaz
 
 Se o `KanbanBoard` já usa `useRouter` ou `useQueryClient`, reaproveitar as instâncias em vez de declarar de novo (`grep -nE "useRouter|useQueryClient|useSearchParams" components/kanban/KanbanBoard.tsx`).
 
-- [ ] **Step 4: Rodar**
+- [x] **Step 4: Rodar**
 
 ```bash
 pnpm vitest run components/kanban components/inbox hooks/inbox "app/app/pipelines"
@@ -1247,7 +1263,7 @@ pnpm typecheck && pnpm lint
 
 Expected: PASS.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add components/kanban lib/i18n
@@ -1263,7 +1279,7 @@ git commit -m "feat(funil): responder a conversa pelo dossiê do negócio sem sa
 - Modify: `.github/workflows/e2e.yml` (uma `SPECS_PARTE_*`), `docs/testing/user-journey-map.md`
 - Create: `.changes/funil-direto-e-conversa-no-dossie.md`, `evidence/funil-conversa-no-dossie/*.png`
 
-- [ ] **Step 1: Spec e2e** (arranjo de login e seed copiado de `tests/e2e/followup-dossie.spec.ts`, que já abre o dossiê com um negócio semeado)
+- [x] **Step 1: Spec e2e** (arranjo de login e seed copiado de `tests/e2e/followup-dossie.spec.ts`, que já abre o dossiê com um negócio semeado)
 
 ```ts
 // tests/e2e/funil-conversa-no-dossie.spec.ts
@@ -1308,7 +1324,7 @@ test.describe("Funil: aba abre o padrão e o dossiê responde a conversa", () =>
 
 O seletor da caixa de texto e a tecla de envio devem ser os que as specs da Inbox usam (`grep -rn "getByRole(\"textbox\"" tests/e2e/inbox*.spec.ts | head`).
 
-- [ ] **Step 2: Registrar a spec no CI e rodar o gate de cobertura**
+- [x] **Step 2: Registrar a spec no CI e rodar o gate de cobertura**
 
 Acrescentar `funil-conversa-no-dossie.spec.ts` à `SPECS_PARTE_*` mais curta de `.github/workflows/e2e.yml`.
 
@@ -1316,7 +1332,7 @@ Acrescentar `funil-conversa-no-dossie.spec.ts` à `SPECS_PARTE_*` mais curta de 
 pnpm vitest run tests/unit/e2e-cobertura-completa.test.ts
 ```
 
-- [ ] **Step 3: Prova em ambiente fresco estilo VPS** (doutrina de QA Visual; receita em CLAUDE.md)
+- [x] **Step 3: Prova em ambiente fresco estilo VPS** (doutrina de QA Visual; receita em CLAUDE.md)
 
 `baseline.sql` num Supabase local pg15 + `scripts/bootstrap-owner.ts`, depois `next build && next start`, sem envs opcionais. Rodar a spec. Medir por ferramenta, no Playwright, em 1280×768 e 390×844:
 
@@ -1329,7 +1345,7 @@ await page.evaluate(() => {
 
 Critério: a 1280px o dossiê mostra as duas colunas e o composer cabe sem rolar a página. A 390px a alternância "Negócio | Conversa" aparece e as pílulas não estouram a largura (`scrollWidth <= clientWidth` do `body`).
 
-- [ ] **Step 4: Registro**
+- [x] **Step 4: Registro**
 
 ```markdown
 <!-- .changes/funil-direto-e-conversa-no-dossie.md -->
@@ -1346,7 +1362,7 @@ Em `docs/testing/user-journey-map.md`, na jornada do funil, acrescentar o caso `
 
 **Destino (DoD 18):** núcleo. Sem a feature, o quadro e a Inbox continuam inteiros, mas o funil é tela do dia a dia de todo nicho. Não é extensão.
 
-- [ ] **Step 5: Suíte inteira (a autoridade é o exit code)**
+- [x] **Step 5: Suíte inteira (a autoridade é o exit code)**
 
 ```bash
 pnpm typecheck && pnpm lint && pnpm lint:channels
@@ -1360,7 +1376,7 @@ pnpm release:conferir
 
 Comparar com a linha de base da Task 0. Só conta como verde se nenhum arquivo NOVO falhou.
 
-- [ ] **Step 6: Revisão e PR no fork**
+- [x] **Step 6: Revisão e PR no fork**
 
 Despachar `react-reviewer` e `code-reviewer` no diff (`git diff origin/main...HEAD`). Corrigir CRITICAL/HIGH. Depois:
 
