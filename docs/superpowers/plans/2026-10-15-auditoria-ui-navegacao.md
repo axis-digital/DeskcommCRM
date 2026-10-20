@@ -1,5 +1,7 @@
 # Auditoria de UI, navegação e configurações — Roteiro
 
+> **Status (2026-10-20): NÃO INICIADO.** Nenhuma das 13 fases foi executada. O que saiu daqui até agora foi o pedido pontual "funil direto e conversa no dossiê" ([plano próprio](2026-10-15-funil-direto-e-conversa-no-dossie.md), executado e em produção), que corresponde ao achado de porta duplicada do funil (princípio 2). A Fase 1 (linha de base medida) continua sendo o primeiro passo.
+
 > Plano de **descoberta e priorização**, não de implementação. Cada achado que virar mudança ganha um plano próprio no formato de `2026-10-15-funil-direto-e-conversa-no-dossie.md` (TDD, prova pela tela, PR no fork).
 
 **Goal:** Reduzir o ruído visual e tornar óbvio onde fica cada tela, função e configuração. A medida é um número antes/depois, não uma opinião.
