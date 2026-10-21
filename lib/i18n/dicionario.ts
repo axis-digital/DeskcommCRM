@@ -7907,6 +7907,11 @@ export const DICIONARIO: Traducoes = {
     es: "El número de esta conversación no está conectado.",
   },
   "Responder por outro número": { es: "Responder por otro número" },
+  "Receba aviso de mensagem nova mesmo com o CRM em outra aba.": {
+    es: "Recibe aviso de mensaje nuevo aunque el CRM esté en otra pestaña.",
+  },
+  "Ativar notificações": { es: "Activar notificaciones" },
+  "Agora não": { es: "Ahora no" },
   "Carregando atendentes…": { es: "Cargando asesores…" },
   "Nenhum outro atendente disponível nesta organização.": {
     es: "No hay ningún otro asesor disponible en esta organización.",
