@@ -147,17 +147,13 @@ export async function POST(req: NextRequest, ctx: RouteCtx): Promise<NextRespons
     console.error("[nuvemshop.webhook] webhook_events_log insert failed", insertErr.message);
   }
 
-  // event_type for event_log must match `^[a-z][a-z0-9_]*\.[a-z][a-z0-9_]*$`.
-  // Map e.g. "order/created" -> "nuvemshop.order_created".
-  const eventLogType = `nuvemshop.${event.replace("/", "_")}`;
-
   // ── O CATÁLOGO NUNCA CHEGAVA AO ACERVO ────────────────────────────────────
   //
   // Dois desencontros no mesmo caminho, e cada um sozinho já bastava para o
   // material do agente ficar vazio para sempre:
   //
   //  1. NOME. Produto virava `nuvemshop.product_created|updated|deleted` pelo
-  //     mapeamento acima, e o indexador (`workers/rag-indexer.handler.ts`)
+  //     mapeamento genérico, e o indexador (`workers/rag-indexer.handler.ts`)
   //     escuta `nuvemshop.product_synced` — um nome que NINGUÉM emitia. Os
   //     três nomes de produto também não tinham consumidor nenhum.
   //  2. CAMPO. `fonteDoEvento` lê `payload.product_id`, e o corpo cru da
@@ -171,8 +167,13 @@ export async function POST(req: NextRequest, ctx: RouteCtx): Promise<NextRespons
   // O nome do evento de produto passa a ser o que o indexador escuta, e o
   // payload ganha `product_id` normalizado SEM perder o corpo original.
   const ehProduto = event.startsWith("product/");
+  // event_type for event_log must match `^[a-z][a-z0-9_]*\.[a-z][a-z0-9_]*$`.
+  // Map e.g. "order/created" -> "nuvemshop.order_created".
+  const eventLogType = ehProduto
+    ? "nuvemshop.product_synced"
+    : `nuvemshop.${event.replace("/", "_")}`;
   const { error: emitErr } = await admin.rpc("emit_event", {
-    p_event_type: ehProduto ? "nuvemshop.product_synced" : eventLogType,
+    p_event_type: eventLogType,
     p_entity_kind: "nuvemshop_webhook",
     p_entity_id: null,
     p_payload: ehProduto
