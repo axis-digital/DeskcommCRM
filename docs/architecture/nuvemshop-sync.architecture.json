@@ -2,7 +2,7 @@
   "schema_version": 1,
   "diagram_type": "architecture",
   "meta": {
-    "title": "Nuvemshop: sincronização de pedidos",
+    "title": "Nuvemshop: sincronização de pedidos e catálogo",
     "subtitle": "Webhook, callback, cron e botão alimentam o event_log; um handler por página grava o pedido e a ficha lê",
     "output": "nuvemshop-sync.html",
     "quality_profile": "standard"
@@ -128,6 +128,27 @@
       "col": 6,
       "type": "service",
       "label": "orders: pedido por organização e external_id, payload projetado"
+    },
+    {
+      "id": "handler-produto",
+      "lane": "execucao",
+      "col": 4,
+      "type": "service",
+      "label": "nuvemshop-produto: relê o produto avisado pelo webhook; apagado sai do espelho"
+    },
+    {
+      "id": "handler-catalogo",
+      "lane": "execucao",
+      "col": 6,
+      "type": "service",
+      "label": "nuvemshop-catalogo: uma página de 200 produtos por evento, sem run nem trava"
+    },
+    {
+      "id": "nuvemshop-products",
+      "lane": "banco",
+      "col": 4,
+      "type": "service",
+      "label": "nuvemshop_products: espelho do catálogo, mais novo vence; o próprio max(last_updated_at) é o cursor"
     }
   ],
   "edges": [
@@ -240,6 +261,18 @@
       "from": "integration-sync-state",
       "to": "cron-reconcile",
       "label": "cursor, status e trava decidem quem reconciliar"
-    }
+    },
+    { "id": "e21", "from": "event-log", "to": "handler-produto", "label": "entrega product_synced (e o product_* antigo)" },
+    { "id": "e22", "from": "handler-produto", "to": "api-nuvemshop", "label": "GET /products/{id}" },
+    { "id": "e23", "from": "handler-produto", "to": "nuvemshop-products", "label": "grava ou apaga o produto" },
+    { "id": "e24", "from": "callback-oauth", "to": "event-log", "label": "emite catalog_page: a loja inteira" },
+    { "id": "e25", "from": "cron-reconcile", "to": "event-log", "label": "emite catalog_page desde o produto mais novo" },
+    { "id": "e26", "from": "tela-integracao", "to": "event-log", "label": "Sincronizar agora também emite catalog_page" },
+    { "id": "e27", "from": "event-log", "to": "handler-catalogo", "label": "entrega a página do catálogo" },
+    { "id": "e28", "from": "handler-catalogo", "to": "api-nuvemshop", "label": "GET /products?page&per_page=200" },
+    { "id": "e29", "from": "handler-catalogo", "to": "nuvemshop-products", "label": "grava os produtos da página" },
+    { "id": "e30", "from": "handler-catalogo", "to": "event-log", "label": "emite a próxima página se veio cheia" },
+    { "id": "e31", "from": "nuvemshop-products", "to": "tela-integracao", "label": "bloco Catálogo: quantos e o mais recente" },
+    { "id": "e32", "from": "nuvemshop-products", "to": "cron-reconcile", "label": "o produto mais novo é o cursor da conferência" }
   ]
 }

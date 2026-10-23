@@ -33,8 +33,10 @@ import { avisoAoDonoDaCarteira } from "@/lib/carteira/aviso-ao-dono";
 import { comandaDoGanhoHandler } from "@/lib/financeiro/comanda-do-ganho.handler";
 import { avisoDeCasoAoSuporteHandler } from "@/lib/escalacao/aviso-ao-suporte.handler";
 import { avisoDePropostaNoWhatsAppHandler } from "@/lib/propostas/aviso-no-whatsapp.handler";
+import { nuvemshopCatalogoHandler } from "@/lib/nuvemshop/sync/catalogo-page.handler";
 import { nuvemshopDesinstalacaoHandler } from "@/lib/nuvemshop/sync/desinstalacao.handler";
 import { nuvemshopPedidoHandler } from "@/lib/nuvemshop/sync/pedido.handler";
+import { nuvemshopProdutoHandler } from "@/lib/nuvemshop/sync/produto.handler";
 import { nuvemshopSyncHandler } from "@/lib/nuvemshop/sync/sync-page.handler";
 import { avisoDeAgendamentoNoWhatsAppHandler } from "@/lib/agenda/aviso-de-agendamento.handler";
 import { cobrancaSinalHandler } from "@/lib/cobranca/sinal.handler";
@@ -84,6 +86,7 @@ export function ensureHandlersRegistered(): void {
   registerHandler(mediaPersistHandler);
   registerHandler(mediaDeriveHandler);
   // Escrita interna: desinstalação da loja só desliga a integração.
+  registerHandler(nuvemshopCatalogoHandler);
   registerHandler(nuvemshopDesinstalacaoHandler);
   // Os consumidores dos canais (ex.: o pino que entrou sem coordenadas).
   for (const consumidor of CONSUMIDORES_DOS_CANAIS) registerHandler(consumidor);
@@ -91,6 +94,7 @@ export function ensureHandlersRegistered(): void {
   // Nuvemshop: chamam a API da loja (rede de terceiro) — depois de quem só
   // escreve no banco, antes dos avisos que saem por WhatsApp.
   registerHandler(nuvemshopPedidoHandler);
+  registerHandler(nuvemshopProdutoHandler);
   registerHandler(nuvemshopSyncHandler);
   // A cobrança do revendedor: relê o provedor (rede de terceiro) e só então
   // escreve. Consome um evento só dela, então a posição não atrasa ninguém.

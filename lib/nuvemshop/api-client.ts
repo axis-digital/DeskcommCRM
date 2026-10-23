@@ -61,6 +61,13 @@ export interface ConsultaDePedidos {
   perPage: number;
 }
 
+/** Uma página do catálogo; `updatedAtMin` ausente é a carga inteira. */
+export interface ConsultaDeProdutos {
+  page: number;
+  perPage: number;
+  updatedAtMin?: string;
+}
+
 interface ApiClientOptions {
   storeId: string;
   accessToken: string;
@@ -200,5 +207,25 @@ export class NuvemshopApiClient {
 
   getOrder(id: string): Promise<unknown> {
     return this.get<unknown>(`/orders/${encodeURIComponent(id)}`);
+  }
+
+  /**
+   * Uma página do catálogo. Como em `listOrders`, a Nuvemshop responde 404
+   * ("Last page is N") para página sem itens, e isso é lista vazia, não erro.
+   */
+  async listProducts(q: ConsultaDeProdutos): Promise<unknown[]> {
+    const params = new URLSearchParams({ page: String(q.page), per_page: String(q.perPage) });
+    if (q.updatedAtMin) params.set("updated_at_min", q.updatedAtMin);
+    try {
+      const data = await this.get<unknown>(`/products?${params.toString()}`);
+      return Array.isArray(data) ? data : [];
+    } catch (err) {
+      if (err instanceof NuvemshopApiError && err.status === 404) return [];
+      throw err;
+    }
+  }
+
+  getProduct(id: string): Promise<unknown> {
+    return this.get<unknown>(`/products/${encodeURIComponent(id)}`);
   }
 }

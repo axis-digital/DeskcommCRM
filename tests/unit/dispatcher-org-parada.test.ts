@@ -32,8 +32,10 @@ import { conversaoDeVendaHandler } from "@/lib/conversoes/envio.handler";
 import { conversaoDeQualificacaoHandler } from "@/lib/conversoes/qualificacao.handler";
 import { conversaoDeEtapaMetaHandler } from "@/lib/conversoes/etapa-meta.handler";
 import { conversaoGa4Handler } from "@/lib/conversoes/ga4.handler";
+import { nuvemshopCatalogoHandler } from "@/lib/nuvemshop/sync/catalogo-page.handler";
 import { nuvemshopDesinstalacaoHandler } from "@/lib/nuvemshop/sync/desinstalacao.handler";
 import { nuvemshopPedidoHandler } from "@/lib/nuvemshop/sync/pedido.handler";
+import { nuvemshopProdutoHandler } from "@/lib/nuvemshop/sync/produto.handler";
 import { nuvemshopSyncHandler } from "@/lib/nuvemshop/sync/sync-page.handler";
 import { avisoDeAgendamentoNoWhatsAppHandler } from "@/lib/agenda/aviso-de-agendamento.handler";
 import { avisoDeCasoAoSuporteHandler } from "@/lib/escalacao/aviso-ao-suporte.handler";
@@ -75,7 +77,9 @@ const RODA: EventHandler[] = [
 ];
 
 const PULA: EventHandler[] = [
+  nuvemshopCatalogoHandler,
   nuvemshopPedidoHandler,
+  nuvemshopProdutoHandler,
   nuvemshopSyncHandler,
   aiResponseHandler,
   aiSentimentHandler,

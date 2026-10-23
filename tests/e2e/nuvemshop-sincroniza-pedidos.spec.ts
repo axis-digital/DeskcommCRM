@@ -12,6 +12,9 @@
  * 4. O painel do contato na inbox mostra o pedido ligado a ele (#1001, R$ 150,90).
  * 5. Cliente sem contato vira contato novo com `source = 'nuvemshop'`.
  * 6. Com um run em andamento, o botão responde "Já está sincronizando.".
+ * 7. O catálogo (E2) acompanha o mesmo botão: a varredura da loja inteira traz 2
+ *    produtos para `nuvemshop_products`, o bloco Catálogo da tela os conta, e um
+ *    aviso de produto atualizado e um de produto apagado passam pelo dreno.
  *
  * Não prova OAuth nem webhook real: as credenciais do ambiente são de mentira e
  * a integração é semeada já `healthy`. Estado compartilhado: a organização desta
@@ -43,6 +46,22 @@ const users: string[] = [];
 
 const ontem = new Date(Date.now() - 24 * 3_600_000).toISOString();
 const anteontem = new Date(Date.now() - 48 * 3_600_000).toISOString();
+
+const produto = (id: number, nome: string, preco: string, estoque: number) => ({
+  id,
+  name: { pt: nome },
+  description: { pt: `<p>${nome} da loja</p>` },
+  canonical_url: `https://loja.exemplo/produtos/${id}/`,
+  images: [{ id: 1, src: `https://cdn.exemplo/${id}.jpg` }],
+  variants: [{ id: id * 10, price: preco, stock: estoque }],
+  created_at: anteontem,
+  updated_at: ontem,
+});
+const PRODUTO_A = produto(880001, "Vela de Lavanda", "89.90", 4);
+const PRODUTO_B = produto(880002, "Sabonete de Argila", "24.50", 9);
+const PRODUTO_C = produto(880003, "Difusor de Ambiente", "129.00", 2);
+/** O que a "loja" devolve em GET /products/{id}. */
+const produtosDaLoja = [PRODUTO_A, PRODUTO_B, PRODUTO_C];
 
 const PEDIDO_A = {
   id: 990001,
@@ -96,6 +115,17 @@ function subirReceptor(): Promise<Server> {
       const unico = url.pathname.match(new RegExp(`^/v1/${LOJA}/orders/(\\d+)$`));
       if (req.headers.authentication !== `bearer ${TOKEN_DA_LOJA}`) {
         return responder(res, 401, { description: "Invalid access token" });
+      }
+      const listaDeProdutos = url.pathname === `/v1/${LOJA}/products`;
+      const produtoUnico = url.pathname.match(new RegExp(`^/v1/${LOJA}/products/(\\d+)$`));
+      if (produtoUnico) {
+        const achado = produtosDaLoja.find((p) => String(p.id) === produtoUnico[1]);
+        return achado ? responder(res, 200, achado) : responder(res, 404, { description: "Not Found" });
+      }
+      if (listaDeProdutos) {
+        const pagina = Number(url.searchParams.get("page") ?? "1");
+        const inicial = [PRODUTO_A, PRODUTO_B];
+        return pagina >= 2 ? responder(res, 404, { description: "Last page is 1" }) : responder(res, 200, inicial);
       }
       if (unico) {
         const achado = [PEDIDO_A, PEDIDO_B].find((p) => String(p.id) === unico[1]);
@@ -204,6 +234,23 @@ async function estadoDoSync(org: string) {
   return data as { status: string; cursor_updated_at: string | null; pedidos_gravados: number } | null;
 }
 
+async function produtosEspelhados(org: string) {
+  const { data, error } = await db
+    .from("nuvemshop_products")
+    .select("external_id, title, price_cents, available_qty, url, image_url")
+    .eq("organization_id", org)
+    .order("external_id");
+  if (error) throw error;
+  return data as Array<{
+    external_id: string; title: string; price_cents: number; available_qty: number; url: string | null; image_url: string | null;
+  }>;
+}
+
+async function drenar(page: Page, segredo: string) {
+  const r = await page.request.post("/api/v1/cron/event-log-drain", { headers: { authorization: `Bearer ${segredo}` } });
+  expect(r.status(), "o dreno tem de responder 200").toBe(200);
+}
+
 async function captura(page: Page, nome: string) {
   mkdirSync(EVIDENCIA, { recursive: true });
   await page.screenshot({ path: path.join(EVIDENCIA, nome), fullPage: true });
@@ -284,6 +331,57 @@ test("conectar a loja: sincronizar agora traz os pedidos para a integração e p
   await expect(page.getByTestId("nuvemshop-pedidos-total")).toContainText("2", { timeout: ESPERA });
   await expect(page.getByTestId("nuvemshop-pedidos-situacao")).toContainText("Em dia");
   await captura(page, "01-integracao-em-dia.png");
+
+  // ── 4b. O catálogo chegou com o mesmo clique ─────────────────────────────
+  await expect
+    .poll(
+      async () => {
+        await drenar(page, segredo!);
+        return (await produtosEspelhados(f.org)).length;
+      },
+      { timeout: ESPERA, intervals: [500, 1_000, 1_000] },
+    )
+    .toBe(2);
+  const espelho = await produtosEspelhados(f.org);
+  expect(espelho.find((p) => p.external_id === String(PRODUTO_A.id))).toMatchObject({
+    title: "Vela de Lavanda",
+    price_cents: 8990,
+    available_qty: 4,
+    url: `https://loja.exemplo/produtos/${PRODUTO_A.id}/`,
+    image_url: `https://cdn.exemplo/${PRODUTO_A.id}.jpg`,
+  });
+  const varreduras = vistas.filter((v) => v.caminho === `/v1/${LOJA}/products`);
+  expect(varreduras.length, "o clique pede a loja inteira").toBeGreaterThanOrEqual(1);
+  expect(varreduras[0]!.consulta.get("per_page")).toBe("200");
+  expect(varreduras[0]!.consulta.has("updated_at_min"), "carga inteira não leva cursor").toBe(false);
+  expect(varreduras[0]!.cabecalhos.authentication).toBe(`bearer ${TOKEN_DA_LOJA}`);
+
+  await page.reload();
+  await expect(page.getByTestId("nuvemshop-produtos-total")).toContainText("2", { timeout: ESPERA });
+  await captura(page, "04-catalogo.png");
+
+  // Aviso de produto novo e de produto apagado, pelo dreno de verdade.
+  const emitir = async (acao: string, id: number) => {
+    const { error } = await db.rpc("emit_event", {
+      p_event_type: "nuvemshop.product_synced",
+      p_entity_kind: "nuvemshop_webhook",
+      p_entity_id: null,
+      p_payload: { store_id: LOJA, id, product_id: String(id), acao },
+      p_metadata: { origem: "e2e" },
+      p_organization_id: f.org,
+    });
+    if (error) throw error;
+  };
+  await emitir("created", PRODUTO_C.id);
+  await expect
+    .poll(async () => { await drenar(page, segredo!); return (await produtosEspelhados(f.org)).length; }, { timeout: ESPERA })
+    .toBe(3);
+  await emitir("deleted", PRODUTO_B.id);
+  await expect
+    .poll(async () => { await drenar(page, segredo!); return (await produtosEspelhados(f.org)).map((p) => p.external_id); }, { timeout: ESPERA })
+    .toEqual([String(PRODUTO_A.id), String(PRODUTO_C.id)]);
+  await page.reload();
+  await expect(page.getByTestId("nuvemshop-produtos-total")).toContainText("2", { timeout: ESPERA });
 
   // ── 5. O painel do contato mostra o pedido ───────────────────────────────
   await page.goto(`/app/inbox/${f.conversation}`);
