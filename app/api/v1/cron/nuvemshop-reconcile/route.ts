@@ -12,7 +12,9 @@ import { fail, ok } from "@/lib/api/wrappers";
 import { audit } from "@/lib/audit";
 import { autorizaCron } from "@/lib/auth/cron-auth";
 import { logger } from "@/lib/logger";
+import { depsDoCatalogoReais } from "@/lib/nuvemshop/sync/catalogo-deps";
 import { depsReais } from "@/lib/nuvemshop/sync/deps";
+import { iniciarCatalogo } from "@/lib/nuvemshop/sync/iniciar-catalogo";
 import { iniciarSincronizacao } from "@/lib/nuvemshop/sync/iniciar";
 import { ehOperante, STATUS_OPERANTE, statusDaOrgEmbutida } from "@/lib/organizacao/operante";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -76,6 +78,7 @@ async function executar(req: NextRequest): Promise<Response> {
   }
 
   const deps = depsReais(admin);
+  const depsDoCatalogo = depsDoCatalogoReais(admin);
   let iniciados = 0;
   let falhas = 0;
   for (const orgId of decidirQuemReconciliar((linhas ?? []) as LinhaDeIntegracao[], estados, new Date())) {
@@ -85,6 +88,9 @@ async function executar(req: NextRequest): Promise<Response> {
         iniciados++;
         await audit({ action: "nuvemshop.sync_requested", organizationId: orgId, metadata: { origem: "reconciliacao", run_id: r.runId } });
       }
+      // Catálogo: continua do produto mais novo espelhado. Quem audita é o fim
+      // da varredura (e só se gravou algo); aqui nada a registrar.
+      await iniciarCatalogo(depsDoCatalogo, orgId, "reconciliacao");
     } catch (err) {
       falhas++;
       logger.warn("[nuvemshop.reconcile] falha ao iniciar a loja", {

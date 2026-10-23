@@ -20,7 +20,9 @@ import { exchangeCodeForToken } from "@/lib/nuvemshop/oauth";
 import { NuvemshopApiClient } from "@/lib/nuvemshop/api-client";
 import { verifyState } from "@/lib/nuvemshop/state";
 import { resolverAvisoDeDesautorizacao } from "@/lib/nuvemshop/sync/desautorizada";
+import { depsDoCatalogoReais } from "@/lib/nuvemshop/sync/catalogo-deps";
 import { depsReais } from "@/lib/nuvemshop/sync/deps";
+import { iniciarCatalogo } from "@/lib/nuvemshop/sync/iniciar-catalogo";
 import { iniciarSincronizacao } from "@/lib/nuvemshop/sync/iniciar";
 
 export const dynamic = "force-dynamic";
@@ -191,6 +193,17 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
     const motivo = err instanceof Error ? err.message.slice(0, 200) : "erro_desconhecido";
     logger.warn("[nuvemshop.sync] início pela conexão falhou", { organization_id: state.orgId, motivo });
     sync = { iniciado: false, motivo: "excecao" };
+  }
+
+  // Espelho do catálogo (`nuvemshop_products`): varredura da loja inteira.
+  // Falha aqui também não desfaz a conexão — a reconciliação de 30 min repete.
+  try {
+    await iniciarCatalogo(depsDoCatalogoReais(admin), state.orgId, "conexao");
+  } catch (err) {
+    logger.warn("[nuvemshop.sync] varredura do catálogo pela conexão falhou", {
+      organization_id: state.orgId,
+      motivo: err instanceof Error ? err.message.slice(0, 200) : "erro_desconhecido",
+    });
   }
 
   // CARGA INICIAL DO CATÁLOGO. Sem ela, a loja recém-conectada só ganhava

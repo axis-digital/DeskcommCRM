@@ -138,3 +138,44 @@ describe("erro sem corpo nunca vira sucesso", () => {
     expect((err as NuvemshopApiError).code).toBe("network_error");
   });
 });
+
+describe("listProducts", () => {
+  it("monta a consulta com página, tamanho e, quando há cursor, updated_at_min", async () => {
+    const fetchMock = vi.fn().mockResolvedValue(resposta(200, "[]"));
+    vi.stubGlobal("fetch", fetchMock);
+    await cliente().listProducts({ page: 2, perPage: 200, updatedAtMin: "2026-10-01T00:00:00.000Z" });
+    const u = new URL(String(fetchMock.mock.calls[0]![0]));
+    expect(u.pathname).toBe("/v1/123/products");
+    expect(u.searchParams.get("page")).toBe("2");
+    expect(u.searchParams.get("per_page")).toBe("200");
+    expect(u.searchParams.get("updated_at_min")).toBe("2026-10-01T00:00:00.000Z");
+  });
+
+  it("sem cursor não manda updated_at_min (carga inteira)", async () => {
+    const fetchMock = vi.fn().mockResolvedValue(resposta(200, "[]"));
+    vi.stubGlobal("fetch", fetchMock);
+    await cliente().listProducts({ page: 1, perPage: 200 });
+    expect(new URL(String(fetchMock.mock.calls[0]![0])).searchParams.has("updated_at_min")).toBe(false);
+  });
+
+  it("404 'Last page is 0' (loja sem produto) vira lista vazia", async () => {
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(resposta(404, '{"code":404,"description":"Last page is 0"}')));
+    await expect(cliente().listProducts({ page: 1, perPage: 200 })).resolves.toEqual([]);
+  });
+
+  it("429 continua sendo erro, para o dreno reagendar", async () => {
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(resposta(429, "{}", { "x-rate-limit-reset": "900" })));
+    const err = (await cliente().listProducts({ page: 1, perPage: 200 }).catch((e: unknown) => e)) as NuvemshopApiError;
+    expect(err).toBeInstanceOf(NuvemshopApiError);
+    expect(err.retryAfterMs).toBe(900);
+  });
+});
+
+describe("getProduct", () => {
+  it("busca /products/{id} com o id escapado", async () => {
+    const fetchMock = vi.fn().mockResolvedValue(resposta(200, '{"id":77}'));
+    vi.stubGlobal("fetch", fetchMock);
+    await expect(cliente().getProduct("77/../x")).resolves.toEqual({ id: 77 });
+    expect(new URL(String(fetchMock.mock.calls[0]![0])).pathname).toBe("/v1/123/products/77%2F..%2Fx");
+  });
+});

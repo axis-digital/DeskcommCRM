@@ -16230,6 +16230,9 @@ export const DICIONARIO: Traducoes = {
   "Alíneas do art. 15.º salvas.": { es: "Las letras del art. 15.º quedaron guardadas." },
   // ── Nuvemshop: pedidos sincronizados (E1) ──
   "Pedidos sincronizados:": { es: "Pedidos sincronizados:" },
+  "Produtos sincronizados:": { es: "Productos sincronizados:" },
+  "Produto mais recente atualizado em:": { es: "Producto más reciente actualizado el:" },
+  "O catálogo chega com a primeira sincronização.": { es: "El catálogo llega con la primera sincronización." },
   "Última sincronização:": { es: "Última sincronización:" },
   "Importando: mês": { es: "Importando: mes" },
   "Aguardando a primeira sincronização": { es: "Esperando la primera sincronización" },

@@ -70,7 +70,7 @@ function envioDe(shipping: string | null | undefined): StatusDeEnvio | null {
   return (shipping && ENVIO.get(shipping)) || null;
 }
 
-function isoDe(texto: string, campo: string): string {
+export function isoDe(texto: string, campo: string): string {
   const ms = Date.parse(texto);
   if (!Number.isFinite(ms)) throw new ErroDeTraducao(`data_invalida:${campo}`);
   return new Date(ms).toISOString();

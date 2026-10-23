@@ -9,7 +9,7 @@ const RETRY_PADRAO_MS = 2_000;
 export async function tratarErroDaApi(
   err: unknown,
   integ: IntegracaoCarregada,
-  deps: DepsDoSync,
+  deps: Pick<DepsDoSync, "agora" | "desautorizar">,
   key: string,
 ): Promise<HandlerResult> {
   if (!(err instanceof NuvemshopApiError)) throw err;
