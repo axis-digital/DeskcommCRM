@@ -519,6 +519,7 @@ describe("objetivo do funil (Entrega 1)", () => {
   it("funil com objetivo abre mostrando-o e o save leva o MESMO objetivo na porta única de escrita", () => {
     const comObjetivo: PipelineRow = { ...FUNIL, settings: { ...FUNIL.settings, objetivo: "agendar" } };
     render(<PipelinesClient pipelines={[comObjetivo]} etapas={{}} podeEditarConfig />);
+    abrirEditores();
     expect(screen.getByLabelText("Objetivo do funil")).toHaveTextContent("Agendar horários");
 
     salvar();
@@ -528,6 +529,7 @@ describe("objetivo do funil (Entrega 1)", () => {
 
   it("funil sem objetivo mostra 'Sem objetivo' e grava null — nunca inventa um", () => {
     render(<PipelinesClient pipelines={[FUNIL]} etapas={{}} podeEditarConfig />);
+    abrirEditores();
     expect(screen.getByLabelText("Objetivo do funil")).toHaveTextContent("Sem objetivo");
 
     salvar();
