@@ -56,10 +56,12 @@ import {
   EyeOff as EyeOffLucide,
   FileText as FileTextLucide,
   Flag as FlagLucide,
+  Forward as ForwardLucide,
   Funnel as FunnelLucide,
   Gauge as GaugeLucide,
   GitBranch as GitBranchLucide,
   Globe as GlobeLucide,
+  GripVertical as GripVerticalLucide,
   History as HistoryLucide,
   House as HouseLucide,
   Image as ImageLucide,
@@ -116,6 +118,7 @@ import {
   Signpost as SignpostLucide,
   SkipForward as SkipForwardLucide,
   Smile as SmileLucide,
+  Smartphone as SmartphoneLucide,
   Sparkles as SparklesLucide,
   StickyNote as StickyNoteLucide,
   Store as StoreLucide,
@@ -210,6 +213,12 @@ export const Dot = /* @__PURE__ */ axisIcon(DotLucide, "Dot");
 
 // Ações
 export const ArrowBendUpLeft = /* @__PURE__ */ axisIcon(ReplyLucide, "ArrowBendUpLeft");
+// encaminhar (#2835): a seta espelhada do "Responder" — mesma família, para os dois
+// gestos da bolha lerem como par.
+export const ArrowBendUpRight = /* @__PURE__ */ axisIcon(ForwardLucide, "ArrowBendUpRight");
+export const DeviceMobile = /* @__PURE__ */ axisIcon(SmartphoneLucide, "DeviceMobile");
+// reordenar por arrastar e soltar (#3244): a alça da lista de respostas rápidas
+export const DragHandle = /* @__PURE__ */ axisIcon(GripVerticalLucide, "DragHandle");
 export const ArrowLeft = /* @__PURE__ */ axisIcon(ArrowLeftLucide, "ArrowLeft");
 export const ArrowsLeftRight = /* @__PURE__ */ axisIcon(ArrowLeftRightLucide, "ArrowsLeftRight");
 export const ArrowRight = /* @__PURE__ */ axisIcon(ArrowRightLucide, "ArrowRight");
