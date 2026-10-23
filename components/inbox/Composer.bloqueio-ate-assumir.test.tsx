@@ -52,6 +52,12 @@ vi.mock("@/hooks/inbox/useSendMessage", () => ({
 vi.mock("@/hooks/inbox/useCreateNote", () => ({
   useCreateNote: () => ({ mutate: noteMutate, isPending: false }),
 }));
+// O Composer do fork envia anexo pela fila da bolha otimista, que lê o
+// QueryClient; este arquivo não monta `QueryClientProvider`, e o que ele mede
+// (a trava até assumir) não passa por anexo. Mesmo tratamento do `useSendMessage`.
+vi.mock("@/hooks/inbox/useEnviosDeMidia", () => ({
+  useEnviosDeMidia: () => ({ enviar: vi.fn(), pendentes: [], tentarDeNovo: vi.fn(), descartar: vi.fn() }),
+}));
 vi.mock("@/hooks/inbox/useUploadMedia", () => ({
   useUploadMedia: () => ({ mutateAsync: vi.fn(), isPending: false }),
 }));

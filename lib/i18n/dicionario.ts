@@ -17050,7 +17050,6 @@ export const DICIONARIO: Traducoes = {
   "Site fora do ar": { es: "Sitio fuera del aire" },
   "O que falta no site": { es: "Lo que falta en el sitio" },
   "O que o site já tem": { es: "Lo que el sitio ya tiene" },
-  "WhatsApp": { es: "WhatsApp" },
   "Endereço e mapa": { es: "Dirección y mapa" },
   "Descrição no Google": { es: "Descripción en Google" },
   "Estratégia de abordagem": { es: "Estrategia de abordaje" },

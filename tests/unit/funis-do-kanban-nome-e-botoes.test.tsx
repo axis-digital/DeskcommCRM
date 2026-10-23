@@ -4,7 +4,7 @@
  * ─── O defeito (issue #3127, medido na main) ────────────────────────────────
  *
  * Na tela Funis (`/app/kanban`), a linha do funil era
- * `flex flex-col gap-3 sm:flex-row sm:items-center` (`app/app/kanban/_client.tsx`).
+ * `flex flex-col gap-3 sm:flex-row sm:items-center` (`app/app/kanban/funis/_client.tsx`, antes `app/app/kanban/_client.tsx`).
  * O grupo de ações tinha `shrink-0`: exigia, numa linha só, a largura de todos
  * os botões (Renomear · Tornar padrão · Funil de clientes · Arquivar ≈ 419px de
  * um cartão de ~556px). Como `shrink-0` proíbe encolher, era a coluna do nome
@@ -43,7 +43,7 @@ import { cleanup, render, screen } from "@testing-library/react";
 import type { ReactNode } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { FunisClient, type FunilDaLista } from "@/app/app/kanban/_client";
+import { FunisClient, type FunilDaLista } from "@/app/app/kanban/funis/_client";
 
 /** A regra "Clientes pela agenda" LIGADA: sem ela o selo/botão de clientes some. */
 vi.mock("@/hooks/auth/AuthProvider", () => ({
@@ -61,7 +61,7 @@ vi.mock("@/hooks/pipelines/usePipelines", () => ({
   useEditarFunil: () => ({ isPending: false, mutate: vi.fn() }),
   useArquivarFunil: () => ({ isPending: false, mutate: vi.fn() }),
 }));
-vi.mock("@/app/app/kanban/_components/ImportarLeads", () => ({ ImportarLeads: () => null }));
+vi.mock("@/app/app/kanban/funis/_components/ImportarLeads", () => ({ ImportarLeads: () => null }));
 
 /**
  * DOIS funis, de propósito:
