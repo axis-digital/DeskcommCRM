@@ -194,8 +194,10 @@ export async function POST(req: NextRequest, ctx: RouteCtx): Promise<NextRespons
     action: "nuvemshop.webhook_received",
     organizationId: integration.organization_id,
     resourceType: "nuvemshop_webhook",
-    resourceId: externalId,
-    metadata: { event, store_id: storeId },
+    // `resource_id` é uuid: o `externalId` (`evento:loja:id`) derrubava o insert
+    // e a trilha ficava vazia. A identidade da entrega vai em metadata.
+    resourceId: null,
+    metadata: { event, store_id: storeId, external_id: externalId },
   });
 
   return ok({ accepted: true });

@@ -19,3 +19,19 @@ export const passoDoSyncSchema = z.object({
   pagina: z.number().int().min(1),
 });
 export type PassoDoSync = z.infer<typeof passoDoSyncSchema>;
+
+/** Catálogo: uma página da API por evento, como os pedidos. */
+export const EVENTO_CATALOG_PAGE = "nuvemshop.catalog_page";
+export const PRODUTOS_POR_PAGINA = 200;
+/** 10.000 itens por consulta é o teto da Nuvemshop. */
+export const PAGINA_MAXIMA_DE_PRODUTOS = 10_000 / PRODUTOS_POR_PAGINA;
+
+export const passoDoCatalogoSchema = z.object({
+  pagina: z.number().int().min(1),
+  /** Ausente/null = a loja inteira; presente = só o que mudou desde então. */
+  desde: z.iso.datetime().nullable(),
+  /** Soma das páginas anteriores, para a auditoria do fim da varredura. */
+  gravados: z.number().int().min(0).default(0),
+  comErro: z.number().int().min(0).default(0),
+});
+export type PassoDoCatalogo = z.infer<typeof passoDoCatalogoSchema>;

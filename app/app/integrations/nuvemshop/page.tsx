@@ -18,6 +18,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { isConfigured } from "@/lib/nuvemshop/config";
 import { lerEstado } from "@/lib/nuvemshop/sync/estado";
 import { resumirSync } from "@/lib/nuvemshop/sync/resumo";
+import { CatalogoDaLoja } from "./_components/CatalogoDaLoja";
 import { PedidosDaLoja } from "./_components/PedidosDaLoja";
 import { ConnectButton, DisconnectButton } from "./_components/ConnectButton";
 import { StatusToast } from "./_components/StatusToast";
@@ -59,6 +60,24 @@ async function loadResumo(orgId: string) {
   return resumirSync(estado, count ?? 0);
 }
 
+async function loadCatalogo(orgId: string) {
+  const admin = createAdminClient();
+  const [{ count }, { data: recente }] = await Promise.all([
+    admin.from("nuvemshop_products").select("id", { count: "exact", head: true }).eq("organization_id", orgId),
+    admin
+      .from("nuvemshop_products")
+      .select("last_updated_at")
+      .eq("organization_id", orgId)
+      .order("last_updated_at", { ascending: false })
+      .limit(1)
+      .maybeSingle(),
+  ]);
+  return {
+    totalProdutos: count ?? 0,
+    maisRecente: (recente as { last_updated_at?: string } | null)?.last_updated_at ?? null,
+  };
+}
+
 export default async function NuvemshopIntegrationPage() {
   const user = await loadAuthUser();
   const activeOrg = user ? await resolveActiveOrg(user) : null;
@@ -71,6 +90,11 @@ export default async function NuvemshopIntegrationPage() {
   const resumo =
     integration && integration.status !== "disconnected" && activeOrg
       ? await loadResumo(activeOrg.orgId)
+      : null;
+
+  const catalogo =
+    integration && integration.status !== "disconnected" && activeOrg
+      ? await loadCatalogo(activeOrg.orgId)
       : null;
 
   const isAdmin = activeOrg?.role === "admin" || (user?.is_platform_admin === true && !user.support);
@@ -177,6 +201,7 @@ export default async function NuvemshopIntegrationPage() {
               </span>
             </div>
             {resumo ? <PedidosDaLoja resumo={resumo} idioma={idioma} isAdmin={isAdmin} /> : null}
+            {catalogo ? <CatalogoDaLoja resumo={catalogo} idioma={idioma} /> : null}
           </CardContent>
         </Card>
       )}

@@ -5,12 +5,15 @@ const m = vi.hoisted(() => ({
   autoriza: vi.fn(() => true),
   audit: vi.fn(),
   iniciar: vi.fn(),
+  iniciarCatalogo: vi.fn(),
 }));
 vi.mock("@/lib/auth/cron-auth", () => ({ autorizaCron: m.autoriza }));
 vi.mock("@/lib/audit", () => ({ audit: m.audit }));
 vi.mock("@/lib/logger", () => ({ logger: { warn: vi.fn(), error: vi.fn(), info: vi.fn() } }));
 vi.mock("@/lib/nuvemshop/sync/deps", () => ({ depsReais: () => ({}) }));
 vi.mock("@/lib/nuvemshop/sync/iniciar", () => ({ iniciarSincronizacao: m.iniciar }));
+vi.mock("@/lib/nuvemshop/sync/catalogo-deps", () => ({ depsDoCatalogoReais: () => ({}) }));
+vi.mock("@/lib/nuvemshop/sync/iniciar-catalogo", () => ({ iniciarCatalogo: m.iniciarCatalogo }));
 vi.mock("@/lib/supabase/admin", () => ({
   createAdminClient: () => ({
     from: (tabela: string) => {
@@ -38,6 +41,8 @@ describe("GET nuvemshop-reconcile", () => {
     m.autoriza.mockReturnValue(true);
     m.audit.mockReset();
     m.iniciar.mockReset();
+    m.iniciarCatalogo.mockReset();
+    m.iniciarCatalogo.mockResolvedValue({ ok: true });
   });
 
   it("sem secret → 403", async () => {
@@ -64,5 +69,22 @@ describe("GET nuvemshop-reconcile", () => {
     const body = await (await GET(req())).json();
     expect(body.data).toEqual({ candidatos: 2, iniciados: 1, falhas: 1 });
     expect(m.audit).toHaveBeenCalledTimes(1);
+  });
+
+  it("o catálogo também é conferido, continuando do cursor (reconciliacao), e não audita à parte", async () => {
+    m.iniciar.mockResolvedValue({ ok: true, runId: "r" });
+    const { GET } = await import("./route");
+    await GET(req());
+    expect(m.iniciarCatalogo).toHaveBeenCalledTimes(2);
+    expect(m.iniciarCatalogo).toHaveBeenNthCalledWith(1, expect.anything(), "a", "reconciliacao");
+    expect(m.iniciarCatalogo).toHaveBeenNthCalledWith(2, expect.anything(), "b", "reconciliacao");
+    expect(m.audit).toHaveBeenCalledTimes(2);
+  });
+
+  it("os pedidos não iniciarem (run em andamento) não impede a conferência do catálogo", async () => {
+    m.iniciar.mockResolvedValue({ ok: false, motivo: "sync_em_andamento" });
+    const { GET } = await import("./route");
+    await GET(req());
+    expect(m.iniciarCatalogo).toHaveBeenCalledTimes(2);
   });
 });
