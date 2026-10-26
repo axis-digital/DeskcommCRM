@@ -12,14 +12,14 @@ import {
 } from "@/components/ui/dialog";
 import {
   FileText,
-  Image as ImageIcon,
-  Upload,
+  ImageIcon,
+  UploadSimple as Upload,
   Trash2,
-  ExternalLink,
+  ArrowSquareOut as ExternalLink,
   Loader2,
   Eye,
-  Download,
-} from "lucide-react";
+  DownloadSimple as Download,
+} from "@/lib/ui/icons";
 import type { LeadAttachment } from "@/app/api/v1/leads/[id]/attachments/route";
 
 interface Props {
