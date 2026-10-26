@@ -911,7 +911,7 @@ function textoNaoVazio(v: unknown): string | null {
  * linhas para uma reação) e ainda carimbaria a conversa. A linha certa é a do
  * ramo `message.reaction`, ligada ao alvo.
  */
-function ehReacao(p: WahaPayload): boolean {
+export function ehReacao(p: WahaPayload): boolean {
   return p.type === "reaction" || objetoSimples(p.reaction) !== null;
 }
 
@@ -1021,6 +1021,24 @@ async function resolverMensagemCitada(
   return (porSufixo as { id: string } | null)?.id ?? null;
 }
 
+/**
+ * A forma em que a ENTRADA grava `messages.external_id`: o id completo do webhook
+ * (`false_<chat>_<id>`). Fonte única, usada por `handleInbound` e pelo importador
+ * de histórico: as duas trilhas gravam a MESMA string, senão a unique não recusa
+ * a segunda linha e a mensagem duplica.
+ */
+export function externalIdDeEntrada(p: WahaPayload): string | null {
+  return p.id ?? null;
+}
+
+/**
+ * A forma em que a SAÍDA (eco do celular) grava `messages.external_id`: o bare id
+ * (#196, #1855). Fonte única, ver `externalIdDeEntrada`.
+ */
+export function externalIdDeSaida(p: WahaPayload): string | null {
+  return p.id ? bareWaMessageId(p.id) : null;
+}
+
 async function handleInbound(
   admin: Admin,
   session: Session,
@@ -1121,7 +1139,7 @@ async function handleInbound(
       conversation_id: conversationId,
       channel_session_id: session.id,
       contact_id: contactId,
-      external_id: p.id,
+      external_id: externalIdDeEntrada(p),
       type: resolveMessageType(p),
       direction: "inbound",
       status: "delivered",
@@ -1512,7 +1530,7 @@ async function handleOutboundFromUserPhone(
   //
   // Mesmo par de candidatos que o `handleAck` usa — cobre NOWEB (bare) e WEBJS
   // (full) sem depender do engine.
-  const bare = bareWaMessageId(p.id);
+  const bare = externalIdDeSaida(p);
   const idCandidates = bare === p.id ? [p.id] : [p.id, bare];
   const { data: jaRegistrada } = await admin
     .from("messages")
