@@ -85,6 +85,7 @@ vi.mock("@/lib/supabase/admin", () => ({
   }),
 }));
 vi.mock("@/lib/auth/server", () => ({
+  mfaEmDivida: vi.fn(async () => false),
   loadAuthUser: vi.fn(async () =>
     mundo.user
       ? {

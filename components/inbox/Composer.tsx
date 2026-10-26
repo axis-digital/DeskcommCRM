@@ -1073,8 +1073,12 @@ export const Composer = forwardRef<ComposerHandle, Props>(function Composer(
           // bolha otimista, e só o primeiro leva a legenda — o mesmo contrato
           // de "texto + mídia numa mensagem" da fila da nota.
           if (pendingEm === "reply") {
+            // A legenda vai com o PRIMEIRO anexo que a leva (#3151): áudio não a
+            // leva em canal nenhum, então numa fila [áudio, imagem] o texto
+            // viaja com a imagem, e numa fila só de áudio não sai com ninguém.
+            const indiceLegenda = indiceDaLegenda(pendingFiles);
             pendingFiles.forEach((arquivo, indice) =>
-              envios.enviar({ conversationId, arquivo, legenda: indice === 0 ? caption : "" }),
+              envios.enviar({ conversationId, arquivo, legenda: indice === indiceLegenda ? caption : "" }),
             );
             setPendingFiles([]);
             setLegendaInicial(null);

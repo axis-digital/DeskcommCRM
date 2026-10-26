@@ -22,6 +22,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const sendMock = vi.fn();
+const enviarMock = vi.fn();
 const uploadMock = vi.fn();
 const getMock = vi.fn();
 const fetchMock = vi.fn();
@@ -72,6 +73,11 @@ const RECURSOS = [
 vi.mock("@/hooks/inbox/useSendMessage", () => ({
   useSendMessage: () => ({ mutate: sendMock, isPending: false }),
 }));
+// A resposta com anexo sai pela bolha otimista (`useEnviosDeMidia`), não por
+// `useSendMessage.mutate`: o espião de "o que saiu" é o `enviar` dela.
+vi.mock("@/hooks/inbox/useEnviosDeMidia", () => ({
+  useEnviosDeMidia: () => ({ enviar: enviarMock }),
+}));
 vi.mock("@/hooks/inbox/useCreateNote", () => ({
   useCreateNote: () => ({ mutate: vi.fn(), isPending: false }),
 }));
@@ -110,9 +116,9 @@ function renderComposer() {
 
 /** O que cada `send.mutate` levou, na ordem: o tipo do anexo e o `body`. */
 function enviados() {
-  return sendMock.mock.calls.map(([dados]) => {
-    const { type, body } = dados as { type: string; body?: string };
-    return { type, body };
+  return enviarMock.mock.calls.map(([dados]) => {
+    const { arquivo, legenda } = dados as { arquivo: File; legenda: string };
+    return { type: arquivo.type.startsWith("audio/") ? "audio" : "image", body: legenda || undefined };
   });
 }
 
@@ -192,6 +198,6 @@ describe("Composer: a legenda vai só com o anexo que a leva (#3151)", () => {
     expect(campo).not.toHaveFocus();
     const restante = screen.getByRole("dialog");
     expect(within(restante).queryByLabelText("Legenda")).toBeNull();
-    expect(sendMock).not.toHaveBeenCalled();
+    expect(enviarMock).not.toHaveBeenCalled();
   });
 });

@@ -24,6 +24,7 @@ const papel = vi.hoisted(() => ({ atual: "agent" as "agent" | "manager" }));
 vi.mock("@/hooks/auth/AuthProvider", () => ({
   useUser: () => ({ id: "u-1", is_platform_admin: false, support: null }),
   useActiveOrg: () => ({ orgId: "org-1", role: papel.atual }),
+  usePermission: () => true,
 }));
 vi.mock("@/hooks/leads/useLeadTimeline", () => ({
   useLeadTimeline: () => ({

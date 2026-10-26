@@ -19,7 +19,7 @@ import { ipDoCliente } from "@/lib/http/ip-do-cliente";
 import { revalidatePath } from "next/cache";
 
 import { audit } from "@/lib/audit";
-import { loadAuthUser, resolveActiveOrg } from "@/lib/auth/server";
+import { loadAuthUser, mfaEmDivida, resolveActiveOrg } from "@/lib/auth/server";
 import { podeAdministrarEmpresa } from "@/lib/auth/pode-administrar-empresa";
 import { supportWriteError } from "@/lib/impersonate/support";
 import { perfilDeNegocioSchema } from "@/lib/onboarding/perfil-de-negocio";
@@ -35,6 +35,7 @@ export type UpdatePerfilDeNegocioResult =
         | "forbidden"
         | "forbidden_tenant"
         | "forbidden_role"
+        | "mfa_required"
         | "erro_ao_gravar";
       details?: unknown;
     };
@@ -63,6 +64,7 @@ export async function updatePerfilDeNegocio(
   if (!podeAdministrarEmpresa(authUser, activeOrg)) {
     return { ok: false, error: "forbidden_role" };
   }
+  if (await mfaEmDivida()) return { ok: false, error: "mfa_required" };
 
   const admin = createAdminClient();
   const { data: atual, error: erroLeitura } = await admin
