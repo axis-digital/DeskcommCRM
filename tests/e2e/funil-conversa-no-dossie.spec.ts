@@ -248,7 +248,9 @@ test.describe("Funil: a aba abre o padrão e o dossiê responde a conversa", () 
     // ── respiro entre as seções: medido, não a olho ────────────────────────────
     const respiro = await page.evaluate(() => {
       const secao = Array.from(document.querySelectorAll('[role="dialog"] section')).find(
-        (el) => el.querySelector("h3")?.textContent?.trim().toLowerCase() === "contato",
+        // O título leva o sinal de recolher (`+`/`−`, aria-hidden) dentro do <h3>:
+        // compara só o nome da seção.
+        (el) => el.querySelector("h3 span")?.textContent?.trim().toLowerCase() === "contato",
       );
       if (!secao) return null;
       const cs = getComputedStyle(secao);
