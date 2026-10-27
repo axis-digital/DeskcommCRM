@@ -286,7 +286,7 @@ jobs:
       # uma rodada por parte.
       fail-fast: false
       matrix:
-        parte: [1, 2, 3, 4, 5, 6, 7, 8]
+        parte: [1, 2, 3, 4, 5, 6, 7, 8, 9]
     # ─────────────────────────────────────────────────────────────────────────
     # A COBERTURA DEIXA DE SER PROSA DIGITADA À MÃO.
     #
@@ -800,9 +800,6 @@ jobs:
       # MEDIDA no run 37483721555 (SHA bdc8f2ae9, 06/10/2026): 1,2 min de caso;
       # SUITE_SEGUNDOS da parte 1 = 853.
       SPECS_PARTE_1: >-
-        banco-externo-receitas.spec.ts
-        conversoes-reprocessamento.spec.ts
-        conversoes-ga4.spec.ts
         pre-go-live-whatsapp.spec.ts
         smoke.spec.ts auth.spec.ts error-pages.spec.ts
         icone-da-marca.spec.ts
@@ -818,7 +815,7 @@ jobs:
         risk-radar.spec.ts invite-lifecycle.spec.ts system-update.spec.ts
         agente-papeis-operador.spec.ts
         followup-linguagem.spec.ts followup-ramos.spec.ts
-        wizard-do-funcionario.spec.ts mfa-opcional.spec.ts inbox-responder-citando.spec.ts
+        wizard-do-funcionario.spec.ts mfa-opcional.spec.ts
         mfa-dispositivo-confiavel.spec.ts
         agenda-tela-do-produto.spec.ts
         notificacoes-diz-o-que-falta.spec.ts
@@ -828,7 +825,6 @@ jobs:
         j20-elegibilidade-respondi.spec.ts j20-elegibilidade-followup.spec.ts
         j20-elegibilidade-atendimento-manual.spec.ts
         juntar-contatos-duplicados.spec.ts
-        lote-no-quadro-do-funil.spec.ts
         quadro-do-funil-colunas.spec.ts
         motivos-de-perda-do-funil.spec.ts
         importar-leads-planilha.spec.ts
@@ -1532,6 +1528,29 @@ jobs:
       # demais, + ~2 min de caso (9 casos, dublês locais) — job de ~8 a 10 min.
       SPECS_PARTE_8: >-
         meta-lead-submitted-causal.spec.ts
+
+      # ─── PARTE 9 — saiu da parte 1, que estourou o orçamento de tempo ───
+      #
+      # Medido no run 40549479353 (PR #37, merge da upstream 1.94.0, SHA 9a1418b82),
+      # duas vezes seguidas: parte 1 cortada em 28m10s (suíte 1269 s + 411 s de
+      # preparo, teto 30 min, orçamento 24 min), com 157 casos verdes e nenhum
+      # vermelho até o corte. No #36 ela fechava em 24m36s: a margem já era curta
+      # e os specs novos da upstream a consumiram.
+      #
+      # Saíram da parte 1 cinco specs que somam 382 s medidos (conversoes-
+      # reprocessamento 118, conversoes-ga4 103, banco-externo-receitas 64,
+      # inbox-responder-citando 51, lote-no-quadro-do-funil 46). Parte 1 estima
+      # ~887 s de suíte + preparo ≈ 21 min; a 9 estima ~382 s + ~7 min ≈ 14 min.
+      # É previsão: a rodada deste PR mede.
+      #
+      # Parte COMUM (semeadura de `matrix.parte != 4`, sem ambiente especial como
+      # a 8): nenhuma destas specs depende de dublê ou porta exclusivos da parte 1.
+      SPECS_PARTE_9: >-
+        banco-externo-receitas.spec.ts
+        conversoes-reprocessamento.spec.ts
+        conversoes-ga4.spec.ts
+        inbox-responder-citando.spec.ts
+        lote-no-quadro-do-funil.spec.ts
 
       # ─── FORA_DO_CI — as que ficaram fora, e o motivo de cada uma ───
       #
@@ -2498,6 +2517,7 @@ jobs:
             6) LISTA="$SPECS_PARTE_6" ;;
             7) LISTA="$SPECS_PARTE_7" ;;
             8) LISTA="$SPECS_PARTE_8" ;;
+            9) LISTA="$SPECS_PARTE_9" ;;
             *) echo "::error::parte ${{ matrix.parte }} sem lista"; exit 1 ;;
           esac
           # Falha alto se a variável vier vazia: sem isto, um typo no nome faria
@@ -2852,7 +2872,7 @@ jobs:
                       dentro { exit }
                     ' .github/workflows/e2e.yml | grep -oE "[a-z0-9-]+\.spec\.ts" | sort -u; }
           NO_DISCO=$(ls tests/e2e/*.spec.ts | wc -l | tr -d " ")
-          RODOU=$( { bloco SPECS_PARTE_1; bloco SPECS_PARTE_2; bloco SPECS_PARTE_3; bloco SPECS_PARTE_4; bloco SPECS_PARTE_5; bloco SPECS_PARTE_6; bloco SPECS_PARTE_7; bloco SPECS_PARTE_8; } | sort -u | wc -l | tr -d " ")
+          RODOU=$( { bloco SPECS_PARTE_1; bloco SPECS_PARTE_2; bloco SPECS_PARTE_3; bloco SPECS_PARTE_4; bloco SPECS_PARTE_5; bloco SPECS_PARTE_6; bloco SPECS_PARTE_7; bloco SPECS_PARTE_8; bloco SPECS_PARTE_9; } | sort -u | wc -l | tr -d " ")
           FORA_LISTA=$(bloco FORA_DO_CI)
           FORA=$(echo "$FORA_LISTA" | grep -c . || true)
           # E o recorte passa a ter CONTROLE, não só um piso.
