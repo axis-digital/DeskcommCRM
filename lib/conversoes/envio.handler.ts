@@ -105,7 +105,8 @@ function ehReenvioDeOutroConsumidor(evento: unknown): boolean {
     ehEventoDeEtapa(evento) ||
     ehEventoDeEtapaMeta(evento) ||
     ehEventoDeEtapaGa4(evento) ||
-    evento === EVENTO_DE_VENDA_GA4
+    evento === EVENTO_DE_VENDA_GA4 ||
+    evento === "LeadSubmitted"
   );
 }
 

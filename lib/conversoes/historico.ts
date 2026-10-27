@@ -32,8 +32,8 @@ export interface FiltrosDoHistorico {
   periodo: Periodo;
   situacao: Situacao;
   /**
-   * `Purchase`, `QualifiedLead`, `Etapa:<uuid>`, `MetaEtapa:<uuid>`, `GA4:Venda`,
-   * `GA4Etapa:<uuid>`, `SemOrigem:<plataforma>:Purchase` ou vazio para todos.
+   * `Purchase`, `QualifiedLead`, `LeadSubmitted`, `Etapa:<uuid>`, `MetaEtapa:<uuid>`,
+   * `GA4:Venda`, `GA4Etapa:<uuid>`, `SemOrigem:<plataforma>:Purchase` ou vazio para todos.
    */
   evento: string;
   plataforma: "" | "google_ads" | "meta_ads" | "ga4";
@@ -64,6 +64,7 @@ export interface LinhaDoHistorico {
 export function situacaoDaLinha(status: string, motivo: string | null): Situacao {
   if (status === "sent") return "entregue";
   if (status === "error") return "falha";
+  if (status === "processing") return "aguardando";
   if (motivo && (MOTIVOS_AGUARDANDO as readonly string[]).includes(motivo)) return "aguardando";
   return "nao_enviado";
 }
@@ -97,7 +98,7 @@ export function lerFiltros(bruto: Record<string, string | undefined>): FiltrosDo
     periodo: um(PERIODOS, bruto.periodo, "30d"),
     situacao: um(SITUACOES, bruto.situacao, "todas"),
     evento:
-      /^(Purchase|QualifiedLead|GA4:Venda|(Meta|GA4)?Etapa:[0-9a-f-]{36}|SemOrigem:(meta_ads|google_ads):Purchase)$/.test(
+      /^(Purchase|QualifiedLead|LeadSubmitted|GA4:Venda|(Meta|GA4)?Etapa:[0-9a-f-]{36}|SemOrigem:(meta_ads|google_ads):Purchase)$/.test(
         evento,
       )
         ? evento
@@ -141,7 +142,9 @@ export async function lerHistorico(
       q = q.eq("status", "error");
       break;
     case "aguardando":
-      q = q.eq("status", "skipped").in("reason", [...MOTIVOS_AGUARDANDO]);
+      q = q.or(
+        `status.eq.processing,and(status.eq.skipped,reason.in.(${MOTIVOS_AGUARDANDO.join(",")}))`,
+      );
       break;
     case "nao_enviado":
       q = q.eq("status", "skipped").not("reason", "in", `(${MOTIVOS_AGUARDANDO.join(",")})`);
@@ -201,6 +204,7 @@ export function rotuloDoEvento(
 ): string {
   if (evento === "Purchase") return "Compra";
   if (evento.startsWith("SemOrigem:")) return "Venda sem origem";
+  if (evento === "LeadSubmitted") return "Nascimento por anúncio";
   const regra = regras.find((r) => r.eventName === evento);
   if (regra) return regra.label;
   return evento === "QualifiedLead" ? "Lead qualificado" : "Etapa do funil";

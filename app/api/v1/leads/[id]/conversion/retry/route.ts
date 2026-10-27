@@ -15,7 +15,7 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
   // venda sem origem de cada plataforma do fallback.
   const evento = z
     .union([
-      z.enum(["Purchase", "QualifiedLead", "GA4:Venda"]),
+      z.enum(["Purchase", "QualifiedLead", "LeadSubmitted", "GA4:Venda"]),
       z.string().regex(/^(Meta|GA4)?Etapa:[0-9a-f-]{36}$/),
       z.string().regex(/^SemOrigem:(meta_ads|google_ads):Purchase$/),
     ])
