@@ -25,6 +25,8 @@ export interface ArgsDoUpload {
   file: File | Blob;
   filename?: string;
   destino?: DestinoDoUpload;
+  /** Gravação do composer: o servidor converte para opus (F2, o AAC do iPhone). */
+  notaDeVoz?: boolean;
 }
 
 /**
@@ -51,6 +53,7 @@ export async function subirMidia(args: ArgsDoUpload): Promise<UploadedMedia> {
     arquivo,
     args.filename ?? (arquivo instanceof File ? arquivo.name : "audio"),
   );
+  if (args.notaDeVoz) form.append("nota_de_voz", "1");
   const rota = args.destino === "nota" ? "notes/media" : "media";
   const res = await fetch(`/api/v1/conversations/${args.conversationId}/${rota}`, {
     method: "POST",

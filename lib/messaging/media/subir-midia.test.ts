@@ -71,3 +71,22 @@ describe("subirMidia: compressão no caminho do upload", () => {
     expect((enviado!.get("file") as File).name).toBe("audio");
   });
 });
+
+describe("subirMidia: nota de voz", () => {
+  it("a gravação do composer leva nota_de_voz=1 e não passa pelo compressor de imagem", async () => {
+    const gravacao = new Blob([new Uint8Array(2_000)], { type: "audio/webm" });
+
+    await subirMidia({ conversationId: "c1", file: gravacao, notaDeVoz: true });
+
+    expect(enviado!.get("nota_de_voz")).toBe("1");
+    expect(comprimir).not.toHaveBeenCalled();
+  });
+
+  it("sem notaDeVoz o campo nem vai no formulário", async () => {
+    const audio = new Blob([new Uint8Array(2_000)], { type: "audio/ogg" });
+
+    await subirMidia({ conversationId: "c1", file: audio });
+
+    expect(enviado!.has("nota_de_voz")).toBe(false);
+  });
+});

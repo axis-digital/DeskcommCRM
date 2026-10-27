@@ -8,7 +8,7 @@ import { revalidatePath } from "next/cache";
 
 import { audit } from "@/lib/audit";
 import { podeAdministrarEmpresa } from "@/lib/auth/pode-administrar-empresa";
-import { loadAuthUser, resolveActiveOrg } from "@/lib/auth/server";
+import { loadAuthUser, mfaEmDivida, resolveActiveOrg } from "@/lib/auth/server";
 import { supportWriteError } from "@/lib/impersonate/support";
 import { depsDoCatalogoReais } from "@/lib/nuvemshop/sync/catalogo-deps";
 import { depsReais } from "@/lib/nuvemshop/sync/deps";
@@ -17,7 +17,7 @@ import { iniciarSincronizacao, type ResultadoDoInicio } from "@/lib/nuvemshop/sy
 
 export type SyncNowResult =
   | { ok: true }
-  | { ok: false; error: "auth_required" | "no_active_org" | "forbidden" | Extract<ResultadoDoInicio, { ok: false }>["motivo"] };
+  | { ok: false; error: "auth_required" | "no_active_org" | "forbidden" | "mfa_required" | Extract<ResultadoDoInicio, { ok: false }>["motivo"] };
 
 export async function syncNuvemshopNow(): Promise<SyncNowResult> {
   const user = await loadAuthUser();
@@ -26,6 +26,7 @@ export async function syncNuvemshopNow(): Promise<SyncNowResult> {
   const activeOrg = await resolveActiveOrg(user);
   if (!activeOrg) return { ok: false, error: "no_active_org" };
   if (!podeAdministrarEmpresa(user, activeOrg)) return { ok: false, error: "forbidden" };
+  if (await mfaEmDivida()) return { ok: false, error: "mfa_required" };
 
   const r = await iniciarSincronizacao(depsReais(), activeOrg.orgId, "manual");
   // O catálogo anda ao lado dos pedidos e não segura o botão: uma falha dele
