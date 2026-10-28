@@ -2,6 +2,8 @@ import { readFileSync } from "node:fs";
 
 import { describe, expect, it } from "vitest";
 
+import { EVENTOS_DO_WEBHOOK } from "@/lib/waha/client";
+
 /**
  * O CANAL POR QR ASSINAVA A MESMA MENSAGEM DUAS VEZES.
  *
@@ -43,7 +45,10 @@ function eventosDe(arquivo: string): string[] {
     readFileSync(arquivo, "utf8")
       .split("\n")
       .find((l) => l.includes("WHATSAPP_HOOK_EVENTS")) ?? "";
-  return (linha.split('"')[1] ?? "").split(",").map((e) => e.trim()).filter(Boolean);
+  return (linha.split('"')[1] ?? "")
+    .split(",")
+    .map((e) => e.trim())
+    .filter(Boolean);
 }
 
 describe("a assinatura de eventos do canal por QR", () => {
@@ -70,7 +75,13 @@ describe("a assinatura de eventos do canal por QR", () => {
       // O conserto não pode ter custado o resto: ack move o status, revoked e
       // edited corrigem linha existente, e os dois de sessão são o que faz o
       // canal enxergar a própria queda.
-      for (const e of ["message.ack", "message.edited", "message.revoked", "session.status", "state.change"]) {
+      for (const e of [
+        "message.ack",
+        "message.edited",
+        "message.revoked",
+        "session.status",
+        "state.change",
+      ]) {
         expect(linha, `sumiu ${e}`).toContain(e);
       }
     });
@@ -98,6 +109,21 @@ describe("os três composes assinam os mesmos eventos do canal por QR", () => {
         eventosDe(arquivo),
         `${arquivo} não assina message.reaction — a reação do cliente não chega`,
       ).toContain("message.reaction");
+    }
+  });
+
+  it("o webhook POR SESSÃO assina os mesmos eventos do hook global (`EVENTOS_DO_WEBHOOK`)", () => {
+    // Com `WAHA_SESSION_WEBHOOK=true` o WAHA compartilhado não tem hook global:
+    // quem decide o que chega ao CRM é `EVENTOS_DO_WEBHOOK`, gravado na sessão.
+    // O comentário dele dizia "os mesmos do WHATSAPP_HOOK_EVENTS" e os dois
+    // divergiram — `message.reaction` entrou nos composes e não na constante,
+    // então a reação do cliente nunca chegava a quem roda o modo por sessão.
+    // Comparação por conjunto: a ordem não muda o que o WAHA entrega.
+    const porSessao = [...EVENTOS_DO_WEBHOOK].sort();
+    for (const arquivo of COMPOSES) {
+      expect(porSessao, `${arquivo} e EVENTOS_DO_WEBHOOK divergiram`).toEqual(
+        [...eventosDe(arquivo)].sort(),
+      );
     }
   });
 
