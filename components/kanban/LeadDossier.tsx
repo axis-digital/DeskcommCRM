@@ -15,7 +15,8 @@ import type { Stage } from "@/lib/kanban/types";
 import { ContatoDoNegocio } from "./ContatoDoNegocio";
 import { AbrirConversaDoLead, temAlvoParaAbrir } from "./AbrirConversaDoLead";
 import { ConversaNoDossie } from "./ConversaNoDossie";
-import { LeadFieldsForm } from "./LeadFieldsForm";
+import { LeadFieldsForm, type ControleDosCamposDoNegocio } from "./LeadFieldsForm";
+import { RevisaoDoDocumento } from "./RevisaoDoDocumento";
 import { ScoreSlot } from "./ScoreSlot";
 import { LeadTimeline } from "./LeadTimeline";
 import { PropostasDoNegocio } from "./PropostasDoNegocio";
@@ -121,6 +122,7 @@ export function LeadDossier({
   const tagDoIdioma = useTagDeIdioma();
   const t = useT();
   const campos = useRef<HTMLDivElement | null>(null);
+  const formulario = useRef<ControleDosCamposDoNegocio | null>(null);
   // Conversa escolhida AQUI (aberta pelo botão ou trocada pelo "número fora do
   // ar"); sem escolha vale a do negócio, que acompanha o quadro quando ele
   // atualiza. Não é cópia da prop: copiar congelaria o valor da primeira
@@ -167,6 +169,10 @@ export function LeadDossier({
   // Editar nome e e-mail do contato é `agent`+ e respeita o suporte somente-leitura,
   // como a rota (`requireRole("agent")` + `requireSupportWrite`): a mesma régua das tarefas.
   const podeEditarContato = podeEditarTarefas;
+  // Confirmar o que o documento disse é EDITAR O CARD: `agent`+, a MESMA régua
+  // que a rota de decisão exige (`requireRole("agent")`). Abaixo disso a fila
+  // ainda aparece — ler o que a IA leu é informação —, mas sem os botões.
+  const podeConfirmarDoDocumento = podeEditarTarefas;
 
   /**
    * As props da linha do tempo, montadas UMA vez e usadas nos dois estados da
@@ -378,7 +384,17 @@ export function LeadDossier({
               className="py-5"
             >
               <div ref={campos}>
-                <LeadFieldsForm lead={lead} pipelineId={pipelineId} fieldDefs={fieldDefs} />
+                {/* ⚠️ A REVISÃO FICA AQUI, dentro do card, e é esta linha que o
+                    mantenedor cobrou no #3415: a fila existia como API e não tinha
+                    consumidor na tela — o mesmo que não existir. Acima do
+                    formulário porque é o histórico do que o documento disse, e o
+                    formulário é o destino do que for confirmado. */}
+                <RevisaoDoDocumento
+                  leadId={lead.id}
+                  podeDecidir={podeConfirmarDoDocumento}
+                  aoDecidir={(confirmado) => formulario.current?.confirmarCampo(confirmado)}
+                />
+                <LeadFieldsForm lead={lead} pipelineId={pipelineId} fieldDefs={fieldDefs} controle={formulario} />
               </div>
             </SecaoDoDossie>
 

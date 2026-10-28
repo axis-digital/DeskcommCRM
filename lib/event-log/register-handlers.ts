@@ -26,6 +26,8 @@ import { CONSUMIDORES_DOS_CANAIS } from "@/lib/channels/consumidores";
 import { webPushInboundHandler } from "@/lib/notifications/push.handler";
 import { conversaoDeQualificacaoHandler } from "@/lib/conversoes/qualificacao.handler";
 import { conversaoDeEtapaMetaHandler } from "@/lib/conversoes/etapa-meta.handler";
+import { conversaoDeNascimentoMetaHandler } from "@/lib/conversoes/nascimento-meta.handler";
+import { conversaoDeCliqueMetaHandler } from "@/lib/conversoes/clique-meta.handler";
 import { conversaoGa4Handler } from "@/lib/conversoes/ga4.handler";
 import { conversaoDeVendaHandler } from "@/lib/conversoes/envio.handler";
 import { avisoDeEtapaHandler } from "@/lib/leads/aviso-de-etapa.handler";
@@ -117,6 +119,8 @@ export function ensureHandlersRegistered(): void {
   registerHandler(conversaoDeVendaHandler);
   registerHandler(conversaoDeQualificacaoHandler);
   registerHandler(conversaoDeEtapaMetaHandler);
+  registerHandler(conversaoDeNascimentoMetaHandler);
+  registerHandler(conversaoDeCliqueMetaHandler);
   // O GA4 é o último dos três: mesmo critério, rede de terceiro depois de quem só escreve no banco.
   registerHandler(conversaoGa4Handler);
   _registered = true;
