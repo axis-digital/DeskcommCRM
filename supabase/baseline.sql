@@ -62667,6 +62667,22 @@ $$;
 revoke execute on function public.fn_solicitar_reenvio_conversao(uuid, uuid, text) from public, anon, authenticated;
 grant execute on function public.fn_solicitar_reenvio_conversao(uuid, uuid, text) to service_role;
 
+-- ---- runtime identity (migration 9024) ----
+-- manifest: system_version records bounded host observations of running services, separate from checkout and update intent.
+-- Nullable for compatibility. Old heartbeats explicitly clear the observation.
+alter table public.system_version
+  add column if not exists runtime_confirmation jsonb;
+comment on column public.system_version.runtime_confirmation is
+  'Authenticated host observation of compose services and immutable images; the API derives coverage, freshness and release identity.';
+
+-- ---- pedido restrito de força da atualização (migration 9025) ----
+-- manifest: Persiste no run a intenção restrita de refazer uma atualização; o default falso preserva pedidos antigos.
+-- Forward nova: não altera a migration autoral de runtime_confirmation.
+alter table public.system_update_runs
+  add column if not exists force_requested boolean not null default false;
+comment on column public.system_update_runs.force_requested is
+  'Pedido restrito de reaplicar a atualização pelo agente do host; ausência ou false preserva o caminho normal.';
+
 -- ---- VARREDURA anon: função nova nasce exposta em quem ATUALIZA (migration 0116) ----
 --
 -- ⚠️ DE PROPÓSITO, NENHUMA FUNÇÃO É CRIADA DEPOIS DESTE BLOCO. Apêndice que cria
