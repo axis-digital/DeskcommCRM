@@ -228,6 +228,11 @@ export const wahaAdapter: ChannelAdapter = {
     if (!client) return { reachable: false, status: null, detail: "transporte_nao_configurado" };
     try {
       const r = await client.getSessionQr(input.sessionRef);
+      // WAHA compartilhado (webhook POR SESSÃO): a sessão pode estar de pé e
+      // surda, porque um PUT de fora levou o bloco `webhooks`. O retrato que
+      // acabamos de ler basta para conferir; só há chamada a mais quando falta.
+      // Não muda a saúde devolvida e nunca lança (ver `reafirmarWebhookSeSumiu`).
+      await client.reafirmarWebhookSeSumiu(input.sessionRef, r);
       return { reachable: true, status: r.status ?? null, detail: null };
     } catch (err) {
       const msg = err instanceof Error ? err.message : "erro_desconhecido";

@@ -131,19 +131,26 @@ function storeDaSessao(config: Record<string, unknown> | null | undefined) {
  * os lados: ela decide se a convergência precisa de um PUT, e um PUT reinicia
  * a sessão — ninguém pode pagar restart por uma opção que não mudou.
  */
-function acervoEstaConferido(config: Record<string, unknown> | null | undefined, guardar: boolean | undefined): boolean {
+function acervoEstaConferido(
+  config: Record<string, unknown> | null | undefined,
+  guardar: boolean | undefined,
+): boolean {
   if (guardar === undefined) return true;
   const ligado = storeDaSessao(config)?.enabled === true;
   return guardar ? ligado : !ligado;
 }
 
 /** Grava (ou desliga) o acervo na config que vai no PUT, sem tocar no resto do `noweb`. */
-function aplicarAcervoNaConfig(config: Record<string, unknown>, guardar: boolean | undefined): void {
+function aplicarAcervoNaConfig(
+  config: Record<string, unknown>,
+  guardar: boolean | undefined,
+): void {
   if (acervoEstaConferido(config, guardar)) return;
   const atual = config.noweb;
-  const noweb = atual && typeof atual === "object" && !Array.isArray(atual)
-    ? { ...(atual as Record<string, unknown>) }
-    : {};
+  const noweb =
+    atual && typeof atual === "object" && !Array.isArray(atual)
+      ? { ...(atual as Record<string, unknown>) }
+      : {};
   noweb.store = guardar ? ACERVO_DO_HISTORICO : { enabled: false, fullSync: false };
   config.noweb = noweb;
 }
@@ -227,12 +234,15 @@ export const TETO_DE_MIDIA_MS = 30_000;
 /**
  * Os eventos que o CRM consome — os mesmos do `WHATSAPP_HOOK_EVENTS` do
  * docker-compose.prod.yml (lá está o porquê de `message` ficar de fora).
+ * "Os mesmos" é vigiado: `tests/unit/assinatura-de-eventos-do-waha.test.ts`
+ * reprova a divergência (já aconteceu com `message.reaction`).
  */
 export const EVENTOS_DO_WEBHOOK = [
   "message.any",
   "message.ack",
   "message.edited",
   "message.revoked",
+  "message.reaction",
   "session.status",
   "state.change",
 ] as const;
@@ -243,6 +253,120 @@ export interface WahaSessionWebhook {
   /** Segredo do HMAC SHA512 com que o WAHA assina; sem ele vai sem assinatura. */
   hmacKey?: string;
 }
+
+/** A entrada de `config.webhooks` que o CRM grava na sessão. */
+function entradaDoWebhook(wh: WahaSessionWebhook): Record<string, unknown> {
+  return {
+    url: wh.url,
+    events: [...EVENTOS_DO_WEBHOOK],
+    ...(wh.hmacKey ? { hmac: { key: wh.hmacKey } } : {}),
+  };
+}
+
+/** As entradas de `config.webhooks` que são objetos — o resto não é nosso para ler. */
+function webhooksDaConfig(
+  config: Record<string, unknown> | null | undefined,
+): Record<string, unknown>[] {
+  const lista = config?.webhooks;
+  if (!Array.isArray(lista)) return [];
+  return lista.filter(
+    (w): w is Record<string, unknown> => Boolean(w) && typeof w === "object" && !Array.isArray(w),
+  );
+}
+
+/** Por que o webhook do CRM não está conferido — só nomes de evento, nunca o segredo. */
+export interface DiagnosticoDoWebhook {
+  conferido: boolean;
+  motivo: "conferido" | "ausente" | "eventos_faltando" | "hmac_divergente";
+  eventosFaltando: string[];
+}
+
+/**
+ * A sessão tem o webhook do CRM como ele precisa estar?
+ *
+ * Conferido = existe uma entrada com a URL do CRM que assina TODOS os eventos
+ * de `EVENTOS_DO_WEBHOOK` (por conjunto: ordem não importa, evento a mais não
+ * atrapalha) e, quando há segredo, assina com ESTE segredo. Segredo trocado é
+ * o mesmo defeito do webhook sumido: o WAHA entrega, o CRM recusa a
+ * assinatura, e nenhuma mensagem entra.
+ */
+export function diagnosticarWebhookDaSessao(
+  config: Record<string, unknown> | null | undefined,
+  wh: WahaSessionWebhook,
+): DiagnosticoDoWebhook {
+  const doCrm = webhooksDaConfig(config).filter((w) => w.url === wh.url);
+  if (doCrm.length === 0)
+    return { conferido: false, motivo: "ausente", eventosFaltando: [...EVENTOS_DO_WEBHOOK] };
+  let melhor: DiagnosticoDoWebhook | null = null;
+  for (const w of doCrm) {
+    const eventos = new Set(
+      Array.isArray(w.events) ? w.events.filter((e): e is string => typeof e === "string") : [],
+    );
+    const eventosFaltando = EVENTOS_DO_WEBHOOK.filter((e) => !eventos.has(e));
+    const hmac =
+      w.hmac && typeof w.hmac === "object" ? (w.hmac as Record<string, unknown>).key : undefined;
+    const hmacOk = !wh.hmacKey || hmac === wh.hmacKey;
+    if (eventosFaltando.length === 0 && hmacOk)
+      return { conferido: true, motivo: "conferido", eventosFaltando: [] };
+    melhor ??= {
+      conferido: false,
+      motivo: eventosFaltando.length > 0 ? "eventos_faltando" : "hmac_divergente",
+      eventosFaltando,
+    };
+  }
+  return melhor!;
+}
+
+/**
+ * `config.webhooks` com a entrada do CRM no lugar — e a de TODO MUNDO MAIS intacta.
+ *
+ * O WAHA aqui é compartilhado, e o PUT substitui a config inteira: o que não
+ * estiver nesta lista some da sessão. Apagar o webhook de um sistema vizinho
+ * seria repetir nele exatamente o defeito que esta função conserta no CRM.
+ * A entrada do CRM que já existia mantém posição e campos próprios (`retries`,
+ * `customHeaders`); duplicatas dela colapsam numa só, porque duas entregariam
+ * cada evento em dobro.
+ */
+function webhooksComODoCrm(config: Record<string, unknown>, wh: WahaSessionWebhook): unknown[] {
+  const doCrm = entradaDoWebhook(wh);
+  const resultado: unknown[] = [];
+  let colocado = false;
+  const bruto = Array.isArray(config.webhooks) ? (config.webhooks as unknown[]) : [];
+  for (const w of bruto) {
+    const ehDoCrm =
+      Boolean(w) && typeof w === "object" && (w as Record<string, unknown>).url === wh.url;
+    if (!ehDoCrm) {
+      resultado.push(w);
+      continue;
+    }
+    if (colocado) continue;
+    resultado.push({ ...(w as Record<string, unknown>), ...doCrm });
+    colocado = true;
+  }
+  if (!colocado) resultado.push(doCrm);
+  return resultado;
+}
+
+/**
+ * Espera entre duas reafirmações do vigia periódico para a MESMA sessão.
+ *
+ * O PUT reinicia a sessão (segundos sem canal). Se por qualquer motivo o WAHA
+ * não refletir o webhook no GET seguinte — uma versão que mascare o segredo,
+ * por exemplo —, o vigia de 5 em 5 minutos viraria um reinício a cada rodada.
+ * A espera põe teto nisso (≤2 por hora no pior caso) sem atrasar a cura do
+ * caso real, que é a primeira tentativa. Mora no módulo, não na instância:
+ * `getWahaClient()` monta um cliente novo a cada chamada.
+ */
+const ESPERA_DA_REAFIRMACAO_MS = 30 * 60_000;
+const ultimaReafirmacao = new Map<string, number>();
+
+/** Zera a memória da espera. Existe para o teste; produção nunca chama. */
+export function esquecerReafirmacoesDeWebhook(): void {
+  ultimaReafirmacao.clear();
+}
+
+export type DesfechoDaReafirmacao =
+  "fora_do_modo" | "nao_conectada" | "conferido" | "em_espera" | "recolocado" | "falhou";
 
 export interface WahaClientOpts {
   /** Sobrescreve o teto padrão. Existe para o teste; produção usa o default. */
@@ -280,17 +404,23 @@ export function lerProxyDaSessao(valor: string | undefined): WahaSessionProxy | 
   if (!url.hostname || !url.port) return null;
   const server = `${url.hostname}:${url.port}`;
   if (!url.username) return { server };
-  return { server, username: decodeURIComponent(url.username), password: decodeURIComponent(url.password) };
+  return {
+    server,
+    username: decodeURIComponent(url.username),
+    password: decodeURIComponent(url.password),
+  };
 }
 
-const sessionSnapshotSchema = z.object({
-  name: z.string(),
-  status: z.string(),
-  config: z.record(z.string(), z.unknown()).nullable().optional(),
-  engine: z.union([z.string(), z.object({ engine: z.string().optional() })]).optional(),
-  me: z.record(z.string(), z.unknown()).nullable().optional(),
-  qr: z.string().optional(),
-}).passthrough();
+const sessionSnapshotSchema = z
+  .object({
+    name: z.string(),
+    status: z.string(),
+    config: z.record(z.string(), z.unknown()).nullable().optional(),
+    engine: z.union([z.string(), z.object({ engine: z.string().optional() })]).optional(),
+    me: z.record(z.string(), z.unknown()).nullable().optional(),
+    qr: z.string().optional(),
+  })
+  .passthrough();
 
 export type WahaSessionSnapshot = z.infer<typeof sessionSnapshotSchema>;
 type SessionOperation = "create" | "start" | "stop" | "logout" | "delete";
@@ -316,16 +446,17 @@ export interface ContatoDoAparelho {
 }
 
 /** Tolerante aos extras que o WAHA acrescenta; só o que usamos é tipado. */
-const contatoDoAparelhoSchema = z.object({
-  id: z.string(),
-  name: z.string().nullish(),
-  pushname: z.string().nullish(),
-  pushName: z.string().nullish(),
-  isMyContact: z.boolean().nullish(),
-  isWAContact: z.boolean().nullish(),
-  isMe: z.boolean().nullish(),
-}).passthrough();
-
+const contatoDoAparelhoSchema = z
+  .object({
+    id: z.string(),
+    name: z.string().nullish(),
+    pushname: z.string().nullish(),
+    pushName: z.string().nullish(),
+    isMyContact: z.boolean().nullish(),
+    isWAContact: z.boolean().nullish(),
+    isMe: z.boolean().nullish(),
+  })
+  .passthrough();
 
 /** Mantém o prefixo/status que checkHealth e os callers já classificam. */
 export class WahaSessionError extends Error {
@@ -341,13 +472,19 @@ export class WahaSessionError extends Error {
 const errorEnvelope = z.object({ statusCode: z.number(), error: z.string(), message: z.string() });
 
 /** Envelopes exatos observados/upstream; não há allowlist genérica de 409. */
-function knownSessionConflict(body: unknown, status: number, operation: SessionOperation, name: string): boolean {
+function knownSessionConflict(
+  body: unknown,
+  status: number,
+  operation: SessionOperation,
+  name: string,
+): boolean {
   const parsed = errorEnvelope.safeParse(body);
   if (!parsed.success || parsed.data.statusCode !== status) return false;
   const value = parsed.data;
   if (status === 404) return value.error === "Not Found" && value.message === "Session not found";
   if (status !== 422 || value.error !== "Unprocessable Entity") return false;
-  if (operation === "create") return value.message === `Session '${name}' already exists. Use PUT to update it.`;
+  if (operation === "create")
+    return value.message === `Session '${name}' already exists. Use PUT to update it.`;
   if (operation === "start") return value.message === `Session '${name}' is already started.`;
   return false;
 }
@@ -387,9 +524,7 @@ export class WahaClient {
     const wh = this.webhookDaSessao;
     return {
       ignore: CONVERSAS_IGNORADAS,
-      ...(wh
-        ? { webhooks: [{ url: wh.url, events: [...EVENTOS_DO_WEBHOOK], ...(wh.hmacKey ? { hmac: { key: wh.hmacKey } } : {}) }] }
-        : {}),
+      ...(wh ? { webhooks: [entradaDoWebhook(wh)] } : {}),
       ...(this.proxyDaSessao ? { proxy: this.proxyDaSessao } : {}),
     };
   }
@@ -427,10 +562,17 @@ export class WahaClient {
     return describeWahaServer(await res.json().catch(() => null));
   }
 
-  private async sessionAfter(name: string, operation: SessionOperation, status: number): Promise<WahaSessionSnapshot | null> {
-    const res = await this.fetchComTeto(`${this.baseUrl}/api/sessions/${encodeURIComponent(name)}`, {
-      headers: { "X-Api-Key": this.apiKey },
-    });
+  private async sessionAfter(
+    name: string,
+    operation: SessionOperation,
+    status: number,
+  ): Promise<WahaSessionSnapshot | null> {
+    const res = await this.fetchComTeto(
+      `${this.baseUrl}/api/sessions/${encodeURIComponent(name)}`,
+      {
+        headers: { "X-Api-Key": this.apiKey },
+      },
+    );
     // O endpoint exato é a pós-condição de ausência; 404 de proxy/HTML não é.
     const body: unknown = await res.json().catch(() => null);
     if (res.status === 404 && knownSessionConflict(body, 404, operation, name)) return null;
@@ -455,12 +597,16 @@ export class WahaClient {
     const ignore = session.config.ignore;
     if (ignore === undefined) return true; // sessão legada; convergência preserva webhooks
     if (!ignore || typeof ignore !== "object" || Array.isArray(ignore)) return false;
-    return Object.entries(CHAVES_DO_FILTRO_FIXAS).every(([key, value]) =>
-      !(key in ignore) || (ignore as Record<string, unknown>)[key] === value);
+    return Object.entries(CHAVES_DO_FILTRO_FIXAS).every(
+      ([key, value]) => !(key in ignore) || (ignore as Record<string, unknown>)[key] === value,
+    );
   }
 
   /** Porta granular para a futura reserva: created nunca significa ownership. */
-  async createSession(name: string, opcoes: OpcoesDeAcervo = {}): Promise<{ created: boolean; session: WahaSessionSnapshot }> {
+  async createSession(
+    name: string,
+    opcoes: OpcoesDeAcervo = {},
+  ): Promise<{ created: boolean; session: WahaSessionSnapshot }> {
     // O acervo vai JUNTO com o filtro, mas SÓ quando a conexão pediu (opção
     // desligada por padrão — decisão do mantenedor na issue #999). Sem a opção,
     // o corpo é byte a byte o de sempre. Ver ACERVO_DO_HISTORICO.
@@ -472,57 +618,98 @@ export class WahaClient {
       headers: { "X-Api-Key": this.apiKey, "Content-Type": "application/json" },
       body: JSON.stringify({ name, start: false, config }),
     });
-    if (!res.ok && !knownSessionConflict(await res.json().catch(() => null), res.status, "create", name)) {
+    if (
+      !res.ok &&
+      !knownSessionConflict(await res.json().catch(() => null), res.status, "create", name)
+    ) {
       throw new WahaSessionError("create", res.status);
     }
     // 404 não é conflito de create, mesmo que use envelope reconhecido.
     if (!res.ok && res.status !== 422) throw new WahaSessionError("create", res.status);
     const session = await this.sessionAfter(name, "create", res.status);
-    if (!session || !(await this.compatibleSession(session))) throw new WahaSessionError("create", res.status);
+    if (!session || !(await this.compatibleSession(session)))
+      throw new WahaSessionError("create", res.status);
     return { created: res.ok, session };
   }
 
   /** Compatível com os callers: cria se necessário e inicia, confirmando GET. */
-  async startSession(name: string, opcoes: OpcoesDeAcervo = {}): Promise<{ qr?: string; status: string }> {
+  async startSession(
+    name: string,
+    opcoes: OpcoesDeAcervo = {},
+  ): Promise<{ qr?: string; status: string }> {
     const creation = await this.createSession(name, opcoes);
     const ignore = creation.session.config?.ignore;
-    const filtersCurrent = ignore && typeof ignore === "object" && Object.entries(CHAVES_DO_FILTRO_FIXAS)
-      .every(([key, value]) => (ignore as Record<string, unknown>)[key] === value);
+    const filtersCurrent =
+      ignore &&
+      typeof ignore === "object" &&
+      Object.entries(CHAVES_DO_FILTRO_FIXAS).every(
+        ([key, value]) => (ignore as Record<string, unknown>)[key] === value,
+      );
     // Sessão que JÁ existe: `POST /api/sessions` responde 422 e a config não é
     // aplicada nesse caminho. Então quem ligou a opção em um número já pareado
     // só consegue o acervo pela convergência (guardando daqui em diante: o
     // fullSync é da vinculação). Sem a opção, o critério é o de sempre
     // e o store fica como estava (ver OpcoesDeAcervo).
     const acervoFalta = !acervoEstaConferido(creation.session.config, opcoes.guardarHistorico);
-    if (!creation.created && (!filtersCurrent || acervoFalta)) await this.convergirConfigDaSessao(name, opcoes);
+    // O webhook POR SESSÃO entra na mesma régua: a sessão existente que perdeu
+    // o bloco `webhooks` (um PUT de fora substitui a config inteira) fica de pé
+    // e surda. A reconexão é o momento natural de devolvê-lo.
+    const webhookFalta =
+      this.webhookDaSessao !== null &&
+      !diagnosticarWebhookDaSessao(creation.session.config, this.webhookDaSessao).conferido;
+    if (!creation.created && (!filtersCurrent || acervoFalta || webhookFalta)) {
+      await this.convergirConfigDaSessao(name, opcoes);
+    }
     return this.startExistingSession(name);
   }
 
   /** Não cria nem remove: a futura operação de reserva mantém seu próprio recibo. */
   async startExistingSession(name: string): Promise<WahaSessionSnapshot> {
-    const res = await this.fetchComTeto(`${this.baseUrl}/api/sessions/${encodeURIComponent(name)}/start`, {
-      method: "POST",
-      headers: { "X-Api-Key": this.apiKey, "Content-Type": "application/json" },
-      body: JSON.stringify({}),
-    });
-    if (!res.ok && !(res.status === 422 && knownSessionConflict(await res.json().catch(() => null), res.status, "start", name))) {
+    const res = await this.fetchComTeto(
+      `${this.baseUrl}/api/sessions/${encodeURIComponent(name)}/start`,
+      {
+        method: "POST",
+        headers: { "X-Api-Key": this.apiKey, "Content-Type": "application/json" },
+        body: JSON.stringify({}),
+      },
+    );
+    if (
+      !res.ok &&
+      !(
+        res.status === 422 &&
+        knownSessionConflict(await res.json().catch(() => null), res.status, "start", name)
+      )
+    ) {
       throw new WahaSessionError("start", res.status);
     }
     const session = await this.sessionAfter(name, "start", res.status);
-    if (!session || !["STARTING", "SCAN_QR_CODE", "WORKING"].includes(session.status) || !(await this.compatibleSession(session))) {
+    if (
+      !session ||
+      !["STARTING", "SCAN_QR_CODE", "WORKING"].includes(session.status) ||
+      !(await this.compatibleSession(session))
+    ) {
       throw new WahaSessionError("start", res.status);
     }
     return session;
   }
 
-  private async finishSession(name: string, operation: "stop" | "logout" | "delete"): Promise<void> {
+  private async finishSession(
+    name: string,
+    operation: "stop" | "logout" | "delete",
+  ): Promise<void> {
     const path = `/api/sessions/${encodeURIComponent(name)}${operation === "delete" ? "" : `/${operation}`}`;
     const res = await this.fetchComTeto(`${this.baseUrl}${path}`, {
       method: operation === "delete" ? "DELETE" : "POST",
       headers: { "X-Api-Key": this.apiKey, "Content-Type": "application/json" },
       ...(operation === "delete" ? {} : { body: JSON.stringify({}) }),
     });
-    if (!res.ok && !(res.status === 404 && knownSessionConflict(await res.json().catch(() => null), res.status, operation, name))) {
+    if (
+      !res.ok &&
+      !(
+        res.status === 404 &&
+        knownSessionConflict(await res.json().catch(() => null), res.status, operation, name)
+      )
+    ) {
       throw new WahaSessionError(operation, res.status);
     }
     const session = await this.sessionAfter(name, operation, res.status);
@@ -534,7 +721,12 @@ export class WahaClient {
     // retomada do transporte após logout, não promessa de canal conectado.
     // https://waha.devlike.pro/docs/how-to/sessions/#logout-session
     // `me` ausente (GOWS omite o campo) vale o mesmo que `null`.
-    if (operation === "logout" && ["STOPPED", "STARTING", "SCAN_QR_CODE"].includes(session.status) && session.me == null) return;
+    if (
+      operation === "logout" &&
+      ["STOPPED", "STARTING", "SCAN_QR_CODE"].includes(session.status) &&
+      session.me == null
+    )
+      return;
     throw new WahaSessionError(operation, res.status);
   }
 
@@ -607,10 +799,13 @@ export class WahaClient {
       // grupos na inbox, quem decide `groups` é `definirRecebimentoDeGrupos`.
       // Preserva o valor atual (ou o default de criação, se a sessão nunca
       // teve a chave) em vez de reescrevê-lo às cegas.
-      const ignoreAtual = (typeof sessao.config.ignore === "object" && sessao.config.ignore !== null
-        ? sessao.config.ignore
-        : {}) as Record<string, unknown>;
-      const groupsAtual = typeof ignoreAtual.groups === "boolean" ? ignoreAtual.groups : CONVERSAS_IGNORADAS.groups;
+      const ignoreAtual = (
+        typeof sessao.config.ignore === "object" && sessao.config.ignore !== null
+          ? sessao.config.ignore
+          : {}
+      ) as Record<string, unknown>;
+      const groupsAtual =
+        typeof ignoreAtual.groups === "boolean" ? ignoreAtual.groups : CONVERSAS_IGNORADAS.groups;
       // Já está como queremos: não reiniciar a sessão à toa. Este caminho roda
       // em TODA reconexão, e um restart desnecessário por rodada seria pior que
       // o gasto que ele evita.
@@ -619,13 +814,42 @@ export class WahaClient {
       // com as chaves noutra sequência, esta guarda passa a dizer "mudou" e a
       // sessão reinicia a cada reconexão — sem que nada tenha mudado.
       const guardarHistorico = opcoes.guardarHistorico;
-      const filtroConferido = Object.entries(CHAVES_DO_FILTRO_FIXAS).every(([k, v]) => ignoreAtual[k] === v);
+      const filtroConferido = Object.entries(CHAVES_DO_FILTRO_FIXAS).every(
+        ([k, v]) => ignoreAtual[k] === v,
+      );
       // O acervo entra na MESMA régua do filtro: sem isto, quem ligou a opção em
       // um número já pareado nunca teria o PUT (o filtro já estava certo), e
       // quem desligou levaria um restart para reafirmar o default da engine.
-      if (filtroConferido && acervoEstaConferido(sessao.config, guardarHistorico)) return true;
-      const config: Record<string, unknown> = { ...sessao.config, ignore: { ...CHAVES_DO_FILTRO_FIXAS, groups: groupsAtual } };
+      //
+      // O webhook POR SESSÃO também (modo `WAHA_SESSION_WEBHOOK`). Ele só é
+      // gravado na criação, e um PUT feito por fora leva o bloco `webhooks`
+      // junto — medido numa instalação real: sessão `WORKING`, envio normal, e
+      // sete dias sem uma mensagem recebida chegar ao CRM. Sem modo por sessão
+      // (hook global), `webhooks` não é assunto do CRM e fica como está.
+      const wh = this.webhookDaSessao;
+      const webhook = wh ? diagnosticarWebhookDaSessao(sessao.config, wh) : null;
+      const webhookConferido = !webhook || webhook.conferido;
+      if (
+        filtroConferido &&
+        acervoEstaConferido(sessao.config, guardarHistorico) &&
+        webhookConferido
+      )
+        return true;
+      const config: Record<string, unknown> = {
+        ...sessao.config,
+        ignore: { ...CHAVES_DO_FILTRO_FIXAS, groups: groupsAtual },
+      };
       aplicarAcervoNaConfig(config, guardarHistorico);
+      if (wh && webhook && !webhook.conferido) {
+        config.webhooks = webhooksComODoCrm(sessao.config, wh);
+        // O laço de retorno: o sumiço do webhook era invisível. Agora ele deixa
+        // rastro com o motivo — sem a URL inteira e sem o segredo do HMAC.
+        logger.warn("[waha] o webhook do CRM não estava na sessão; recolocando", {
+          sessao: name,
+          motivo: webhook.motivo,
+          eventosFaltando: webhook.eventosFaltando,
+        });
+      }
 
       const res = await this.fetchComTeto(url, {
         method: "PUT",
@@ -635,6 +859,12 @@ export class WahaClient {
       if (!res.ok) {
         logger.warn("[waha] não consegui convergir a config da sessão", { status: res.status });
         return false;
+      }
+      if (webhook && !webhook.conferido) {
+        logger.info("[waha] webhook do CRM recolocado na sessão", {
+          sessao: name,
+          motivo: webhook.motivo,
+        });
       }
       return true;
     } catch (err) {
@@ -651,6 +881,56 @@ export class WahaClient {
   }
 
   /**
+   * O vigia periódico do webhook por sessão: cura a sessão conectada e surda.
+   *
+   * `convergirConfigDaSessao` só roda quando alguém (re)inicia a sessão — e a
+   * sessão que perdeu o webhook continua `WORKING`, então ninguém a reinicia:
+   * o defeito não se curava nunca. Quem chama é o `checkHealth` do canal por
+   * QR (cron `channel-health`, de 5 em 5 minutos), passando o retrato que ele
+   * JÁ leu: no caso comum (webhook conferido) isto não faz chamada nenhuma.
+   *
+   * Só age em sessão `WORKING`: QR, falha e parada têm dono próprio (o humano
+   * com o celular, o `session-reconciler`), e o PUT reinicia a sessão. Reiniciar
+   * aqui não é "religar sozinho" uma conexão derrubada — é reafirmar a config de
+   * uma conexão de pé que deixou de entregar ao CRM. E há a espera entre duas
+   * tentativas para a mesma sessão (`ESPERA_DA_REAFIRMACAO_MS`).
+   *
+   * NUNCA lança: a saúde da conexão não pode depender da cura.
+   */
+  async reafirmarWebhookSeSumiu(name: string, retrato: unknown): Promise<DesfechoDaReafirmacao> {
+    const wh = this.webhookDaSessao;
+    if (!wh) return "fora_do_modo";
+    const parsed = sessionSnapshotSchema.safeParse(retrato);
+    if (
+      !parsed.success ||
+      parsed.data.name !== name ||
+      parsed.data.status !== "WORKING" ||
+      !parsed.data.config
+    ) {
+      return "nao_conectada";
+    }
+    if (diagnosticarWebhookDaSessao(parsed.data.config, wh).conferido) return "conferido";
+    const chave = `${this.baseUrl}|${name}`;
+    const agora = Date.now();
+    const ultima = ultimaReafirmacao.get(chave);
+    if (ultima !== undefined && agora - ultima < ESPERA_DA_REAFIRMACAO_MS) {
+      logger.warn(
+        "[waha] webhook do CRM segue fora da sessão; aguardando a espera para tentar de novo",
+        {
+          sessao: name,
+        },
+      );
+      return "em_espera";
+    }
+    ultimaReafirmacao.set(chave, agora);
+    try {
+      return (await this.convergirConfigDaSessao(name)) ? "recolocado" : "falhou";
+    } catch {
+      return "falhou";
+    }
+  }
+
+  /**
    * Grupos em que o número está. Medido no WAHA real (Task 0,
    * `.superpowers/sdd/2026-09-23-grupos-na-inbox/task-0-report.md`):
    * `GET /api/{session}/groups` devolve um OBJETO chaveado por id de grupo,
@@ -663,24 +943,37 @@ export class WahaClient {
    * terminam em `@g.us`, e é essa a única checagem — não `18 dígitos`.
    */
   async listarGrupos(session: string): Promise<Array<{ chatId: string; subject: string | null }>> {
-    const res = await this.fetchComTeto(`${this.baseUrl}/api/${encodeURIComponent(session)}/groups`, {
-      headers: { "X-Api-Key": this.apiKey },
-    });
+    const res = await this.fetchComTeto(
+      `${this.baseUrl}/api/${encodeURIComponent(session)}/groups`,
+      {
+        headers: { "X-Api-Key": this.apiKey },
+      },
+    );
     if (!res.ok) throw new Error(`waha_groups_${res.status}`);
     const bruto = (await res.json().catch(() => null)) as unknown;
-    const lista = Array.isArray(bruto) ? bruto : bruto && typeof bruto === "object" ? Object.values(bruto) : [];
+    const lista = Array.isArray(bruto)
+      ? bruto
+      : bruto && typeof bruto === "object"
+        ? Object.values(bruto)
+        : [];
     const grupos: Array<{ chatId: string; subject: string | null }> = [];
     for (const item of lista) {
       if (!item || typeof item !== "object") continue;
       const o = item as Record<string, unknown>;
       const id = o.id;
       const chatId =
-        typeof id === "string" ? id
-        : id && typeof id === "object" && typeof (id as Record<string, unknown>)._serialized === "string"
-          ? ((id as Record<string, unknown>)._serialized as string)
-          : typeof o.JID === "string" ? (o.JID as string) : null;
+        typeof id === "string"
+          ? id
+          : id &&
+              typeof id === "object" &&
+              typeof (id as Record<string, unknown>)._serialized === "string"
+            ? ((id as Record<string, unknown>)._serialized as string)
+            : typeof o.JID === "string"
+              ? (o.JID as string)
+              : null;
       if (!chatId || !chatId.endsWith("@g.us")) continue;
-      const subject = typeof o.subject === "string" ? o.subject : typeof o.name === "string" ? o.name : null;
+      const subject =
+        typeof o.subject === "string" ? o.subject : typeof o.name === "string" ? o.name : null;
       grupos.push({ chatId, subject });
     }
     return grupos;
@@ -710,10 +1003,13 @@ export class WahaClient {
       const o = item as Record<string, unknown>;
       const id = o.id;
       const chatId =
-        typeof id === "string" ? id
-        : id && typeof id === "object" && typeof (id as Record<string, unknown>)._serialized === "string"
-          ? ((id as Record<string, unknown>)._serialized as string)
-          : null;
+        typeof id === "string"
+          ? id
+          : id &&
+              typeof id === "object" &&
+              typeof (id as Record<string, unknown>)._serialized === "string"
+            ? ((id as Record<string, unknown>)._serialized as string)
+            : null;
       if (!chatId) continue;
       const ts = o.conversationTimestamp ?? o.timestamp;
       chats.push({ chatId, ultimaEm: typeof ts === "number" && Number.isFinite(ts) ? ts : null });
@@ -776,16 +1072,22 @@ export class WahaClient {
   async paginaDeConversas(
     session: string,
     opts: { limit: number; offset: number },
-  ): Promise<{ conversas: Array<{ chatId: string; ultimaEm: number | null; posicao: number }>; lidas: number }> {
+  ): Promise<{
+    conversas: Array<{ chatId: string; ultimaEm: number | null; posicao: number }>;
+    lidas: number;
+  }> {
     const qs = new URLSearchParams({
       limit: String(opts.limit),
       offset: String(opts.offset),
       sortBy: "id",
       sortOrder: "asc",
     });
-    const res = await this.fetchComTeto(`${this.baseUrl}/api/${encodeURIComponent(session)}/chats?${qs}`, {
-      headers: { "X-Api-Key": this.apiKey },
-    });
+    const res = await this.fetchComTeto(
+      `${this.baseUrl}/api/${encodeURIComponent(session)}/chats?${qs}`,
+      {
+        headers: { "X-Api-Key": this.apiKey },
+      },
+    );
     if (!res.ok) throw new Error(`waha_chats_${res.status}`);
     const bruto = (await res.json().catch(() => null)) as unknown;
     if (!Array.isArray(bruto)) throw new Error("waha_chats_invalido");
@@ -795,13 +1097,22 @@ export class WahaClient {
       const o = item as Record<string, unknown>;
       const id = o.id;
       const chatId =
-        typeof id === "string" ? id
-        : id && typeof id === "object" && typeof (id as Record<string, unknown>)._serialized === "string"
-          ? ((id as Record<string, unknown>)._serialized as string)
-          : null;
+        typeof id === "string"
+          ? id
+          : id &&
+              typeof id === "object" &&
+              typeof (id as Record<string, unknown>)._serialized === "string"
+            ? ((id as Record<string, unknown>)._serialized as string)
+            : null;
       if (!chatId || chatId.endsWith("@g.us") || chatId === "status@broadcast") return;
-      const ultima = o.conversationTimestamp ?? (o.lastMessage as Record<string, unknown> | null | undefined)?.timestamp;
-      conversas.push({ chatId, ultimaEm: typeof ultima === "number" ? ultima : null, posicao: opts.offset + i });
+      const ultima =
+        o.conversationTimestamp ??
+        (o.lastMessage as Record<string, unknown> | null | undefined)?.timestamp;
+      conversas.push({
+        chatId,
+        ultimaEm: typeof ultima === "number" ? ultima : null,
+        posicao: opts.offset + i,
+      });
     });
     return { conversas, lidas: bruto.length };
   }
@@ -888,7 +1199,9 @@ export class WahaClient {
     } catch (e) {
       const nome = e instanceof Error ? e.name : "";
       if (nome === "TimeoutError" || nome === "AbortError") {
-        throw new Error(`waha_timeout: o WAHA não terminou de responder em ${opts.tetoMs ?? this.tetoMs}ms (mídia)`);
+        throw new Error(
+          `waha_timeout: o WAHA não terminou de responder em ${opts.tetoMs ?? this.tetoMs}ms (mídia)`,
+        );
       }
       throw e;
     }
@@ -898,7 +1211,10 @@ export class WahaClient {
     } catch {
       bruto = null;
     }
-    const media = bruto && typeof bruto.media === "object" ? (bruto.media as Record<string, unknown> | null) : null;
+    const media =
+      bruto && typeof bruto.media === "object"
+        ? (bruto.media as Record<string, unknown> | null)
+        : null;
     if (!media) return { url: null, erro: false };
     if (media.error) return { url: null, erro: true };
     return { url: typeof media.url === "string" && media.url ? media.url : null, erro: false };
@@ -937,9 +1253,10 @@ export class WahaClient {
     // sessão (vai a STARTING), e este método é chamado em TODO "ligar grupo" e
     // em toda (re)conexão do número — escrever sem mudança seria um reinício
     // de sessão por clique.
-    const ignoreAtual = typeof atual.config.ignore === "object" && atual.config.ignore
-      ? (atual.config.ignore as Record<string, unknown>)
-      : null;
+    const ignoreAtual =
+      typeof atual.config.ignore === "object" && atual.config.ignore
+        ? (atual.config.ignore as Record<string, unknown>)
+        : null;
     if (ignoreAtual && ignoreAtual.groups === !receber) return true;
     const ignore = {
       ...((typeof atual.config.ignore === "object" && atual.config.ignore) || {}),
@@ -964,9 +1281,10 @@ export class WahaClient {
       await new Promise((r) => setTimeout(r, PASSO_MS));
       depois = await ler();
     }
-    const g = depois?.config && typeof depois.config.ignore === "object" && depois.config.ignore
-      ? (depois.config.ignore as Record<string, unknown>).groups
-      : undefined;
+    const g =
+      depois?.config && typeof depois.config.ignore === "object" && depois.config.ignore
+        ? (depois.config.ignore as Record<string, unknown>).groups
+        : undefined;
     return g === !receber;
   }
 
@@ -976,9 +1294,12 @@ export class WahaClient {
   }
 
   async getSessionQr(name: string): Promise<{ qr?: string; status: string }> {
-    const res = await this.fetchComTeto(`${this.baseUrl}/api/sessions/${encodeURIComponent(name)}`, {
-      headers: { "X-Api-Key": this.apiKey },
-    });
+    const res = await this.fetchComTeto(
+      `${this.baseUrl}/api/sessions/${encodeURIComponent(name)}`,
+      {
+        headers: { "X-Api-Key": this.apiKey },
+      },
+    );
     if (!res.ok) throw new Error(`waha_${res.status}`);
     return (await res.json()) as { qr?: string; status: string };
   }
@@ -1040,7 +1361,11 @@ export class WahaClient {
         shortName?: unknown;
       };
       const texto = (v: unknown) => (typeof v === "string" && v.trim() !== "" ? v : null);
-      return { name: texto(body.name), pushname: texto(body.pushname), shortName: texto(body.shortName) };
+      return {
+        name: texto(body.name),
+        pushname: texto(body.pushname),
+        shortName: texto(body.shortName),
+      };
     } catch {
       return null;
     }
@@ -1164,7 +1489,12 @@ export class WahaClient {
   }
 
   /** O id completo identifica a mensagem no WAHA; o id curto do sendText não basta. */
-  async editMessage(session: string, chatId: string, messageId: string, text: string): Promise<void> {
+  async editMessage(
+    session: string,
+    chatId: string,
+    messageId: string,
+    text: string,
+  ): Promise<void> {
     const path = `/api/${encodeURIComponent(session)}/chats/${encodeURIComponent(chatId)}/messages/${encodeURIComponent(messageId)}`;
     const res = await this.fetchComTeto(`${this.baseUrl}${path}`, {
       method: "PUT",
@@ -1247,7 +1577,11 @@ export class WahaClient {
     if (!res.ok) {
       throw new Error(`waha_${res.status}`);
     }
-    return res.json() as Promise<{ numberExists: boolean; chatId?: string | null; pn?: string | null }>;
+    return res.json() as Promise<{
+      numberExists: boolean;
+      chatId?: string | null;
+      pn?: string | null;
+    }>;
   }
 
   /**
@@ -1347,11 +1681,15 @@ export class WahaClient {
     // o WAHA roda ffmpeg e baixa a URL do Storage antes de responder. Com o teto
     // de texto, o envio de áudio legítimo seria cortado — o conserto do timeout
     // viraria um defeito novo, e mais silencioso que o original.
-    const res = await this.fetchComTeto(`${this.baseUrl}/api/${plan.endpoint}`, {
-      method: "POST",
-      headers: { "X-Api-Key": this.apiKey, "Content-Type": "application/json" },
-      body: JSON.stringify({ session, chatId, ...plan.payload }),
-    }, TETO_DE_MIDIA_MS);
+    const res = await this.fetchComTeto(
+      `${this.baseUrl}/api/${plan.endpoint}`,
+      {
+        method: "POST",
+        headers: { "X-Api-Key": this.apiKey, "Content-Type": "application/json" },
+        body: JSON.stringify({ session, chatId, ...plan.payload }),
+      },
+      TETO_DE_MIDIA_MS,
+    );
     if (!res.ok) {
       throw new Error(`waha_${res.status}`);
     }
