@@ -55,6 +55,7 @@ export type PlataformaDeAnuncio = "meta_ads" | "google_ads";
  */
 export type NomeDoEvento =
   | "Purchase"
+  | "LeadSubmitted"
   | "QualifiedLead"
   | `Etapa:${string}`
   | `MetaEtapa:${string}`
@@ -70,10 +71,12 @@ export type NomeDoEvento =
  */
 export interface ConversaoOffline {
   organizationId: string;
-  leadId: string;
+  /** Nulo apenas no LeadSubmitted por clique quando nenhum card foi criado. */
+  leadId: string | null;
   evento: NomeDoEvento;
   /**
-   * Deduplicação, determinística: `<leadId>:<evento>`.
+   * Deduplicação determinística: por lead nos eventos antigos, por clique no
+   * LeadSubmitted causal. O transporte nunca deriva esta identidade.
    *
    * A plataforma descarta a segunda cópia com o mesmo par (id, evento). É a
    * SEGUNDA camada — a primeira é o índice único do livro-razão. Duas porque

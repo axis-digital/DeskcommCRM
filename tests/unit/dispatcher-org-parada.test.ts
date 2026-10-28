@@ -37,6 +37,8 @@ import { nuvemshopDesinstalacaoHandler } from "@/lib/nuvemshop/sync/desinstalaca
 import { nuvemshopPedidoHandler } from "@/lib/nuvemshop/sync/pedido.handler";
 import { nuvemshopProdutoHandler } from "@/lib/nuvemshop/sync/produto.handler";
 import { nuvemshopSyncHandler } from "@/lib/nuvemshop/sync/sync-page.handler";
+import { conversaoDeNascimentoMetaHandler } from "@/lib/conversoes/nascimento-meta.handler";
+import { conversaoDeCliqueMetaHandler } from "@/lib/conversoes/clique-meta.handler";
 import { avisoDeAgendamentoNoWhatsAppHandler } from "@/lib/agenda/aviso-de-agendamento.handler";
 import { avisoDeCasoAoSuporteHandler } from "@/lib/escalacao/aviso-ao-suporte.handler";
 import { casoNaCentralHandler } from "@/lib/escalacao/caso-na-central.handler";
@@ -100,6 +102,8 @@ const PULA: EventHandler[] = [
   conversaoDeQualificacaoHandler,
   conversaoDeEtapaMetaHandler,
   conversaoGa4Handler,
+  conversaoDeNascimentoMetaHandler,
+  conversaoDeCliqueMetaHandler,
   pinoReintentoHandler,
 ];
 
