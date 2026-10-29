@@ -3957,6 +3957,7 @@ são de mentira e a integração é semeada `healthy` — **não há OAuth nem w
 | **`[P1]`** Admin clica "Sincronizar agora": toast "Sincronização iniciada.", o run fica `running`, o dreno do `event_log` percorre as 12 janelas mensais e a integração passa a dizer "Em dia" com 2 pedidos | `tests/e2e/nuvemshop-sincroniza-pedidos.spec.ts` (SPECS_PARTE_6) | CI; PASS local 2026-10-08 (banco fresco do baseline, `next start`) |
 | O receptor recebeu o token em `Authentication: bearer`, `status=any` e janelas de `updated_at` ordenadas | idem | CI |
 | O painel "Pedidos recentes" do contato na inbox mostra `#1001` e `R$ 150,90` | idem | CI |
+| A aba Timeline da ficha do contato (`/app/contacts/[id]`) mostra "Pedido realizado · Cliente" com `#1001` e `R$ 150,90`, para um contato SEM negócio (os pedidos são projetados de `orders`; `crm_lead_activities.lead_id` é NOT NULL) | idem | CI (spec estendida; **não rodada localmente**, sem captura ainda) |
 | Cliente do pedido sem contato vira contato novo com `source = 'nuvemshop'` | idem | CI |
 | Com um run em andamento, o botão responde "Já está sincronizando." | idem | CI |
 

@@ -10,6 +10,8 @@
  * 3. O que chegou ao receptor é o que o produto promete: token no cabeçalho
  *    `Authentication: bearer`, janela de `updated_at`, `status=any`, paginação.
  * 4. O painel do contato na inbox mostra o pedido ligado a ele (#1001, R$ 150,90).
+ *    A linha do tempo da ficha do contato (aba Timeline) mostra o mesmo pedido,
+ *    mesmo para quem não tem negócio.
  * 5. Cliente sem contato vira contato novo com `source = 'nuvemshop'`.
  * 6. Com um run em andamento, o botão responde "Já está sincronizando.".
  * 7. O catálogo (E2) acompanha o mesmo botão: a varredura da loja inteira traz 2
@@ -389,6 +391,19 @@ test("conectar a loja: sincronizar agora traz os pedidos para a integração e p
   await expect(painel.getByText("#1001")).toBeVisible({ timeout: ESPERA });
   await expect(painel).toContainText(/R\$\s150,90/);
   await captura(page, "02-painel-do-contato.png");
+
+  // ── 5b. A linha do tempo da FICHA do contato mostra o mesmo pedido ────────
+  // O contato desta spec não tem negócio nenhum (só a conversa e o pedido): é o
+  // caso que a timeline por atividades nunca cobriu, e o motivo de o pedido ser
+  // projetado de `orders` em vez de gravado como atividade.
+  await page.goto(`/app/contacts/${f.contact}`);
+  await page.getByRole("tab", { name: "Timeline" }).click();
+  const linhaDoPedido = page.locator("li", { hasText: "Pedido realizado" });
+  await expect(linhaDoPedido).toBeVisible({ timeout: ESPERA });
+  await expect(linhaDoPedido).toContainText("#1001");
+  await expect(linhaDoPedido).toContainText(/R\$\s150,90/);
+  await expect(linhaDoPedido).toContainText("Cliente");
+  await captura(page, "04-linha-do-tempo-do-contato.png");
 
   // ── 6. Cliente novo virou contato da Nuvemshop ───────────────────────────
   const novo = await db

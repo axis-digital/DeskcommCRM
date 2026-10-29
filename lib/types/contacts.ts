@@ -116,3 +116,15 @@ export interface TimelineItemView extends TimelineItem {
   actor_agent_name?: string | null;
   actor_user_name?: string | null;
 }
+
+/**
+ * A linha da timeline do CONTATO: a atividade de sempre OU o pedido da loja.
+ *
+ * Tipo separado de `TimelineItemView` porque o pedido não pertence a negócio —
+ * `lead_id` é `null` — e alargar o tipo base faria a timeline do NEGÓCIO (que
+ * nunca tem pedido) tratar uma ausência que não existe lá. `lead_id !== null`
+ * é o que separa as duas formas, sem campo discriminante inventado.
+ */
+export interface TimelineItemDoContato extends Omit<TimelineItemView, "lead_id"> {
+  lead_id: string | null;
+}

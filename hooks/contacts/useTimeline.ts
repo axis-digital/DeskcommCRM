@@ -2,10 +2,10 @@
 import { useInfiniteQuery } from "@tanstack/react-query";
 import { apiClient } from "@/lib/api/client";
 import { showApiError } from "@/components/feedback/ApiErrorToast";
-import type { TimelineItemView } from "@/lib/types/contacts";
+import type { TimelineItemDoContato } from "@/lib/types/contacts";
 
 interface TimelineResponse {
-  data: TimelineItemView[];
+  data: TimelineItemDoContato[];
   meta?: { cursor?: string; has_more?: boolean };
 }
 

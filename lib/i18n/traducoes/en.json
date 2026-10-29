@@ -9461,5 +9461,10 @@
   "já estavam na base ou foram excluídas a pedido do titular": "were already in the base or were deleted at the owner's request",
   "recusadas": "rejected",
   "Sem nome da empresa.": "No company name.",
-  "Sem telefone válido.": "No valid phone number."
+  "Sem telefone válido.": "No valid phone number.",
+  "Pedido realizado": "Order placed",
+  "Aguardando pagamento": "Awaiting payment",
+  "Pago": "Paid",
+  "Embalado": "Packed",
+  "Despachado": "Shipped"
 }

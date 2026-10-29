@@ -18456,6 +18456,11 @@ export const DICIONARIO: Traducoes = {
   "Botões no card do negócio que abrem outro sistema com o dado do cliente já preenchido. Aceitam tel:, http:// e https://. Marcadores: {{telefone}}, {{nome}}, {{primeiro_nome}}, {{email}} e {{documento}}; campos personalizados entram como {{chave}}, {{lead.chave}} ou {{contact.chave}}.": {
     es: "Botones en la tarjeta del negocio que abren otro sistema con el dato del cliente ya rellenado. Aceptan tel:, http:// y https://. Marcadores: {{telefone}}, {{nome}}, {{primeiro_nome}}, {{email}} y {{documento}}; los campos personalizados entran como {{chave}}, {{lead.chave}} o {{contact.chave}}.",
   },
+  "Pedido realizado": { es: "Pedido realizado" },
+  "Aguardando pagamento": { es: "Esperando pago" },
+  "Pago": { es: "Pagado" },
+  "Embalado": { es: "Embalado" },
+  "Despachado": { es: "Despachado" },
 };
 
 /**
