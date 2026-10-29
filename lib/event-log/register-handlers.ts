@@ -36,6 +36,7 @@ import { comandaDoGanhoHandler } from "@/lib/financeiro/comanda-do-ganho.handler
 import { avisoDeCasoAoSuporteHandler } from "@/lib/escalacao/aviso-ao-suporte.handler";
 import { avisoDePropostaNoWhatsAppHandler } from "@/lib/propostas/aviso-no-whatsapp.handler";
 import { nuvemshopCatalogoHandler } from "@/lib/nuvemshop/sync/catalogo-page.handler";
+import { nuvemshopClienteHandler } from "@/lib/nuvemshop/sync/cliente.handler";
 import { nuvemshopDesinstalacaoHandler } from "@/lib/nuvemshop/sync/desinstalacao.handler";
 import { nuvemshopPedidoHandler } from "@/lib/nuvemshop/sync/pedido.handler";
 import { nuvemshopProdutoHandler } from "@/lib/nuvemshop/sync/produto.handler";
@@ -96,6 +97,7 @@ export function ensureHandlersRegistered(): void {
   // Nuvemshop: chamam a API da loja (rede de terceiro) — depois de quem só
   // escreve no banco, antes dos avisos que saem por WhatsApp.
   registerHandler(nuvemshopPedidoHandler);
+  registerHandler(nuvemshopClienteHandler);
   registerHandler(nuvemshopProdutoHandler);
   registerHandler(nuvemshopSyncHandler);
   // A cobrança do revendedor: relê o provedor (rede de terceiro) e só então

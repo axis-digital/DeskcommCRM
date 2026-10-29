@@ -60,6 +60,10 @@ export const SUBSCRIBED_EVENTS = [
   "order/updated",
   "order/paid",
   "order/cancelled",
+  // O cliente criou a conta na loja: vira o evento "cadastro" da linha do tempo
+  // do contato (`nuvemshop-cliente.v1`). Lojas já conectadas recebem a assinatura
+  // pela reconciliação, sem reconectar.
+  "customer/created",
   "product/created",
   "product/updated",
   "product/deleted",
