@@ -66780,3 +66780,94 @@ update public.agent_inbox_items as aviso
 create unique index if not exists inbox_task_reminder_ocasiao_unique
   on public.agent_inbox_items (organization_id, ref_id, kind, para_user_id, task_reminder_due_at)
   where ref_kind = 'task' and task_reminder_due_at is not null and status <> 'resolved';
+
+-- ---- eventos do site na linha do tempo do contato (migration 9040) ----
+create table if not exists public.site_events (
+  id uuid primary key default gen_random_uuid(),
+  organization_id uuid not null references public.organizations(id) on delete cascade,
+  contact_id uuid references public.contacts(id) on delete cascade,
+  kind text not null check (kind in (
+    'cadastro', 'carrinho_adicionado', 'checkout_iniciado', 'carrinho_abandonado'
+  )),
+  source text not null check (char_length(source) between 1 and 40),
+  dedupe_key text not null check (char_length(dedupe_key) between 1 and 200),
+  occurred_at timestamptz not null,
+  ga_client_id text check (ga_client_id is null or ga_client_id ~ '^[0-9]{1,12}\.[0-9]{1,12}$'),
+  ga_session_id text check (ga_session_id is null or ga_session_id ~ '^[0-9]{1,20}$'),
+  payload jsonb not null default '{}'::jsonb,
+  created_at timestamptz not null default now(),
+  unique (organization_id, dedupe_key)
+);
+
+-- A linha do tempo lê por contato, do mais recente para o mais antigo.
+create index if not exists idx_site_events_contato_tempo
+  on public.site_events (organization_id, contact_id, occurred_at desc, id desc)
+  where contact_id is not null;
+
+-- A rotina de descarte do anônimo (etapa 2) varre só o que não tem contato.
+create index if not exists idx_site_events_anonimos
+  on public.site_events (occurred_at)
+  where contact_id is null;
+
+alter table public.site_events enable row level security;
+
+drop policy if exists tenant_isolation_site_events_read on public.site_events;
+create policy tenant_isolation_site_events_read on public.site_events
+  for select to authenticated
+  using (organization_id in (select public.fn_user_org_ids()));
+
+-- Privilégio explícito, do tamanho do uso: a pessoa logada só lê (e a RLS filtra
+-- pela organização); o servidor lê e grava; o visitante sem login não alcança.
+revoke all on table public.site_events from anon, authenticated, service_role;
+grant select on table public.site_events to authenticated;
+grant select, insert, update, delete on table public.site_events to service_role;
+
+create or replace function public.fn_gravar_evento_do_site(p_organization_id uuid, p_evento jsonb)
+returns uuid
+language plpgsql
+security definer
+set search_path = public, pg_temp
+as $$
+declare
+  v_id uuid;
+  v_contato uuid := nullif(p_evento->>'contact_id', '')::uuid;
+begin
+  -- Contato só vale se for DESTA organização e não estiver anonimizado: a função
+  -- ignora RLS, e contato anonimizado não volta a receber histórico.
+  if v_contato is not null and not exists (
+    select 1 from public.contacts c
+     where c.id = v_contato
+       and c.organization_id = p_organization_id
+       and not coalesce(c.is_anonymized, false)
+  ) then
+    v_contato := null;
+  end if;
+
+  insert into public.site_events as e (
+    organization_id, contact_id, kind, source, dedupe_key, occurred_at,
+    ga_client_id, ga_session_id, payload
+  ) values (
+    p_organization_id,
+    v_contato,
+    p_evento->>'kind',
+    p_evento->>'source',
+    p_evento->>'dedupe_key',
+    (p_evento->>'occurred_at')::timestamptz,
+    nullif(p_evento->>'ga_client_id', ''),
+    nullif(p_evento->>'ga_session_id', ''),
+    coalesce(p_evento->'payload', '{}'::jsonb)
+  )
+  -- O mesmo fato regravado (webhook repetido, cron que revê o carrinho) não duplica:
+  -- completa o contato que faltava e atualiza o payload. `occurred_at` fica o do
+  -- primeiro registro, que é quando o fato aconteceu.
+  on conflict (organization_id, dedupe_key) do update set
+    contact_id = coalesce(e.contact_id, excluded.contact_id),
+    payload = excluded.payload
+  returning e.id into v_id;
+
+  return v_id;
+end
+$$;
+
+revoke execute on function public.fn_gravar_evento_do_site(uuid, jsonb) from public, anon, authenticated;
+grant execute on function public.fn_gravar_evento_do_site(uuid, jsonb) to service_role;
