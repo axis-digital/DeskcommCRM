@@ -1,4 +1,4 @@
--- manifest: **Eventos do site na linha do tempo do contato (etapa 1).** Cria `site_events` (cadastro na loja, carrinho adicionado, checkout iniciado e carrinho abandonado; um por fato, único por organização + `dedupe_key`; leitura pela organização, escrita só pelo servidor, com `ga_client_id` e `ga_session_id` já previstos, nulos) e a função `fn_gravar_evento_do_site` (`security definer` só para `service_role`; contato de outra organização ou anonimizado não é aceito; o mesmo fato regravado atualiza o payload e nunca duplica). Privilégios explícitos por papel, porque a Supabase deixa de conceder permissão automática a tabela nova em 30/10/2026. Idempotente.
+-- manifest: **Eventos do site na linha do tempo do contato (etapa 1).** Cria `site_events` (cadastro na loja, carrinho adicionado, checkout iniciado e carrinho abandonado; um por fato, único por organização + `dedupe_key`; leitura pela organização, escrita só pelo servidor, com `ga_client_id` e `ga_session_id` já previstos, nulos) e a função `fn_gravar_evento_do_site` (`security definer` só para `service_role`; contato de outra organização ou anonimizado não é aceito; o mesmo fato regravado atualiza o payload e nunca duplica). Um gatilho em `contacts` apaga os eventos da pessoa quando ela é anonimizada (por qualquer caminho). Privilégios explícitos por papel, porque a Supabase deixa de conceder permissão automática a tabela nova em 30/10/2026. Idempotente.
 
 -- 9040 — eventos do site na linha do tempo do contato
 --
@@ -105,3 +105,31 @@ $$;
 
 revoke execute on function public.fn_gravar_evento_do_site(uuid, jsonb) from public, anon, authenticated;
 grant execute on function public.fn_gravar_evento_do_site(uuid, jsonb) to service_role;
+
+-- Anonimizar o contato apaga o que ele fez na loja. A anonimização preserva o
+-- contato (e os valores dos pedidos), mas o comportamento (cadastro, carrinho) é
+-- dado pessoal e não tem por que sobreviver a ela. É um gatilho no próprio
+-- `contacts`, e não uma linha na função de anonimização (que tem várias definições
+-- no baseline), para valer por QUALQUER caminho que anonimize. Não faz HTTP; só apaga.
+create or replace function public.fn_site_events_apaga_ao_anonimizar()
+returns trigger
+language plpgsql
+security definer
+set search_path = public, pg_temp
+as $$
+begin
+  delete from public.site_events
+   where organization_id = new.organization_id
+     and contact_id = new.id;
+  return null;
+end
+$$;
+
+revoke execute on function public.fn_site_events_apaga_ao_anonimizar() from public, anon, authenticated;
+
+drop trigger if exists trg_site_events_apaga_ao_anonimizar on public.contacts;
+create trigger trg_site_events_apaga_ao_anonimizar
+  after update of is_anonymized on public.contacts
+  for each row
+  when (new.is_anonymized and not old.is_anonymized)
+  execute function public.fn_site_events_apaga_ao_anonimizar();

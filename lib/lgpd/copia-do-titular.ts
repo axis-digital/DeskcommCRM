@@ -96,6 +96,7 @@ export const O_QUE_FICA = {
   lead_field_proposals:
     "os campos que a IA leu num documento do negocio dele e propos para o card (o documento e os valores ficam no anexo)",
   orders: "os pedidos dele na loja",
+  site_events: "o que ele fez na loja: cadastro e carrinho abandonado, com a data",
   activities: "o que foi registrado sobre ele e quando",
   checkpoints: "o resumo que a máquina fez da conversa com ele (LGPD art. 20)",
   appointments: "os compromissos dele, com o link da reunião e a anotação que o PDF já imprime",

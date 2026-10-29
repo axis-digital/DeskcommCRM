@@ -28,6 +28,7 @@ const CONTATO_A = "c1a0f612-0000-4000-8000-0000000000ca";
 const CONTATO_A2 = "c1a0f612-0000-4000-8000-0000000000c2";
 const CONTATO_B = "c1a0f612-0000-4000-8000-0000000000cb";
 const CONTATO_ANON = "c1a0f612-0000-4000-8000-0000000000cd";
+const CONTATO_PARA_ANONIMIZAR = "c1a0f612-0000-4000-8000-0000000000ce";
 
 function evento(over: Record<string, unknown> = {}): Record<string, unknown> {
   return {
@@ -93,10 +94,10 @@ beforeAll(async () => {
     [USER_A, ORG_A, "a"],
     [USER_B, ORG_B, "b"],
   ]) {
-    await pool.query("insert into auth.users (id, email) values ($1, $2) on conflict (id) do nothing", [
-      user,
-      `site-ev-${tag}@invariant.test`,
-    ]);
+    await pool.query(
+      "insert into auth.users (id, email) values ($1, $2) on conflict (id) do nothing",
+      [user, `site-ev-${tag}@invariant.test`],
+    );
     await pool.query(
       "insert into public.user_organizations (user_id, organization_id, role, accepted_at) values ($1, $2, 'agent', now())",
       [user, org],
@@ -133,12 +134,17 @@ describe("fn_gravar_evento_do_site", () => {
     const primeiro = (await linha(ORG_A))!;
     const id = await gravar(
       ORG_A,
-      evento({ occurred_at: "2026-10-25T10:00:00Z", payload: { total_cents: 20000, currency: "BRL" } }),
+      evento({
+        occurred_at: "2026-10-25T10:00:00Z",
+        payload: { total_cents: 20000, currency: "BRL" },
+      }),
     );
     expect(id).toBe(primeiro.id);
     const depois = (await linha(ORG_A))!;
     expect(depois.payload).toEqual({ total_cents: 20000, currency: "BRL" });
-    expect(new Date(depois.occurred_at).toISOString()).toBe(new Date(primeiro.occurred_at).toISOString());
+    expect(new Date(depois.occurred_at).toISOString()).toBe(
+      new Date(primeiro.occurred_at).toISOString(),
+    );
     const { rows } = await pool.query(
       "select count(*)::int as n from public.site_events where organization_id = $1 and dedupe_key = $2",
       [ORG_A, "carrinho_abandonado:1001"],
@@ -159,17 +165,26 @@ describe("fn_gravar_evento_do_site", () => {
   it("o contato que faltava é completado quando o mesmo fato volta com ele", async () => {
     await gravar(ORG_A, evento({ dedupe_key: "cadastro:77", kind: "cadastro", contact_id: null }));
     expect((await linha(ORG_A, "cadastro:77"))?.contact_id).toBeNull();
-    await gravar(ORG_A, evento({ dedupe_key: "cadastro:77", kind: "cadastro", contact_id: CONTATO_A }));
+    await gravar(
+      ORG_A,
+      evento({ dedupe_key: "cadastro:77", kind: "cadastro", contact_id: CONTATO_A }),
+    );
     expect((await linha(ORG_A, "cadastro:77"))?.contact_id).toBe(CONTATO_A);
   });
 
   it("contato de OUTRA organização vira null", async () => {
-    await gravar(ORG_A, evento({ dedupe_key: "cadastro:78", kind: "cadastro", contact_id: CONTATO_B }));
+    await gravar(
+      ORG_A,
+      evento({ dedupe_key: "cadastro:78", kind: "cadastro", contact_id: CONTATO_B }),
+    );
     expect((await linha(ORG_A, "cadastro:78"))?.contact_id).toBeNull();
   });
 
   it("contato ANONIMIZADO não recebe histórico", async () => {
-    await gravar(ORG_A, evento({ dedupe_key: "cadastro:79", kind: "cadastro", contact_id: CONTATO_ANON }));
+    await gravar(
+      ORG_A,
+      evento({ dedupe_key: "cadastro:79", kind: "cadastro", contact_id: CONTATO_ANON }),
+    );
     expect((await linha(ORG_A, "cadastro:79"))?.contact_id).toBeNull();
   });
 
@@ -191,15 +206,20 @@ describe("fn_gravar_evento_do_site", () => {
 
 describe("site_events — vocabulário e formato", () => {
   it("recusa um kind fora do vocabulário (o pedido não é kind: ele vem de orders)", async () => {
-    await expect(gravar(ORG_A, evento({ dedupe_key: "x:1", kind: "pedido_realizado" }))).rejects.toThrow(
-      /site_events_kind_check/,
-    );
+    await expect(
+      gravar(ORG_A, evento({ dedupe_key: "x:1", kind: "pedido_realizado" })),
+    ).rejects.toThrow(/site_events_kind_check/);
   });
 
   it("aceita ga_client_id e ga_session_id no formato do GA4", async () => {
     await gravar(
       ORG_A,
-      evento({ dedupe_key: "ga:1", kind: "carrinho_adicionado", ga_client_id: "1234567890.1700000000", ga_session_id: "1761000000" }),
+      evento({
+        dedupe_key: "ga:1",
+        kind: "carrinho_adicionado",
+        ga_client_id: "1234567890.1700000000",
+        ga_session_id: "1761000000",
+      }),
     );
     const { rows } = await pool.query(
       "select ga_client_id, ga_session_id from public.site_events where organization_id = $1 and dedupe_key = 'ga:1'",
@@ -210,7 +230,14 @@ describe("site_events — vocabulário e formato", () => {
 
   it("recusa ga_client_id malformado em vez de guardar lixo", async () => {
     await expect(
-      gravar(ORG_A, evento({ dedupe_key: "ga:2", kind: "carrinho_adicionado", ga_client_id: "nao-e-client-id" })),
+      gravar(
+        ORG_A,
+        evento({
+          dedupe_key: "ga:2",
+          kind: "carrinho_adicionado",
+          ga_client_id: "nao-e-client-id",
+        }),
+      ),
     ).rejects.toThrow(/site_events_ga_client_id_check/);
   });
 });
@@ -254,8 +281,25 @@ describe("site_events — acesso", () => {
     });
   });
 
+  it("anonimizar o contato apaga os eventos dele, e só os dele", async () => {
+    await pool.query("insert into contacts (id, organization_id, name) values ($1, $2, 'A anonimizar')", [CONTATO_PARA_ANONIMIZAR, ORG_A]);
+    await gravar(ORG_A, evento({ dedupe_key: "anon:1", kind: "cadastro", contact_id: CONTATO_PARA_ANONIMIZAR }));
+    await gravar(ORG_A, evento({ dedupe_key: "anon:2", kind: "carrinho_abandonado", contact_id: CONTATO_PARA_ANONIMIZAR }));
+    expect(await linha(ORG_A, "anon:1")).toBeDefined();
+
+    await pool.query("update contacts set is_anonymized = true, anonymized_at = now() where id = $1", [CONTATO_PARA_ANONIMIZAR]);
+
+    expect(await linha(ORG_A, "anon:1")).toBeUndefined();
+    expect(await linha(ORG_A, "anon:2")).toBeUndefined();
+    // O evento de OUTRO contato, da mesma organização, segue lá.
+    expect(await linha(ORG_A, "carrinho_abandonado:1001")).toBeDefined();
+  });
+
   it("apagar o contato leva junto os eventos dele (dado pessoal não sobra órfão)", async () => {
-    await gravar(ORG_A, evento({ dedupe_key: "cadastro:80", kind: "cadastro", contact_id: CONTATO_A2 }));
+    await gravar(
+      ORG_A,
+      evento({ dedupe_key: "cadastro:80", kind: "cadastro", contact_id: CONTATO_A2 }),
+    );
     await pool.query("delete from contacts where id = $1", [CONTATO_A2]);
     expect(await linha(ORG_A, "cadastro:80")).toBeUndefined();
   });

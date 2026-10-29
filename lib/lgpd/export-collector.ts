@@ -128,6 +128,14 @@ export interface OrderRow {
   ordered_at: string | null;
 }
 
+/** O que a pessoa fez na loja (cadastro, carrinho abandonado…): `site_events`. */
+export interface SiteEventRow {
+  id: string;
+  kind: string;
+  source: string;
+  occurred_at: string;
+}
+
 export interface ActivityRow {
   id: string;
   lead_id: string | null;
@@ -698,6 +706,7 @@ export interface ExportPayload {
   honorarios_parcelas: HonorariosParcelaRow[];
   lead_field_proposals: LeadFieldProposalRow[];
   orders: OrderRow[];
+  site_events: SiteEventRow[];
   activities: ActivityRow[];
   checkpoints: CheckpointRow[];
   appointments: AppointmentRow[];
@@ -1509,6 +1518,29 @@ export async function collectExportData(args: CollectArgs): Promise<ExportPayloa
         currency: o.currency,
         ordered_at: o.ordered_at,
       }));
+    }
+  }
+
+  // O que a pessoa fez na loja (`site_events`). Só por contato: o evento nasce já
+  // ligado a um contato. O payload fica de fora: tem valor e id do carrinho, nada
+  // que a pessoa não saiba, e o titular recebe o fato e a data.
+  let siteEvents: SiteEventRow[] = [];
+  if (contactId) {
+    const { data, error } = await admin
+      .from("site_events")
+      .select("id, kind, source, occurred_at")
+      .eq("organization_id", organizationId)
+      .eq("contact_id", contactId)
+      .order("occurred_at", { ascending: false })
+      .limit(500);
+    if (error) {
+      logger.warn("[lgpd-export-worker] site_events load failed", {
+        request_id: requestId,
+        error: error.message,
+      });
+    } else if (data) {
+      conferirTeto("site_events", data, 500);
+      siteEvents = data.map((e) => ({ id: e.id, kind: e.kind, source: e.source, occurred_at: e.occurred_at }));
     }
   }
 
@@ -2385,6 +2417,7 @@ export async function collectExportData(args: CollectArgs): Promise<ExportPayloa
       !contact &&
       conversations.length === 0 &&
       orders.length === 0 &&
+      siteEvents.length === 0 &&
       prospecting_candidates.length === 0,
     contact,
     consents,
@@ -2396,6 +2429,7 @@ export async function collectExportData(args: CollectArgs): Promise<ExportPayloa
     honorarios_contratos,
     honorarios_parcelas,
     orders,
+    site_events: siteEvents,
     activities,
     checkpoints,
     appointments,
@@ -2593,6 +2627,7 @@ function emptyPayload(
     honorarios_contratos: [],
     honorarios_parcelas: [],
     orders: [],
+    site_events: [],
     activities: [],
     checkpoints: [],
     appointments: [],
