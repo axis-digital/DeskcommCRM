@@ -3958,6 +3958,8 @@ são de mentira e a integração é semeada `healthy` — **não há OAuth nem w
 | O receptor recebeu o token em `Authentication: bearer`, `status=any` e janelas de `updated_at` ordenadas | idem | CI |
 | O painel "Pedidos recentes" do contato na inbox mostra `#1001` e `R$ 150,90` | idem | CI |
 | A aba Timeline da ficha do contato (`/app/contacts/[id]`) mostra "Pedido realizado · Cliente" com `#1001` e `R$ 150,90`, para um contato SEM negócio (os pedidos são projetados de `orders`; `crm_lead_activities.lead_id` é NOT NULL) | idem | CI (spec estendida; **não rodada localmente**, sem captura ainda) |
+| A aba Timeline da ficha do contato mostra o **cadastro na loja** ("Cadastro na loja") e o **carrinho abandonado** ("Carrinho abandonado · R$ … · N itens"), para contato sem negócio; a loja já conectada recebe a assinatura de `customer/created` pelo cron de reconciliação, sem reconectar | `tests/unit/timeline-pedido-do-contato.test.tsx`, `app/api/v1/contacts/[id]/timeline/route.test.ts`, `lib/nuvemshop/sync/*.test.ts`, `tests/invariants/site-events.test.ts` | unit e banco passam; **sem spec de tela e sem prova com a API real da Nuvemshop** (o receptor da spec e2e não imita `/customers` nem `/checkouts`) |
+| Anonimizar o contato apaga os eventos do site dele | `tests/invariants/site-events.test.ts` | banco passa |
 | Cliente do pedido sem contato vira contato novo com `source = 'nuvemshop'` | idem | CI |
 | Com um run em andamento, o botão responde "Já está sincronizando." | idem | CI |
 

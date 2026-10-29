@@ -1,6 +1,6 @@
 # Eventos do site na linha do tempo do contato — Plano
 
-> **Status (2026-10-29):** etapa 0 (pedidos) **pronta no código, sem commit**; etapas 1 a 3 **NÃO INICIADAS**. **A etapa 1, a 1b e a tabela `site_events` foram aprovadas pelo dono em 2026-10-29**; falta a autorização para commitar o que está pronto e empilhar a etapa 1. Nada foi publicado. **Revisado após verificar a integração GA4 que já existe** (seção abaixo): as etapas 1b, 2 e 3 mudaram. **Acrescentada a seção "Identidade do visitante"** (sessão, vínculo e retroação), que é o que permite atribuir a navegação anônima a um cadastro.
+> **Status (2026-10-29):** etapa 0 (pedidos) **pronta no código, sem commit**; etapas 1 a 3 **NÃO INICIADAS**. **A etapa 1, a 1b e a tabela `site_events` foram aprovadas pelo dono em 2026-10-29.** Etapa 0 e etapa 1 estão **prontas em commits locais** (sem push, sem PR); a 1b e as etapas 2 e 3 não foram iniciadas. Nada foi publicado. **Revisado após verificar a integração GA4 que já existe** (seção abaixo): as etapas 1b, 2 e 3 mudaram. **Acrescentada a seção "Identidade do visitante"** (sessão, vínculo e retroação), que é o que permite atribuir a navegação anônima a um cadastro.
 
 **Goal:** tudo o que a pessoa faz na loja virtual (cadastrou-se, pôs no carrinho, iniciou o checkout, abandonou o carrinho, pediu) aparece na linha do tempo da ficha do contato, ligado ao contato certo e **uma vez só**, mesmo que a Nuvemshop e o GA4 vejam o mesmo fato.
 
@@ -101,17 +101,25 @@ Vem das migrations 9002 a 9004 do fork (conversões GA4, PRs #2 e #3 já mesclad
 
 Projeção de `orders` em `GET /api/v1/contacts/[id]/timeline`; módulo puro `lib/nuvemshop/pedido-na-timeline.ts`; tipo `TimelineItemDoContato`. Sem schema, retroativa. Testes: módulo, rota e tela; spec e2e `nuvemshop-sincroniza-pedidos` estendida (roda só no CI). Branch `feat/pedidos-na-timeline-do-contato`, empilhada sobre o merge da upstream (`merge/upstream-2026-10-29`).
 
-## Etapa 1 — Cadastro e carrinho abandonado, pela API da Nuvemshop
+## Etapa 1 — Cadastro e carrinho abandonado, pela API da Nuvemshop (CÓDIGO PRONTO, não publicado)
 
-Única etapa que não depende de aprovação externa nem de script no site. **Correção do que foi dito antes:** ela já precisa de uma tabela nova (volume baixo), porque o carrinho abandonado só fica 30 dias na API da Nuvemshop e precisa ser guardado.
+Única etapa que não depende de aprovação externa nem de script no site. Precisou de uma tabela nova (volume baixo), porque o carrinho abandonado só fica 30 dias na API da Nuvemshop e precisa ser guardado. Branch `feat/eventos-do-site-etapa-1`, commits locais, sem push.
 
-- [ ] **Decidir a tabela** (`site_events`: `organization_id`, `contact_id` nulo, `kind`, `occurred_at`, `source`, `dedupe_key`, `payload` mínimo, **`ga_client_id` e `ga_session_id` nulos já previstos** para a etapa 2 não exigir forward-fix; único por `(organization_id, dedupe_key)`; RLS `tenant_isolation_*`). As tabelas `site_sessions` e `site_identity_links` nascem na etapa 2, em migration própria. Migration na faixa 9000+ (conferir o número livre com `pnpm checar:colisao-de-migration`), apêndice idempotente no baseline, `-- manifest:`, grants explícitos revogando `anon`.
-- [ ] Assinar `customer/created` (e `updated`) no registro de webhooks; handler novo no modelo de `pedido.handler.ts`, passando pelo `event_log`.
-- [ ] Consulta de checkouts abandonados no cron `nuvemshop-reconcile`, gravando o evento (idempotente pela `dedupe_key`).
-- [ ] Ligar ao contato por e-mail ou id de cliente da loja (reaproveitar `contato-do-pedido.ts`; contato anonimizado não volta).
-- [ ] Timeline do contato soma `site_events` à projeção de pedidos (mesma rota, mesmo cursor).
-- [ ] Tradução (es/en), fragmento `.changes/`, mapa `nuvemshop-sync.architecture.json`, jornada J58.
-- [ ] Teste de isolamento entre duas organizações (obrigatório para tabela nova) e `pnpm test:db`.
+- [x] **Tabela `site_events`** (migration 9040 + apêndice no baseline): um fato por `(organization_id, dedupe_key)`; `ga_client_id` e `ga_session_id` nulos já previstos (formato do GA4 validado); leitura pela organização (RLS), escrita só pelo servidor; privilégios explícitos por papel (a Supabase deixa de conceder permissão automática em 30/10/2026); função `fn_gravar_evento_do_site` (só `service_role`; recusa contato de outra organização e contato anonimizado; o mesmo fato regravado não duplica nem troca o dono). As tabelas `site_sessions` e `site_identity_links` ficam para a etapa 2.
+- [x] **Gatilho de anonimização:** anonimizar o contato apaga os eventos dele, por qualquer caminho (gatilho em `contacts`, e não linha na função de anonimização, que tem várias definições no baseline).
+- [x] **Cadastro:** `customer/created` entra em `SUBSCRIBED_EVENTS`; handler `nuvemshop-cliente.v1` (pelo `event_log`) busca `GET /customers/{id}`, resolve o contato pela mesma regra do pedido e grava o cadastro. Sem nenhuma chave de contato, nada é gravado. Decidi **não** assinar `customer/updated` (não gera fato novo).
+- [x] **Lojas já conectadas:** a reconciliação de 30 min converge as assinaturas que faltam (cria só o que falta, adota o webhook que já existe com a mesma URL, não chama a API quando nada falta). A tela passa a mostrar "N / `SUBSCRIBED_EVENTS.length`" em vez de um 8 fixo.
+- [x] **Carrinho abandonado:** a reconciliação lê até 5 páginas de 200 (não há webhook, a API não filtra por data e o carrinho pode aparecer até 6 horas depois, então um cursor por id pularia atrasados); a chave do fato evita duplicata e o que já está gravado custa uma consulta. Carrinho que virou pedido não conta. O token e a URL do checkout nunca são guardados.
+- [x] **Timeline do contato** soma `site_events` à projeção de pedidos (mesma rota, mesmo cursor, filtro `?type=`); a tela escreve "Cadastro na loja" e "Carrinho abandonado · R$ … · N itens".
+- [x] **LGPD:** a cópia dos dados do titular inclui os eventos (`site_events` no `data.json`); o teste congelado do `data.json` do Brasil ganhou um auxiliar que declara a chave como aditiva deste fork, sem tocar nas fixtures "antes do doc 88".
+- [x] Tradução (es/en), fragmento `.changes/`, mapa `nuvemshop-sync.architecture.json`, jornada J58.
+- [x] Invariante de banco da tabela (16 casos, com `authenticated` de verdade) e a suíte de banco.
+
+**O que a etapa 1 NÃO provou (declarado):**
+- Nenhuma chamada à API real da Nuvemshop: o formato de `/customers/{id}` e de `/checkouts` vem da documentação, e os testes usam dublês. O receptor da spec e2e não imita esses dois caminhos.
+- Nenhuma prova pela tela (Playwright) e nenhum deploy.
+- O webhook real de `customer/created` não foi recebido: a assinatura só passa a existir depois do primeiro ciclo do cron no ambiente publicado.
+- Carrinho abandonado só existe para quem a loja identificou (e-mail, telefone ou CPF); o resto é descartado nesta etapa.
 
 ## Etapa 1b — Origem do pedido a partir da `landing_url` (NOVA, barata)
 
