@@ -6,6 +6,8 @@ const m = vi.hoisted(() => ({
   audit: vi.fn(),
   iniciar: vi.fn(),
   iniciarCatalogo: vi.fn(),
+  convergir: vi.fn(),
+  varrer: vi.fn(),
 }));
 vi.mock("@/lib/auth/cron-auth", () => ({ autorizaCron: m.autoriza }));
 vi.mock("@/lib/audit", () => ({ audit: m.audit }));
@@ -14,6 +16,12 @@ vi.mock("@/lib/nuvemshop/sync/deps", () => ({ depsReais: () => ({}) }));
 vi.mock("@/lib/nuvemshop/sync/iniciar", () => ({ iniciarSincronizacao: m.iniciar }));
 vi.mock("@/lib/nuvemshop/sync/catalogo-deps", () => ({ depsDoCatalogoReais: () => ({}) }));
 vi.mock("@/lib/nuvemshop/sync/iniciar-catalogo", () => ({ iniciarCatalogo: m.iniciarCatalogo }));
+vi.mock("@/lib/nuvemshop/sync/assinaturas", () => ({ convergirAssinaturasDaLoja: m.convergir }));
+vi.mock("@/lib/nuvemshop/sync/assinaturas-deps", () => ({ depsDeAssinaturasReais: () => ({}) }));
+vi.mock("@/lib/nuvemshop/sync/carrinhos-abandonados", () => ({
+  depsDosCarrinhosReais: () => ({}),
+  varrerCarrinhosAbandonados: m.varrer,
+}));
 vi.mock("@/lib/supabase/admin", () => ({
   createAdminClient: () => ({
     from: (tabela: string) => {
@@ -43,6 +51,10 @@ describe("GET nuvemshop-reconcile", () => {
     m.iniciar.mockReset();
     m.iniciarCatalogo.mockReset();
     m.iniciarCatalogo.mockResolvedValue({ ok: true });
+    m.convergir.mockReset();
+    m.convergir.mockResolvedValue({ criadas: 0, falhas: 0 });
+    m.varrer.mockReset();
+    m.varrer.mockResolvedValue({ gravados: 0, semContato: 0, truncado: false });
   });
 
   it("sem secret → 403", async () => {
@@ -58,7 +70,7 @@ describe("GET nuvemshop-reconcile", () => {
       .mockResolvedValueOnce({ ok: true, runId: "r2" });
     const { GET } = await import("./route");
     const body = await (await GET(req())).json();
-    expect(body.data).toEqual({ candidatos: 2, iniciados: 1, falhas: 0 });
+    expect(body.data).toEqual({ candidatos: 2, iniciados: 1, falhas: 0, assinaturas_criadas: 0, carrinhos_registrados: 0 });
     expect(m.audit).toHaveBeenCalledTimes(1);
     expect(m.audit).toHaveBeenCalledWith(expect.objectContaining({ action: "nuvemshop.sync_requested", organizationId: "b" }));
   });
@@ -67,8 +79,50 @@ describe("GET nuvemshop-reconcile", () => {
     m.iniciar.mockRejectedValueOnce(new Error("boom")).mockResolvedValueOnce({ ok: true, runId: "r2" });
     const { GET } = await import("./route");
     const body = await (await GET(req())).json();
-    expect(body.data).toEqual({ candidatos: 2, iniciados: 1, falhas: 1 });
+    expect(body.data).toEqual({ candidatos: 2, iniciados: 1, falhas: 1, assinaturas_criadas: 0, carrinhos_registrados: 0 });
     expect(m.audit).toHaveBeenCalledTimes(1);
+  });
+
+  it("convergência: audita só quando criou assinatura, e conta no corpo", async () => {
+    m.iniciar.mockResolvedValue({ ok: false, motivo: "sync_em_andamento" });
+    m.convergir.mockResolvedValueOnce({ criadas: 1, falhas: 0 }).mockResolvedValueOnce({ criadas: 0, falhas: 0 });
+    const { GET } = await import("./route");
+    const body = await (await GET(req())).json();
+    expect(body.data.assinaturas_criadas).toBe(1);
+    expect(m.audit).toHaveBeenCalledTimes(1);
+    expect(m.audit).toHaveBeenCalledWith(expect.objectContaining({ action: "nuvemshop.assinaturas_convergidas", organizationId: "a" }));
+  });
+
+  it("carrinhos abandonados: audita só quando gravou algo", async () => {
+    m.iniciar.mockResolvedValue({ ok: false, motivo: "sync_em_andamento" });
+    m.varrer
+      .mockResolvedValueOnce({ gravados: 0, semContato: 3, truncado: false })
+      .mockResolvedValueOnce({ gravados: 4, semContato: 1, truncado: false });
+    const { GET } = await import("./route");
+    const body = await (await GET(req())).json();
+    expect(body.data.carrinhos_registrados).toBe(4);
+    expect(m.audit).toHaveBeenCalledTimes(1);
+    expect(m.audit).toHaveBeenCalledWith(
+      expect.objectContaining({ action: "nuvemshop.carrinhos_abandonados_registrados", organizationId: "b", metadata: expect.objectContaining({ gravados: 4 }) }),
+    );
+  });
+
+  it("falha na convergência não impede a varredura de carrinhos nem a loja seguinte", async () => {
+    m.iniciar.mockResolvedValue({ ok: false, motivo: "sync_em_andamento" });
+    m.convergir.mockRejectedValueOnce(new Error("boom"));
+    const { GET } = await import("./route");
+    const resposta = await GET(req());
+    expect(resposta.status).toBe(200);
+    expect(m.varrer).toHaveBeenCalledTimes(2);
+    expect(m.convergir).toHaveBeenCalledTimes(2);
+  });
+
+  it("falha na varredura de carrinhos não impede a loja seguinte", async () => {
+    m.iniciar.mockResolvedValue({ ok: false, motivo: "sync_em_andamento" });
+    m.varrer.mockRejectedValueOnce(new Error("rede")).mockResolvedValueOnce({ gravados: 2, semContato: 0, truncado: false });
+    const { GET } = await import("./route");
+    const body = await (await GET(req())).json();
+    expect(body.data.carrinhos_registrados).toBe(2);
   });
 
   it("o catálogo também é conferido, continuando do cursor (reconciliacao), e não audita à parte", async () => {

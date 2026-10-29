@@ -51,6 +51,8 @@ export const AUDIT_ACTIONS = [
   "nuvemshop.sync_requested",
   "nuvemshop.sync_completed",
   "nuvemshop.catalog_synced",
+  "nuvemshop.assinaturas_convergidas",
+  "nuvemshop.carrinhos_abandonados_registrados",
   "nuvemshop.sync_failed",
   "nuvemshop.uninstalled",
   "lead.created",
