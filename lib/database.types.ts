@@ -632,6 +632,7 @@ export type Database = {
           resolved_at: string | null;
           severity: string;
           status: string;
+          task_reminder_due_at: string | null;
           title: string;
         };
         ComputedFields: never;
@@ -649,6 +650,7 @@ export type Database = {
           resolved_at?: string | null;
           severity?: string;
           status?: string;
+          task_reminder_due_at?: string | null;
           title: string;
         };
         Update: {
@@ -665,6 +667,7 @@ export type Database = {
           resolved_at?: string | null;
           severity?: string;
           status?: string;
+          task_reminder_due_at?: string | null;
           title?: string;
         };
         Relationships: [
@@ -6685,6 +6688,9 @@ export type Database = {
           owner_user_id: string | null;
           pipeline_id: string;
           position_in_stage: number;
+          recurring_months: number | null;
+          recurring_period: "monthly" | null;
+          recurring_value_cents: number | null;
           retomado_de_lead_id: string | null;
           source: string;
           source_metadata: NonNullable<Json>;
@@ -6720,6 +6726,9 @@ export type Database = {
           owner_user_id?: string | null;
           pipeline_id: string;
           position_in_stage?: number;
+          recurring_months?: number | null;
+          recurring_period?: "monthly" | null;
+          recurring_value_cents?: number | null;
           retomado_de_lead_id?: string | null;
           source?: string;
           source_metadata?: NonNullable<Json>;
@@ -6754,6 +6763,9 @@ export type Database = {
           owner_user_id?: string | null;
           pipeline_id?: string;
           position_in_stage?: number;
+          recurring_months?: number | null;
+          recurring_period?: "monthly" | null;
+          recurring_value_cents?: number | null;
           retomado_de_lead_id?: string | null;
           source?: string;
           source_metadata?: NonNullable<Json>;
@@ -16054,6 +16066,7 @@ export type Database = {
         };
         Returns: Json;
       };
+      fn_vaga_ao_reviver_canal: { Args: { p_org: string; p_canal: string }; Returns: undefined };
       fn_vocabulario_de_tags: {
         Args: { p_org: string };
         Returns: {

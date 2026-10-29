@@ -137,6 +137,8 @@ import {
   X as XLucide,
   type LucideIcon,
   type LucideProps,
+  Link as LinkLucide,
+  ShoppingCart as ShoppingCartLucide,
 } from "lucide-react";
 
 export type AxisIconWeight = "thin" | "light" | "regular" | "duotone" | "bold" | "fill";
@@ -210,6 +212,10 @@ export const WifiHigh = /* @__PURE__ */ axisIcon(WifiLucide, "WifiHigh");
 export const Brain = /* @__PURE__ */ axisIcon(BrainLucide, "Brain");
 export const ArrowsClockwise = /* @__PURE__ */ axisIcon(RefreshCwLucide, "ArrowsClockwise");
 export const Dot = /* @__PURE__ */ axisIcon(DotLucide, "Dot");
+// atalhos do card (#3487): carrinho do app de pedidos e o link genérico.
+// `LinkIcon` e não `Link`: `Link` é o do `next/link` em quase toda tela.
+export const ShoppingCart = /* @__PURE__ */ axisIcon(ShoppingCartLucide, "ShoppingCart");
+export const LinkIcon = /* @__PURE__ */ axisIcon(LinkLucide, "LinkIcon");
 
 // Ações
 export const ArrowBendUpLeft = /* @__PURE__ */ axisIcon(ReplyLucide, "ArrowBendUpLeft");
