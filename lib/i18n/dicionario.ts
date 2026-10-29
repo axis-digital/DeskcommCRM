@@ -18461,6 +18461,10 @@ export const DICIONARIO: Traducoes = {
   "Pago": { es: "Pagado" },
   "Embalado": { es: "Embalado" },
   "Despachado": { es: "Despachado" },
+  "Cadastro na loja": { es: "Registro en la tienda" },
+  "Iniciou o checkout": { es: "Inició el checkout" },
+  "Carrinho abandonado": { es: "Carrito abandonado" },
+  "itens": { es: "artículos" },
 };
 
 /**

@@ -9466,5 +9466,9 @@
   "Aguardando pagamento": "Awaiting payment",
   "Pago": "Paid",
   "Embalado": "Packed",
-  "Despachado": "Shipped"
+  "Despachado": "Shipped",
+  "Cadastro na loja": "Store sign-up",
+  "Iniciou o checkout": "Started checkout",
+  "Carrinho abandonado": "Abandoned cart",
+  "itens": "items"
 }

@@ -95,7 +95,10 @@ export function eventoDeCadastro(bruto: unknown, agora: Date = new Date()): Even
  * Carrinho abandonado: a pessoa chegou ao segundo passo do checkout e não
  * finalizou. Carrinho que já virou pedido (`completed_at`) não é abandono.
  */
-export function eventoDeCarrinhoAbandonado(bruto: unknown, agora: Date = new Date()): EventoComChaves | null {
+export function eventoDeCarrinhoAbandonado(
+  bruto: unknown,
+  agora: Date = new Date(),
+): EventoComChaves | null {
   const c = objeto(bruto);
   const id = c ? idDe(c.id) : null;
   if (!c || !id) return null;

@@ -22,6 +22,10 @@
  * atividade. A rota projeta o pedido no mesmo formato, em tempo de leitura —
  * ver `lib/nuvemshop/pedido-na-timeline.ts`. O dossiê do NEGÓCIO não os mostra:
  * pedido é do contato, não de um negócio.
+ *
+ * OS EVENTOS DO SITE (`site_events`: cadastro na loja, carrinho abandonado etc.)
+ * também entram aqui. Diferente do pedido eles têm tabela própria, porque não há
+ * fonte de origem para projetar (o carrinho abandonado some da API em 30 dias).
  */
 import { randomUUID } from "node:crypto";
 import { type NextRequest } from "next/server";
@@ -31,6 +35,12 @@ import { loadAuthUser } from "@/lib/auth/server";
 import { traduzir } from "@/lib/i18n/dicionario";
 import { createClient } from "@/lib/supabase/server";
 import type { TimelineItem, TimelineItemDoContato } from "@/lib/types/contacts";
+import {
+  EVENTO_COLS,
+  TIPOS_DE_EVENTO_DO_SITE,
+  eventoDoSiteParaItemDaTimeline,
+  type EventoDoSiteLido,
+} from "@/lib/nuvemshop/evento-do-site-na-timeline";
 import {
   PEDIDO_COLS,
   TIPO_PEDIDO_NA_TIMELINE,
@@ -146,7 +156,31 @@ export async function GET(
       })()
     : Promise.resolve({ data: [], error: null });
 
-  const [directRes, leadRes, pedidosRes] = await Promise.all([directQ, leadQ, pedidosQ]);
+  // Os eventos do site: `?type=` de atividade comum os exclui, e `?type=` de um
+  // tipo de evento filtra por ele. Mesma regra de contato e organização do pedido.
+  const tiposDeEvento = types.filter((t) => (TIPOS_DE_EVENTO_DO_SITE as readonly string[]).includes(t));
+  const incluiEventos = types.length === 0 || tiposDeEvento.length > 0;
+  const eventosQ = incluiEventos
+    ? (() => {
+        let q = supabase
+          .from("site_events")
+          .select(EVENTO_COLS)
+          .eq("contact_id", contactId)
+          .eq("organization_id", contactRow.organization_id)
+          .order("occurred_at", { ascending: false })
+          .order("id", { ascending: false })
+          .limit(FETCH);
+        if (tiposDeEvento.length > 0) q = q.in("kind", tiposDeEvento);
+        if (cursor) {
+          q = q.or(
+            `occurred_at.lt.${cursor.performed_at},and(occurred_at.eq.${cursor.performed_at},id.lt.${cursor.id})`,
+          );
+        }
+        return q;
+      })()
+    : Promise.resolve({ data: [], error: null });
+
+  const [directRes, leadRes, pedidosRes, eventosRes] = await Promise.all([directQ, leadQ, pedidosQ, eventosQ]);
 
   if (directRes.error) {
     return fail("internal_error", directRes.error.message, 500, { requestId });
@@ -156,6 +190,9 @@ export async function GET(
   }
   if (pedidosRes.error) {
     return fail("internal_error", pedidosRes.error.message, 500, { requestId });
+  }
+  if (eventosRes.error) {
+    return fail("internal_error", eventosRes.error.message, 500, { requestId });
   }
 
   // Cast duplo porque a lista de colunas agora é montada com `join()`: o
@@ -169,6 +206,9 @@ export async function GET(
   for (const row of (leadRes.data ?? []) as unknown as TimelineItem[]) merged.set(row.id, row);
   for (const row of (pedidosRes.data ?? []) as unknown as PedidoParaTimeline[]) {
     merged.set(row.id, pedidoParaItemDaTimeline(row));
+  }
+  for (const row of (eventosRes.data ?? []) as unknown as EventoDoSiteLido[]) {
+    merged.set(row.id, eventoDoSiteParaItemDaTimeline(row));
   }
 
   const sorted = Array.from(merged.values()).sort((a, b) => {

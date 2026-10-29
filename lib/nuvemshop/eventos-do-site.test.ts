@@ -16,7 +16,8 @@ const cliente = (over: Record<string, unknown> = {}) => ({
 const carrinho = (over: Record<string, unknown> = {}) => ({
   id: 411335234,
   token: "d0e589b2ba4fef1a4155dc071c253dfk1j34198b9",
-  abandoned_checkout_url: "https://loja.exemplo/checkout/v3/order/proxy/411335234/d0e589b2ba4fef1a4155dc071c253dfk1j34198b9",
+  abandoned_checkout_url:
+    "https://loja.exemplo/checkout/v3/order/proxy/411335234/d0e589b2ba4fef1a4155dc071c253dfk1j34198b9",
   contact_email: "teste@teste.com.br",
   contact_name: "Teste 12",
   contact_phone: "+551335593019",
@@ -45,14 +46,24 @@ describe("paraCentavos", () => {
     expect(paraCentavos(entrada)).toBe(esperado);
   });
 
-  it.each([[null], [undefined], [""], ["abc"], [Number.NaN]])("%s vira null, não zero", (entrada) => {
-    expect(paraCentavos(entrada as never)).toBeNull();
-  });
+  it.each([[null], [undefined], [""], ["abc"], [Number.NaN]])(
+    "%s vira null, não zero",
+    (entrada) => {
+      expect(paraCentavos(entrada as never)).toBeNull();
+    },
+  );
 });
 
 describe("chavesDe", () => {
   it("normaliza e-mail, telefone e CPF e descarta o que não é válido", () => {
-    expect(chavesDe({ telefone: "+5511987654321", email: " Maria@Exemplo.com ", cpf: "529.982.247-25", nome: " Maria " })).toEqual({
+    expect(
+      chavesDe({
+        telefone: "+5511987654321",
+        email: " Maria@Exemplo.com ",
+        cpf: "529.982.247-25",
+        nome: " Maria ",
+      }),
+    ).toEqual({
       telefone: "+5511987654321",
       email: "maria@exemplo.com",
       cpf: "52998224725",
@@ -141,7 +152,9 @@ describe("eventoDeCarrinhoAbandonado", () => {
   });
 
   it("carrinho que virou pedido não é abandono", () => {
-    expect(eventoDeCarrinhoAbandonado(carrinho({ completed_at: "2026-10-13T22:00:00+0000" }))).toBeNull();
+    expect(
+      eventoDeCarrinhoAbandonado(carrinho({ completed_at: "2026-10-13T22:00:00+0000" })),
+    ).toBeNull();
   });
 
   it("sem a data de atualização usa a de criação", () => {
