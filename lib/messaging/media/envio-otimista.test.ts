@@ -13,6 +13,7 @@ import type { Message } from "@/lib/types/messaging";
 
 import {
   criarFilaDeEnvios,
+  criarSerieDeEnvios,
   executarEnvio,
   idsDeEnviosGravados,
   novoEnvio,
@@ -236,5 +237,79 @@ describe("executarEnvio", () => {
     await executarEnvio({ ...base(), subido: SUBIDO, fase: "falhou" }, d);
     expect(d.subir).not.toHaveBeenCalled();
     expect(vi.mocked(d.enviar).mock.calls[0]![1]).toBe("chave-1");
+  });
+});
+
+/**
+ * A ORDEM dos anexos de uma resposta rápida é parte do conteúdo.
+ *
+ * `useEnviosDeMidia.enviar` dispara um envio por arquivo. Sem série, cada um é uma
+ * corrente própria de upload + POST, e quem chega primeiro ao servidor é quem sobe
+ * mais rápido: numa resposta [áudio, imagem com legenda, áudio] a imagem (maior) é
+ * ultrapassada pelo áudio seguinte, e o cliente recebe áudio, áudio, imagem —
+ * medido pela spec `respostas-rapidas-conteudos` no CI.
+ */
+describe("criarSerieDeEnvios — uma conversa envia na ordem em que pediu", () => {
+  /** Uma tarefa que só termina quando o teste manda, e registra início e fim. */
+  function tarefaManual(registro: string[], nome: string) {
+    let terminar!: () => void;
+    const tarefa = vi.fn(async () => {
+      registro.push(`inicio:${nome}`);
+      await new Promise<void>((resolve) => {
+        terminar = resolve;
+      });
+      registro.push(`fim:${nome}`);
+    });
+    return { tarefa, terminar: () => terminar() };
+  }
+
+  it("⭐ a 2ª tarefa da MESMA conversa só começa quando a 1ª termina, mesmo a 1ª sendo a lenta", async () => {
+    const naVez = criarSerieDeEnvios();
+    const registro: string[] = [];
+    const lenta = tarefaManual(registro, "imagem");
+    const rapida = tarefaManual(registro, "audio");
+
+    const p1 = naVez("conv-1", lenta.tarefa);
+    const p2 = naVez("conv-1", rapida.tarefa);
+    await Promise.resolve();
+    expect(registro).toEqual(["inicio:imagem"]);
+    expect(rapida.tarefa).not.toHaveBeenCalled();
+
+    lenta.terminar();
+    await p1;
+    await vi.waitFor(() => expect(registro).toEqual(["inicio:imagem", "fim:imagem", "inicio:audio"]));
+    rapida.terminar();
+    await p2;
+    expect(registro).toEqual(["inicio:imagem", "fim:imagem", "inicio:audio", "fim:audio"]);
+  });
+
+  it("conversas DIFERENTES não esperam uma pela outra", async () => {
+    const naVez = criarSerieDeEnvios();
+    const registro: string[] = [];
+    const a = tarefaManual(registro, "conv-1");
+    const b = tarefaManual(registro, "conv-2");
+
+    const pa = naVez("conv-1", a.tarefa);
+    const pb = naVez("conv-2", b.tarefa);
+    await Promise.resolve();
+    expect(registro).toEqual(["inicio:conv-1", "inicio:conv-2"]);
+
+    a.terminar();
+    b.terminar();
+    await Promise.all([pa, pb]);
+  });
+
+  it("uma tarefa que LANÇA não trava a série: a seguinte da mesma conversa roda", async () => {
+    const naVez = criarSerieDeEnvios();
+    const seguinte = vi.fn(async () => {});
+
+    const p1 = naVez("conv-1", async () => {
+      throw new Error("falha inesperada");
+    });
+    const p2 = naVez("conv-1", seguinte);
+
+    await expect(p1).rejects.toThrow("falha inesperada");
+    await p2;
+    expect(seguinte).toHaveBeenCalledTimes(1);
   });
 });

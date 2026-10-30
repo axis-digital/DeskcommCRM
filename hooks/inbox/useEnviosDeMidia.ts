@@ -7,6 +7,7 @@ import { apiClient } from "@/lib/api/client";
 import { ApiError } from "@/lib/api/types";
 import {
   criarFilaDeEnvios,
+  criarSerieDeEnvios,
   executarEnvio,
   novoEnvio,
   type DepsDoEnvio,
@@ -21,6 +22,13 @@ import type { Message } from "@/lib/types/messaging";
  * conversa, e a bolha está lá quando ele volta.
  */
 const fila = criarFilaDeEnvios();
+
+/**
+ * Os envios de uma conversa saem na ordem em que foram pedidos. A ordem dos anexos
+ * de uma resposta rápida é parte do conteúdo, e sem a série a imagem (que sobe mais
+ * devagar) era ultrapassada pelo áudio seguinte.
+ */
+const naVez = criarSerieDeEnvios();
 
 /**
  * Prazo do POST da mídia. Maior que o `MUTATION_TIMEOUT_MS` do apiClient (30s)
@@ -89,7 +97,7 @@ export function useEnviosDeMidia(conversationId: string | null) {
         : null;
       const envio = novoEnvio({ ...args, id: randomId(), previa, agora: new Date().toISOString() });
       fila.adicionar(envio);
-      void rodar(envio);
+      void naVez(args.conversationId, () => rodar(envio));
     },
     [rodar],
   );
