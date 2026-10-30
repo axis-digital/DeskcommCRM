@@ -44,8 +44,9 @@ Migration que nasce no fork usa `NNNN` na faixa **9000–9999**, **nunca** o pr�
 upstream. A upstream consome cerca de 7,5 números por dia (0098 em 01/08 → 0621 em 09/10/2026).
 Seguir o número dela fez a migration da Nuvemshop colidir duas vezes em dois dias (0611 e 0621).
 Faixas mais baixas, como 09xx, seriam alcançadas em semanas. O resto da doutrina não muda:
-`-- manifest:`, apêndice no baseline e timestamp único. Ocupadas: 9002 e 9003 (conversões GA4, PR #2), 9004 (perfil de negócio GA4, PR #3) e 9005
-(Nuvemshop sync) — as três primeiras ainda em PR, não mescladas. Próximo número livre: 9006.
+`-- manifest:`, apêndice no baseline e timestamp único. **Os números ocupados e o próximo livre
+estão na atualização de 30/10/2026, logo abaixo — não use a lista que esteve aqui** ("próximo livre:
+9006" colidiria com a faixa da upstream).
 As 0900 e 0901 (axis, já na `main`) seguem fora da faixa e precisam ir para 9000 e 9001: a
 upstream chega nelas em cerca de 30 dias. Contra `origin/main`, o `checar-colisao-de-migration`
 dá falso positivo quando uma migration renumerada é removida; meça contra `upstream/main`.
