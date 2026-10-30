@@ -262,3 +262,35 @@ describe("extractPdfText — estratégia `processo-a-parte`", () => {
     },
   );
 });
+
+describe("extractPdfText — teto de tamanho do arquivo", () => {
+  // Worker: cgroup de 512 MB e ~232 MB de RSS só do pai sob `tsx`. O filho tem
+  // teto de heap (160 MB), mas o PDF vive FORA do heap: o buffer no pai, a
+  // entrada padrão e a cópia `Uint8Array` no filho são memória externa, que o
+  // `--max-old-space-size` não conta. Sem teto de entrada, um PDF de dezenas de
+  // MB estoura o cgroup e o OOM killer escolhe o maior processo — o worker.
+  it("recusa PDF acima do teto sem abrir o motor, com PdfExtractError", async () => {
+    const { extractPdfText, PdfExtractError } = await import("@/lib/ai/rag/extractors/pdf");
+    const grande = Buffer.alloc(2048, 0x20);
+    for (const estrategia of ["em-processo", "processo-a-parte"] as const) {
+      const erro = await extractPdfText(grande, { estrategia, maxBytes: 1024 }).catch(
+        (e: unknown) => e,
+      );
+      expect(erro).toBeInstanceOf(PdfExtractError);
+      expect((erro as InstanceType<typeof PdfExtractError>).motivo).toBe("falha");
+      expect((erro as Error).message).toMatch(/grande demais/);
+    }
+  });
+
+  it("aceita PDF exatamente no teto", async () => {
+    const { extractPdfText } = await import("@/lib/ai/rag/extractors/pdf");
+    const pdf = fixture("sample-text.pdf");
+    expect(await extractPdfText(pdf, { maxBytes: pdf.length })).toBe("DeskcommCRM RAG fixture");
+  });
+
+  it("tem um teto padrão que cabe no worker (<= 16 MiB)", async () => {
+    const { TETO_DE_BYTES_DO_PDF } = await import("@/lib/ai/rag/extractors/pdf");
+    expect(TETO_DE_BYTES_DO_PDF).toBeGreaterThan(0);
+    expect(TETO_DE_BYTES_DO_PDF).toBeLessThanOrEqual(16 * 1024 * 1024);
+  });
+});
