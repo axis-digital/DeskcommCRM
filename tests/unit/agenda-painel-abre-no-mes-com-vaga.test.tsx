@@ -159,6 +159,23 @@ describe("o que NÃO muda", () => {
     expect(acesos().every((k) => k.startsWith("2026-09"))).toBe(true);
   });
 
+  it("abre num tipo SEM jornada e troca para um COM jornada: ainda leva ao mês com vaga", () => {
+    // Sexta 30/10, 17h30 em São Paulo. O painel abre no primeiro tipo por nome
+    // (sem jornada: `publicou=false`); a pessoa escolhe o tipo que tem jornada e
+    // os horários chegam — todos em novembro. A decisão de abertura não pode ter
+    // sido gasta na primeira resposta, que não dizia nada sobre vaga. Foi o que
+    // reprovou o e2e da agenda (6 casos) na `main` a partir de ~16h45 BRT.
+    congelar("2026-10-30T20:30:00Z");
+    const { rerender } = render(<Agenda hoje="2026-10-30" publicou={false} />);
+    expect(screen.getByTestId("sem-jornada-publicada")).toBeInTheDocument();
+
+    rerender(<Agenda hoje="2026-10-30" publicou />);
+
+    expect(acesos()).toContain("2026-11-02");
+    expect(acesos().every((k) => k.startsWith("2026-11"))).toBe(true);
+    expect(screen.queryByTestId("motivo-do-bloqueio")).toBeNull();
+  });
+
   it("quem nunca publicou jornada não é empurrado de mês: o aviso é o próximo passo", () => {
     congelar("2026-09-30T20:00:00Z");
     render(<Agenda hoje="2026-09-30" publicou={false} />);
