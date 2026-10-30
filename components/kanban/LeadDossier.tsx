@@ -12,6 +12,7 @@ import { ConversaEmbutida } from "@/components/inbox/ConversaEmbutida";
 import { cn } from "@/lib/utils";
 import type { Lead } from "@/lib/types/leads";
 import type { Stage } from "@/lib/kanban/types";
+import { AtalhosDoNegocio } from "./AtalhosDoCard";
 import { ContatoDoNegocio } from "./ContatoDoNegocio";
 import { AbrirConversaDoLead, temAlvoParaAbrir } from "./AbrirConversaDoLead";
 import { ConversaNoDossie } from "./ConversaNoDossie";
@@ -25,6 +26,7 @@ import { ResponsavelDoNegocio } from "./ResponsavelDoNegocio";
 import { EtapaNoDossie } from "./EtapaNoDossie";
 import { SecaoDoDossie, useSecoesRecolhidas } from "./SecaoDoDossie";
 import { resolveLeadOwner } from "@/lib/kanban/owner";
+import type { AtalhoDoCard } from "@/lib/leads/atalhos-do-card";
 import { formatValorDoNegocio, MOEDA_PADRAO } from "@/lib/money";
 import type { CustomFieldDef } from "@/components/contacts/CustomFieldsEditor";
 
@@ -43,6 +45,14 @@ interface Props {
    */
   etapas?: Pick<Stage, "id" | "name">[];
   onMudarEtapa?: (stageId: string) => void;
+  /**
+   * OS ATALHOS DO CARD (#3487): o que está em `crm_pipelines.settings.atalhos`,
+   * já lido por `atalhosDoFunil`. Quem monta o dossiê tem o funil em mão — o
+   * quadro, a lista e o calendário recebem `pipeline`/`funil` inteiros —, então
+   * a lista vem por prop em vez de o dossiê sair buscando por conta própria.
+   * Ausente = nenhum botão, que é o comportamento de antes da entrega.
+   */
+  atalhos?: AtalhoDoCard[];
 }
 
 /** Tipos de `<input>` em que não se digita texto: Esc ali continua fechando o painel. */
@@ -118,9 +128,14 @@ export function LeadDossier({
   ownerNames,
   etapas,
   onMudarEtapa,
+  atalhos,
 }: Props) {
   const tagDoIdioma = useTagDeIdioma();
   const t = useT();
+  // Sem prop, nenhum botão: quem abre o dossiê TEM o funil em mão e é de lá que
+  // sai o `settings`. Ler o cache do react-query aqui custaria um
+  // `QueryClientProvider` obrigatório em todo teste que monta o dossiê.
+  const atalhosDoCard = atalhos ?? [];
   const campos = useRef<HTMLDivElement | null>(null);
   const formulario = useRef<ControleDosCamposDoNegocio | null>(null);
   // Conversa escolhida AQUI (aberta pelo botão ou trocada pelo "número fora do
@@ -349,6 +364,10 @@ export function LeadDossier({
                 {new Date(score.at).toLocaleString(tagDoIdioma)}
               </p>
             )}
+
+            {/* OS ATALHOS DO CARD (#3487) — logo abaixo do cabeçalho, ANTES de
+                tudo que rola. Sem atalho configurado, nada é desenhado. */}
+            <AtalhosDoNegocio atalhos={atalhosDoCard} lead={lead} contactId={lead.contact_id} />
 
             {/* O link para a Inbox em tela cheia. O botão de INICIAR conversa mora
                 no painel ao lado (sem `contactId`/`phone` aqui, para não haver dois

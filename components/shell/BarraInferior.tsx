@@ -11,6 +11,7 @@ import { useT } from "@/hooks/i18n/useT";
 import { rotaEstaAtiva } from "@/lib/navigation/rota-ativa";
 import { sidebarGroups, type NavDestination } from "@/lib/navigation/registry";
 import { usePecaDoRodape, type PecaDoRodape } from "@/lib/ui/rodape-ocupado";
+import { usePrefetchPorIntencao } from "@/hooks/navigation/prefetchPorIntencao";
 import { cn } from "@/lib/utils";
 
 /**
@@ -102,6 +103,9 @@ const VAGAS = 4;
  * esconderia Análise e Agente de IA de uma vez.
  */
 export function BarraInferior() {
+  // Mesma régua da barra lateral (#3170): as cinco abas não prefetcham sozinhas,
+  // só quando o dedo/ponteiro chega nelas.
+  const intencao = usePrefetchPorIntencao();
   const t = useT();
   const pathname = usePathname();
   const { user, activeOrg } = useAuth();
@@ -164,6 +168,7 @@ export function BarraInferior() {
             <li key={aba.href} className="flex min-w-0 flex-1">
               <Link
                 href={aba.href}
+                {...intencao(aba.href)}
                 aria-current={aqui ? "page" : undefined}
                 className={cn(
                   "relative flex min-h-11 min-w-0 flex-1 flex-col items-center justify-center gap-0.5 rounded-md px-1 py-1",
