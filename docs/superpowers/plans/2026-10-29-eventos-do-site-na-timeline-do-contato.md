@@ -1,6 +1,6 @@
 # Eventos do site na linha do tempo do contato — Plano
 
-> **Status (2026-10-29):** etapa 0 (pedidos) **pronta no código, sem commit**; etapas 1 a 3 **NÃO INICIADAS**. **A etapa 1, a 1b e a tabela `site_events` foram aprovadas pelo dono em 2026-10-29.** Etapa 0 e etapa 1 estão **prontas em commits locais** (sem push, sem PR); a 1b e as etapas 2 e 3 não foram iniciadas. Nada foi publicado. **Revisado após verificar a integração GA4 que já existe** (seção abaixo): as etapas 1b, 2 e 3 mudaram. **Acrescentada a seção "Identidade do visitante"** (sessão, vínculo e retroação), que é o que permite atribuir a navegação anônima a um cadastro.
+> **Status (2026-10-30):** etapa 0 (pedidos, #45), etapa 1 (cadastro e carrinho abandonado, #46) e etapa 1b (origem do contato pela `landing_url` do pedido, #49, com o conserto de LGPD e de `source` no #50) estão **entregues na `main` do fork**. As etapas 2 e 3 **não foram iniciadas** e dependem das decisões abertas do dono (seção "Ainda pendentes"). **Nada foi implantado em produção**: a prova com a API real da Nuvemshop, com o webhook real e pela tela fica para depois do primeiro deploy. **Revisado após verificar a integração GA4 que já existe** (seção abaixo): as etapas 1b, 2 e 3 mudaram. **Acrescentada a seção "Identidade do visitante"** (sessão, vínculo e retroação), que é o que permite atribuir a navegação anônima a um cadastro.
 
 **Goal:** tudo o que a pessoa faz na loja virtual (cadastrou-se, pôs no carrinho, iniciou o checkout, abandonou o carrinho, pediu) aparece na linha do tempo da ficha do contato, ligado ao contato certo e **uma vez só**, mesmo que a Nuvemshop e o GA4 vejam o mesmo fato.
 
@@ -97,13 +97,13 @@ Vem das migrations 9002 a 9004 do fork (conversões GA4, PRs #2 e #3 já mesclad
 
 **Ainda por testar:** se o cadastro pela vitrine mantém o `client_id` na página seguinte; quem controla o registro do script NubeSDK no Portal de Parceiros da Nuvemshop (o script de checkout é criado lá, não por API).
 
-## Etapa 0 — Pedidos na timeline (PRONTA, não commitada)
+## Etapa 0 — Pedidos na timeline (ENTREGUE, #45)
 
-Projeção de `orders` em `GET /api/v1/contacts/[id]/timeline`; módulo puro `lib/nuvemshop/pedido-na-timeline.ts`; tipo `TimelineItemDoContato`. Sem schema, retroativa. Testes: módulo, rota e tela; spec e2e `nuvemshop-sincroniza-pedidos` estendida (roda só no CI). Branch `feat/pedidos-na-timeline-do-contato`, empilhada sobre o merge da upstream (`merge/upstream-2026-10-29`).
+Projeção de `orders` em `GET /api/v1/contacts/[id]/timeline`; módulo puro `lib/nuvemshop/pedido-na-timeline.ts`; tipo `TimelineItemDoContato`. Sem schema, retroativa. Testes: módulo, rota e tela; spec e2e `nuvemshop-sincroniza-pedidos` estendida (roda só no CI). Entrou na `main` pelo #45.
 
-## Etapa 1 — Cadastro e carrinho abandonado, pela API da Nuvemshop (CÓDIGO PRONTO, não publicado)
+## Etapa 1 — Cadastro e carrinho abandonado, pela API da Nuvemshop (ENTREGUE, #46)
 
-Única etapa que não depende de aprovação externa nem de script no site. Precisou de uma tabela nova (volume baixo), porque o carrinho abandonado só fica 30 dias na API da Nuvemshop e precisa ser guardado. Branch `feat/eventos-do-site-etapa-1`, commits locais, sem push.
+Única etapa que não depende de aprovação externa nem de script no site. Precisou de uma tabela nova (volume baixo), porque o carrinho abandonado só fica 30 dias na API da Nuvemshop e precisa ser guardado. Entrou na `main` pelo #46.
 
 - [x] **Tabela `site_events`** (migration 9902 + apêndice no baseline): um fato por `(organization_id, dedupe_key)`; `ga_client_id` e `ga_session_id` nulos já previstos (formato do GA4 validado); leitura pela organização (RLS), escrita só pelo servidor; privilégios explícitos por papel (a Supabase deixa de conceder permissão automática em 30/10/2026); função `fn_gravar_evento_do_site` (só `service_role`; recusa contato de outra organização e contato anonimizado; o mesmo fato regravado não duplica nem troca o dono). As tabelas `site_sessions` e `site_identity_links` ficam para a etapa 2.
 - [x] **Gatilho de anonimização:** anonimizar o contato apaga os eventos dele, por qualquer caminho (gatilho em `contacts`, e não linha na função de anonimização, que tem várias definições no baseline).
@@ -121,10 +121,13 @@ Projeção de `orders` em `GET /api/v1/contacts/[id]/timeline`; módulo puro `li
 - O webhook real de `customer/created` não foi recebido: a assinatura só passa a existir depois do primeiro ciclo do cron no ambiente publicado.
 - Carrinho abandonado só existe para quem a loja identificou (e-mail, telefone ou CPF); o resto é descartado nesta etapa.
 
-## Etapa 1b — Origem do pedido a partir da `landing_url` (NOVA, barata)
+## Etapa 1b — Origem do pedido a partir da `landing_url` (ENTREGUE, #49 e #50)
 
-- [ ] Usar a `landing_url` que o sync já grava para carimbar a origem do contato (UTMs e `fbclid`) pela regra que já existe (`CHAVES_DE_UTM`, `fn_estampar_atribuicao_de_anuncio`, que preserva o primeiro toque). Hoje o dado é gravado e descartado.
-- [ ] Sem schema novo; retroativa para os pedidos já sincronizados. Reaproveita o consumidor existente em vez de criar regra paralela.
+- [x] Usar a `landing_url` que o sync já grava para carimbar a origem do contato (UTMs e `fbclid`) pela regra que já existe (`CHAVES_DE_UTM`, `fn_estampar_atribuicao_de_anuncio`, que preserva o primeiro toque). Antes, o dado era gravado e descartado.
+- [x] Sem schema novo; retroativa para os pedidos já sincronizados. Reaproveita o consumidor existente em vez de criar regra paralela.
+- Como ficou: passo novo no cron `nuvemshop-reconcile` (`lib/nuvemshop/sync/origem-dos-pedidos.ts`); o `source` do contato **nunca muda** (a LGPD acha o cliente da loja por `source = 'nuvemshop'`); a identidade do GA4 (`ga_*`) fica fora, porque não viaja por URL de visitante.
+- O #50 corrigiu dois defeitos achados depois: o carimbo do WhatsApp trocava o `source` do contato da loja para `site`, e a busca de LGPD procurava uma chave (`nuvemshop_customer_id`) que ninguém grava.
+- **Não medido:** a semântica da consulta PostgREST (embed + filtro `jsonb`) contra um PostgREST real. Prova depois do deploy: o log do cron sem `orders_leitura:` e a contagem de contatos com `source_metadata->>'origem_via' = 'pedido_nuvemshop'` subindo.
 
 ## Etapa 2 — Carrinho e checkout, por script na vitrine
 
