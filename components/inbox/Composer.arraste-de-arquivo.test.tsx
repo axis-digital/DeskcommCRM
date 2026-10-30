@@ -66,6 +66,20 @@ vi.mock("@/hooks/inbox/useMessageTemplates", () => ({
   useGruposDeRespostas: () => ({ data: [] }),
   useMessageTemplates: () => ({ data: [] }),
 }));
+// Fork: ao confirmar o anexo em "responder", o envio sai pela fila otimista
+// (`useEnviosDeMidia`), que usa `useQueryClient` — e este arquivo não monta o
+// provider. O dublê da fila sobe pelo MESMO `uploadMutateAsync` que o teste mede,
+// com o mesmo destino que o caminho antigo usava: "clique e drop produzem o mesmo
+// upload" segue afirmado na mesma borda.
+vi.mock("@/hooks/inbox/useEnviosDeMidia", () => ({
+  useEnviosDeMidia: () => ({
+    enviar: ({ conversationId, arquivo }: { conversationId: string; arquivo: File }) =>
+      deps.uploadMutateAsync({ conversationId, file: arquivo, destino: "mensagem" }),
+    pendentes: [],
+    tentarDeNovo: () => {},
+    descartar: () => {},
+  }),
+}));
 vi.mock("sonner", () => ({ toast: { success: vi.fn(), error: vi.fn(), warning: vi.fn() } }));
 
 vi.mock("@/lib/inbox/clipboard-image", () => ({ imagemDoClipboard: vi.fn(() => null) }));

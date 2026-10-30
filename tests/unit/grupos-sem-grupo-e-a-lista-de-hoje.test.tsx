@@ -40,9 +40,19 @@ function referencia(arquivo: string): string {
   );
 }
 
-/** Contadores de contexto do dnd são por render; o resto do markup não é. */
+/**
+ * Contadores de contexto do dnd são por render; o resto do markup não é.
+ *
+ * Fork: o `<svg>` do ícone é neutralizado. A upstream desenha com Phosphor e o fork,
+ * pelo catálogo `@/lib/ui/icons`, com Lucide — o contrato desta lista é a ESTRUTURA
+ * (itens, classes, ordem, atributos do dnd), não o desenho do ícone. Medido: com os
+ * `<svg>` trocados por um marcador, a saída do fork é idêntica ao fixture da upstream.
+ */
 function normalizar(html: string): string {
-  return html.replace(/_r_[a-z0-9]+_/g, "_r_X_").trim();
+  return html
+    .replace(/_r_[a-z0-9]+_/g, "_r_X_")
+    .replace(/<svg\b[\s\S]*?<\/svg>/g, "<svg/>")
+    .trim();
 }
 
 const TEMPLATES = [

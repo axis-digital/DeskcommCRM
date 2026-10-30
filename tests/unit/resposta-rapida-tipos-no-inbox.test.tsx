@@ -63,9 +63,18 @@ vi.mock("@/hooks/inbox/useMessageTemplates", () => ({
 vi.mock("@/hooks/inbox/useDraftReply", () => ({
   useDraftReply: () => ({ mutate: vi.fn(), isPending: false }),
 }));
+// Fork: ao confirmar o anexo em "responder", o envio sai pela fila otimista
+// (`useEnviosDeMidia`) e não por `useUploadMedia` + `useSendMessage`. A fila real
+// sobe por `subirMidia` e posta em `/api/v1/messages`; as duas bordas são roteadas
+// para os espiões que este arquivo já mede (`subirAnexo` e `enviar`), e o corpo
+// que chega neles é o mesmo que o caminho antigo entregava.
+vi.mock("@/lib/messaging/media/subir-midia", () => ({
+  subirMidia: (args: unknown) => h.subirAnexo(args),
+}));
 vi.mock("@/lib/api/client", () => ({
   apiClient: {
-    post: (url: string, corpo: unknown) => h.criarTemplate(url, corpo),
+    post: (url: string, corpo: unknown) =>
+      url === "/api/v1/messages" ? Promise.resolve({ data: h.enviar(corpo) ?? {} }) : h.criarTemplate(url, corpo),
     patch: async () => ({ data: {} }),
     delete: async (url: string) => h.apagarTemplate(url),
     get: async () => ({ data: [], meta: { has_more: false } }),
@@ -345,8 +354,12 @@ describe("envio (#3009): combinada vai para a fila e sai pelo caminho de sempre"
         body: "Olha os dois, Ana",
         conversation_id: CONV,
       }),
-      expect.objectContaining({ type: "audio", body: undefined, conversation_id: CONV }),
+      expect.objectContaining({ type: "audio", conversation_id: CONV }),
     ]);
+    // Fork: o corpo da fila OMITE `body` quando não há legenda, em vez de mandá-lo
+    // como `undefined`. `objectContaining({ body: undefined })` exigiria a chave; o
+    // contrato (#3151) é que o áudio não leva legenda, e é isso que se afirma.
+    expect(h.enviar.mock.calls[1]![0]).not.toHaveProperty("body");
   });
 
   it("resposta sem conteúdo: recusada com o motivo, sem tocar no campo", () => {
