@@ -2,7 +2,7 @@
 import * as React from "react";
 import { useQuery } from "@tanstack/react-query";
 
-import { Check, ChevronDown, DollarSign } from "lucide-react";
+import { Check, ChevronDown, DollarSign } from "@/lib/ui/icons";
 
 import { apiClient } from "@/lib/api/client";
 import { ApiError } from "@/lib/api/types";

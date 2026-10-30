@@ -138,7 +138,7 @@ async function gravarPatchDoOnboarding(
   orgId: string,
   state: OnboardingState,
   patch: Partial<OnboardingState>,
-  extra: { display_name?: string; timezone?: string } | undefined,
+  extra: { display_name?: string; timezone?: string; settings?: Record<string, unknown> } | undefined,
   opcoes: { soNoWizard?: boolean } | undefined,
 ): Promise<void> {
   const merged: OnboardingState = { ...state, ...patch };
