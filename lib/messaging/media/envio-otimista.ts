@@ -108,6 +108,51 @@ export function criarFilaDeEnvios() {
 
 export type FilaDeEnvios = ReturnType<typeof criarFilaDeEnvios>;
 
+/** Espera `anterior` ou o teto, o que vier primeiro, e não deixa o timer pendurado. */
+function esperarAteOTeto(anterior: Promise<unknown>, ms: number): Promise<unknown> {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const teto = new Promise<void>((resolve) => {
+    timer = setTimeout(resolve, ms);
+  });
+  return Promise.race([anterior, teto]).finally(() => clearTimeout(timer));
+}
+
+/**
+ * Os envios de UMA conversa saem na ordem em que foram pedidos.
+ *
+ * A ordem dos anexos de uma resposta rápida é parte do conteúdo: [áudio, imagem
+ * com a legenda, áudio] tem de chegar nessa sequência. Cada envio é upload + POST,
+ * e sem série o primeiro a chegar ao servidor é o que subiu mais rápido — a imagem
+ * (maior) era ultrapassada pelo áudio seguinte e o cliente a recebia por último.
+ *
+ * Conversas diferentes não esperam uma pela outra. Uma tarefa que lança não trava
+ * as seguintes: a série segue e o erro volta só para quem a pediu.
+ *
+ * A espera tem TETO. Um upload pendurado na rede nunca resolve, e sem teto travaria
+ * todos os envios seguintes da conversa — antes da série só aquela bolha ficava
+ * presa. Passado o teto o seguinte sai (a ordem pode se perder, como era antes);
+ * o POST tem prazo próprio de 60 s e o upload demora o que a rede levar, então o
+ * teto cobre o upload lento de verdade e só corta o que passou de 2 minutos.
+ */
+export const ESPERA_MAXIMA_DA_VEZ_MS = 120_000;
+
+export function criarSerieDeEnvios(opcoes: { esperaMaximaMs?: number } = {}) {
+  const esperaMaximaMs = opcoes.esperaMaximaMs ?? ESPERA_MAXIMA_DA_VEZ_MS;
+  const caudas = new Map<string, Promise<unknown>>();
+  return function naVez(conversationId: string, tarefa: () => Promise<void>): Promise<void> {
+    const anterior = caudas.get(conversationId) ?? Promise.resolve();
+    const atual = esperarAteOTeto(anterior, esperaMaximaMs).then(tarefa);
+    // A cauda nunca rejeita: quem espera a próxima tarefa não herda o erro desta.
+    const cauda = atual.catch(() => undefined);
+    caudas.set(conversationId, cauda);
+    // Não deixa a conversa pendurada no mapa depois que a fila esvaziou.
+    void cauda.then(() => {
+      if (caudas.get(conversationId) === cauda) caudas.delete(conversationId);
+    });
+    return atual;
+  };
+}
+
 export interface CorpoDoEnvio {
   conversation_id: string;
   type: UploadedMedia["kind"];

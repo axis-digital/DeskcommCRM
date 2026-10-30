@@ -1530,6 +1530,7 @@ jobs:
         moeda-da-organizacao.spec.ts
         webhooks.spec.ts
         system-update.spec.ts
+        respostas-rapidas-conteudos.spec.ts
 
       # ─── PARTE 9 — saiu da parte 1, que estourou o orçamento de tempo ───
       #

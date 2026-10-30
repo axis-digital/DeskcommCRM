@@ -47,6 +47,7 @@ import {
   Clock as ClockLucide,
   ContactRound as ContactRoundLucide,
   Copy as CopyLucide,
+  DollarSign as DollarSignLucide,
   Dot as DotLucide,
   Download as DownloadLucide,
   Ellipsis as EllipsisLucide,
@@ -236,7 +237,8 @@ export const PaperPlaneTilt = /* @__PURE__ */ axisIcon(SendLucide, "PaperPlaneTi
 export const Smiley = /* @__PURE__ */ axisIcon(SmileLucide, "Smiley");
 export const Check = /* @__PURE__ */ axisIcon(CheckLucide, "Check");
 export const Checks = /* @__PURE__ */ axisIcon(CheckCheckLucide, "Checks");
-export const X = /* @__PURE__ */ axisIcon(XLucide, "X");
+export const DollarSign = /* @__PURE__ */ axisIcon(DollarSignLucide, "DollarSign");
+export const X =/* @__PURE__ */ axisIcon(XLucide, "X");
 export const Plus = /* @__PURE__ */ axisIcon(PlusLucide, "Plus");
 export const Trash = /* @__PURE__ */ axisIcon(Trash2Lucide, "Trash");
 export const PencilSimple = /* @__PURE__ */ axisIcon(PencilLucide, "PencilSimple");
