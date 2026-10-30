@@ -149,6 +149,13 @@
       "col": 4,
       "type": "service",
       "label": "nuvemshop_products: espelho do catálogo, mais novo vence; o próprio max(last_updated_at) é o cursor"
+    },
+    {
+      "id": "timeline-contato",
+      "lane": "humano",
+      "col": 5,
+      "type": "service",
+      "label": "Ficha do contato › linha do tempo: o pedido aparece junto das atividades, mesmo sem negócio (projeção de orders, sem cópia)"
     }
   ],
   "edges": [
@@ -273,6 +280,8 @@
     { "id": "e29", "from": "handler-catalogo", "to": "nuvemshop-products", "label": "grava os produtos da página" },
     { "id": "e30", "from": "handler-catalogo", "to": "event-log", "label": "emite a próxima página se veio cheia" },
     { "id": "e31", "from": "nuvemshop-products", "to": "tela-integracao", "label": "bloco Catálogo: quantos e o mais recente" },
-    { "id": "e32", "from": "nuvemshop-products", "to": "cron-reconcile", "label": "o produto mais novo é o cursor da conferência" }
+    { "id": "e32", "from": "nuvemshop-products", "to": "cron-reconcile", "label": "o produto mais novo é o cursor da conferência" },
+    { "id": "e33", "from": "orders", "to": "timeline-contato", "label": "a rota da timeline lê os pedidos do contato e da organização (GET /contacts/[id]/timeline)" },
+    { "id": "e34", "from": "contacts", "to": "timeline-contato", "label": "o contato é o dono da linha: pedido de contato sem negócio aparece igual" }
   ]
 }

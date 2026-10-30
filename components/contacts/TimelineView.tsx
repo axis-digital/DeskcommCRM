@@ -12,8 +12,9 @@ import { Card } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
 import { useTimeline } from "@/hooks/contacts/useTimeline";
-import type { TimelineItemView as TimelineItem } from "@/lib/types/contacts";
+import type { TimelineItemDoContato as TimelineItem } from "@/lib/types/contacts";
 import { activityLabel, actorName, actorShape } from "@/lib/leads/activity-vocabulary";
+import { ROTULO_DO_PEDIDO, corpoDoPedido, ehPedidoDaTimeline } from "@/lib/nuvemshop/pedido-na-timeline";
 
 interface Props {
   contactId: string;
@@ -125,9 +126,17 @@ export function TimelineView({ contactId, types }: Props) {
             <ul className="space-y-2">
               {items.map((it) => {
                 const Icon = ICON_MAP[it.source_module] ?? Gear;
-                const label = t(activityLabel(it.type));
+                // O pedido da loja não é linha de `crm_lead_activities`: a rota o
+                // projeta de `orders`. Rótulo e corpo próprios — sem isto ele
+                // cairia no fallback "Atividade registrada".
+                const ehPedido = ehPedidoDaTimeline(it);
+                const label = t(ehPedido ? ROTULO_DO_PEDIDO : activityLabel(it.type));
                 const reasonTrim = (it.reason ?? "").trim();
-                const corpo = reasonTrim ? t(reasonTrim) : summarizePayload(it.payload);
+                const corpo = ehPedido
+                  ? corpoDoPedido(it.payload, t)
+                  : reasonTrim
+                    ? t(reasonTrim)
+                    : summarizePayload(it.payload);
                 const forma = actorShape(it.actor_kind ?? null);
                 const quem = actorName(
                   it.actor_kind ?? null,

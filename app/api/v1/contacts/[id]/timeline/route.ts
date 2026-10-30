@@ -16,6 +16,12 @@
  * história do irmão. O dossiê usa `leads/[id]/timeline`, ancorada no lead;
  * as duas dividem as peças de `lib/leads/timeline-query.ts` e divergem só na
  * cláusula, que é justamente onde a diferença mora.
+ *
+ * OS PEDIDOS DA LOJA (`orders`) ENTRAM AQUI, E SÓ AQUI. `crm_lead_activities.
+ * lead_id` é NOT NULL, então quem só comprou (sem negócio) nunca teria linha de
+ * atividade. A rota projeta o pedido no mesmo formato, em tempo de leitura —
+ * ver `lib/nuvemshop/pedido-na-timeline.ts`. O dossiê do NEGÓCIO não os mostra:
+ * pedido é do contato, não de um negócio.
  */
 import { randomUUID } from "node:crypto";
 import { type NextRequest } from "next/server";
@@ -24,7 +30,13 @@ import { ok, fail } from "@/lib/api/wrappers";
 import { loadAuthUser } from "@/lib/auth/server";
 import { traduzir } from "@/lib/i18n/dicionario";
 import { createClient } from "@/lib/supabase/server";
-import type { TimelineItem } from "@/lib/types/contacts";
+import type { TimelineItem, TimelineItemDoContato } from "@/lib/types/contacts";
+import {
+  PEDIDO_COLS,
+  TIPO_PEDIDO_NA_TIMELINE,
+  pedidoParaItemDaTimeline,
+  type PedidoParaTimeline,
+} from "@/lib/nuvemshop/pedido-na-timeline";
 import {
   TIMELINE_COLS,
   comNomeDoAtor,
@@ -70,7 +82,7 @@ export async function GET(
   // Verify contact accessible (RLS will filter); 404 if not.
   const { data: contactRow, error: cErr } = await supabase
     .from("contacts")
-    .select("id")
+    .select("id, organization_id")
     .eq("id", contactId)
     .maybeSingle();
   if (cErr) return fail("internal_error", cErr.message, 500, { requestId });
@@ -111,13 +123,39 @@ export async function GET(
   const leadQ =
     leadIds.length > 0 ? buildQuery("lead_id", leadIds) : Promise.resolve({ data: [], error: null });
 
-  const [directRes, leadRes] = await Promise.all([directQ, leadQ]);
+  // Os pedidos da loja: só entram quando o filtro `?type=` não os exclui, e a
+  // consulta é por contato E organização — a RLS já filtra, mas a organização
+  // vem da LINHA do contato (fonte confiável), nunca de parâmetro da chamada.
+  const incluiPedidos = types.length === 0 || types.includes(TIPO_PEDIDO_NA_TIMELINE);
+  const pedidosQ = incluiPedidos
+    ? (() => {
+        let q = supabase
+          .from("orders")
+          .select(PEDIDO_COLS)
+          .eq("contact_id", contactId)
+          .eq("organization_id", contactRow.organization_id)
+          .order("ordered_at", { ascending: false })
+          .order("id", { ascending: false })
+          .limit(FETCH);
+        if (cursor) {
+          q = q.or(
+            `ordered_at.lt.${cursor.performed_at},and(ordered_at.eq.${cursor.performed_at},id.lt.${cursor.id})`,
+          );
+        }
+        return q;
+      })()
+    : Promise.resolve({ data: [], error: null });
+
+  const [directRes, leadRes, pedidosRes] = await Promise.all([directQ, leadQ, pedidosQ]);
 
   if (directRes.error) {
     return fail("internal_error", directRes.error.message, 500, { requestId });
   }
   if ("error" in leadRes && leadRes.error) {
     return fail("internal_error", leadRes.error.message, 500, { requestId });
+  }
+  if (pedidosRes.error) {
+    return fail("internal_error", pedidosRes.error.message, 500, { requestId });
   }
 
   // Cast duplo porque a lista de colunas agora é montada com `join()`: o
@@ -126,9 +164,12 @@ export async function GET(
   // é deliberada — perde-se uma inferência que já não protegia contra o bug
   // real (campo do tipo fora do SELECT compilava verde) e ganha-se o portão de
   // exaustividade acima, que protege.
-  const merged = new Map<string, TimelineItem>();
+  const merged = new Map<string, TimelineItem | TimelineItemDoContato>();
   for (const row of (directRes.data ?? []) as unknown as TimelineItem[]) merged.set(row.id, row);
   for (const row of (leadRes.data ?? []) as unknown as TimelineItem[]) merged.set(row.id, row);
+  for (const row of (pedidosRes.data ?? []) as unknown as PedidoParaTimeline[]) {
+    merged.set(row.id, pedidoParaItemDaTimeline(row));
+  }
 
   const sorted = Array.from(merged.values()).sort((a, b) => {
     if (a.performed_at !== b.performed_at) {
@@ -145,7 +186,11 @@ export async function GET(
   // vez de a tela ter de descobrir sozinha (e mostrar "Agente" genérico quando
   // não descobre). Sem filtro de is_active/archived: quem AGIU agiu, mesmo que
   // o agente tenha sido desligado depois.
-  const page = await comNomeDoAtor(supabase, pageRows);
+  // O nome do ator só se resolve para as ATIVIDADES (`lead_id` presente): o
+  // pedido já sai pronto, com o cliente como ator e sem ninguém a consultar.
+  const atividadesDaPagina = pageRows.filter((r): r is TimelineItem => r.lead_id !== null);
+  const nomeadas = new Map((await comNomeDoAtor(supabase, atividadesDaPagina)).map((r) => [r.id, r]));
+  const page = pageRows.map((r) => nomeadas.get(r.id) ?? r);
   const last = page[page.length - 1];
   const nextCursor =
     hasMore && last

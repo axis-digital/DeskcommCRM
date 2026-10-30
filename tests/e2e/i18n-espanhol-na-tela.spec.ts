@@ -85,6 +85,8 @@ const TELAS = ["/app/inbox", "/app/kanban", "/app/contacts", "/app/metrics", "/a
  */
 const DADO_DO_TENANT = new Set([
   "Entregue", // crm_stages.name, do seed de e2e
+  "Aguardando pagamento", // crm_stages.name, do funil padrão (fn_seed_default_pipeline_for_org); /app/metrics o mostra como o tenant o cadastrou
+  "Pago", // crm_stages.name, idem — também é rótulo de situação do pedido na timeline (lib/nuvemshop/pedido-na-timeline.ts), esse sim traduzido por t()
 ]);
 
 const CHAVES_QUE_MUDAM = new Set(
