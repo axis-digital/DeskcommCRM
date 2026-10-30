@@ -15,7 +15,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Badge } from "@/components/ui/badge";
 import { loadAuthUser, resolveActiveOrg } from "@/lib/auth/server";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { isConfigured } from "@/lib/nuvemshop/config";
+import { isConfigured, SUBSCRIBED_EVENTS } from "@/lib/nuvemshop/config";
 import { lerEstado } from "@/lib/nuvemshop/sync/estado";
 import { resumirSync } from "@/lib/nuvemshop/sync/resumo";
 import { CatalogoDaLoja } from "./_components/CatalogoDaLoja";
@@ -197,7 +197,7 @@ export default async function NuvemshopIntegrationPage() {
                       ([, v]) => v.id !== null,
                     ).length
                   : 0}{" "}
-                / 8
+                / {SUBSCRIBED_EVENTS.length}
               </span>
             </div>
             {resumo ? <PedidosDaLoja resumo={resumo} idioma={idioma} isAdmin={isAdmin} /> : null}

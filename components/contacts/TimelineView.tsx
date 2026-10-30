@@ -14,7 +14,7 @@ import { cn } from "@/lib/utils";
 import { useTimeline } from "@/hooks/contacts/useTimeline";
 import type { TimelineItemDoContato as TimelineItem } from "@/lib/types/contacts";
 import { activityLabel, actorName, actorShape } from "@/lib/leads/activity-vocabulary";
-import { ROTULO_DO_PEDIDO, corpoDoPedido, ehPedidoDaTimeline } from "@/lib/nuvemshop/pedido-na-timeline";
+import { descreverItemDaLoja } from "@/lib/nuvemshop/item-da-loja";
 
 interface Props {
   contactId: string;
@@ -126,14 +126,15 @@ export function TimelineView({ contactId, types }: Props) {
             <ul className="space-y-2">
               {items.map((it) => {
                 const Icon = ICON_MAP[it.source_module] ?? Gear;
-                // O pedido da loja não é linha de `crm_lead_activities`: a rota o
-                // projeta de `orders`. Rótulo e corpo próprios — sem isto ele
-                // cairia no fallback "Atividade registrada".
-                const ehPedido = ehPedidoDaTimeline(it);
-                const label = t(ehPedido ? ROTULO_DO_PEDIDO : activityLabel(it.type));
+                // O que veio da loja (pedido, cadastro, carrinho) não é linha de
+                // `crm_lead_activities`: a rota o traz de `orders` e `site_events`.
+                // Rótulo e corpo próprios — sem isto cairia no fallback
+                // "Atividade registrada".
+                const daLoja = descreverItemDaLoja(it, t);
+                const label = daLoja ? daLoja.rotulo : t(activityLabel(it.type));
                 const reasonTrim = (it.reason ?? "").trim();
-                const corpo = ehPedido
-                  ? corpoDoPedido(it.payload, t)
+                const corpo = daLoja
+                  ? daLoja.corpo
                   : reasonTrim
                     ? t(reasonTrim)
                     : summarizePayload(it.payload);

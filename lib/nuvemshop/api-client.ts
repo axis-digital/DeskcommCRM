@@ -228,4 +228,24 @@ export class NuvemshopApiClient {
   getProduct(id: string): Promise<unknown> {
     return this.get<unknown>(`/products/${encodeURIComponent(id)}`);
   }
+
+  getCustomer(id: string): Promise<unknown> {
+    return this.get<unknown>(`/customers/${encodeURIComponent(id)}`);
+  }
+
+  /**
+   * Uma página dos carrinhos abandonados (o cliente chegou ao segundo passo do
+   * checkout e não finalizou). A API só alcança 30 dias para trás e responde 404
+   * para página sem itens, que aqui é lista vazia, não erro.
+   */
+  async listAbandonedCheckouts(q: { page: number; perPage: number }): Promise<unknown[]> {
+    const params = new URLSearchParams({ page: String(q.page), per_page: String(q.perPage) });
+    try {
+      const data = await this.get<unknown>(`/checkouts?${params.toString()}`);
+      return Array.isArray(data) ? data : [];
+    } catch (err) {
+      if (err instanceof NuvemshopApiError && err.status === 404) return [];
+      throw err;
+    }
+  }
 }

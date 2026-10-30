@@ -83,6 +83,18 @@ const pedido = (id: string, ordered_at: string, numero: string) => ({
   numero,
 });
 
+const eventoSite = (id: string, occurred_at: string, kind = "cadastro", payload: Record<string, unknown> = {}) => ({
+  id,
+  organization_id: ORG,
+  contact_id: CONTATO,
+  kind,
+  source: "nuvemshop",
+  occurred_at,
+  ga_client_id: null,
+  ga_session_id: null,
+  payload,
+});
+
 function chamar(query = "") {
   const req = new NextRequest(`http://localhost/api/v1/contacts/${CONTATO}/timeline${query}`);
   return GET(req, { params: Promise.resolve({ id: CONTATO }) });
@@ -101,6 +113,7 @@ beforeEach(() => {
     crm_leads: { data: [], error: null },
     crm_lead_activities: { data: [], error: null },
     orders: { data: [], error: null },
+    site_events: { data: [], error: null },
   };
 });
 
@@ -223,5 +236,88 @@ describe("GET /contacts/[id]/timeline — pedidos da loja", () => {
     const resposta = await chamar();
 
     expect(resposta.status).toBe(500);
+  });
+});
+
+describe("GET /contacts/[id]/timeline — eventos do site", () => {
+  it("mostra o cadastro na loja de um contato SEM negócio, sem lead", async () => {
+    mocks.tabelas.site_events = { data: [eventoSite("s1", "2026-10-06T14:33:12.123+00:00")], error: null };
+
+    const corpo = (await (await chamar()).json()) as Corpo;
+
+    expect(corpo.data).toHaveLength(1);
+    expect(corpo.data[0]).toMatchObject({
+      id: "s1",
+      type: "cadastro",
+      source_module: "nuvemshop",
+      lead_id: null,
+      actor_kind: "contact",
+      performed_at: "2026-10-06T14:33:12.123+00:00",
+    });
+  });
+
+  it("intercala eventos do site, pedidos e atividades pela data", async () => {
+    mocks.tabelas.crm_lead_activities = { data: [atividade("a1", "2026-10-07T10:00:00.000+00:00")], error: null };
+    mocks.tabelas.orders = { data: [pedido("o1", "2026-10-06T14:33:12.123+00:00", "380")], error: null };
+    mocks.tabelas.site_events = {
+      data: [
+        eventoSite("s2", "2026-10-06T18:00:00.000+00:00", "carrinho_abandonado", { total_cents: 100, itens: 1 }),
+        eventoSite("s1", "2026-10-05T10:00:00.000+00:00"),
+      ],
+      error: null,
+    };
+
+    const corpo = (await (await chamar()).json()) as Corpo;
+
+    expect(corpo.data.map((i) => i.id)).toEqual(["a1", "s2", "o1", "s1"]);
+  });
+
+  it("consulta por contato E organização, e só as colunas da tabela", async () => {
+    await chamar();
+
+    const filtros = mocks.chamadas.filter((c) => c.tabela === "site_events" && c.op === "eq").map((c) => c.args);
+    expect(filtros).toContainEqual(["contact_id", CONTATO]);
+    expect(filtros).toContainEqual(["organization_id", ORG]);
+    const select = mocks.chamadas.find((c) => c.tabela === "site_events" && c.op === "select");
+    expect(String(select?.args[0])).toContain("kind");
+  });
+
+  it("?type=carrinho_abandonado traz só esse tipo de evento do site e não consulta pedidos", async () => {
+    await chamar("?type=carrinho_abandonado");
+
+    const filtro = mocks.chamadas.find((c) => c.tabela === "site_events" && c.op === "in");
+    expect(filtro?.args).toEqual(["kind", ["carrinho_abandonado"]]);
+    expect(mocks.tabelasConsultadas).not.toContain("orders");
+  });
+
+  it("?type=order_placed traz pedidos e não consulta eventos do site", async () => {
+    await chamar("?type=order_placed");
+
+    expect(mocks.tabelasConsultadas).toContain("orders");
+    expect(mocks.tabelasConsultadas).not.toContain("site_events");
+  });
+
+  it("?type=note não consulta pedidos nem eventos do site", async () => {
+    await chamar("?type=note");
+
+    expect(mocks.tabelasConsultadas).not.toContain("orders");
+    expect(mocks.tabelasConsultadas).not.toContain("site_events");
+  });
+
+  it("o cursor da página seguinte também corta os eventos do site", async () => {
+    const cursor = Buffer.from(
+      JSON.stringify({ performed_at: "2026-10-05T00:00:00.000+00:00", id: "00000000-0000-4000-8000-000000000000" }),
+    ).toString("base64url");
+
+    await chamar(`?cursor=${cursor}`);
+
+    const filtro = mocks.chamadas.find((c) => c.tabela === "site_events" && c.op === "or");
+    expect(String(filtro?.args[0])).toContain("occurred_at.lt.2026-10-05T00:00:00.000+00:00");
+  });
+
+  it("erro na leitura dos eventos do site vira 500, não uma linha do tempo incompleta", async () => {
+    mocks.tabelas.site_events = { data: null, error: { message: "boom" } };
+
+    expect((await chamar()).status).toBe(500);
   });
 });

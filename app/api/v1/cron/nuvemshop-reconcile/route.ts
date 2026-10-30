@@ -16,6 +16,9 @@ import { depsDoCatalogoReais } from "@/lib/nuvemshop/sync/catalogo-deps";
 import { depsReais } from "@/lib/nuvemshop/sync/deps";
 import { iniciarCatalogo } from "@/lib/nuvemshop/sync/iniciar-catalogo";
 import { iniciarSincronizacao } from "@/lib/nuvemshop/sync/iniciar";
+import { convergirAssinaturasDaLoja } from "@/lib/nuvemshop/sync/assinaturas";
+import { depsDeAssinaturasReais } from "@/lib/nuvemshop/sync/assinaturas-deps";
+import { depsDosCarrinhosReais, varrerCarrinhosAbandonados } from "@/lib/nuvemshop/sync/carrinhos-abandonados";
 import { ehOperante, STATUS_OPERANTE, statusDaOrgEmbutida } from "@/lib/organizacao/operante";
 import { createAdminClient } from "@/lib/supabase/admin";
 
@@ -79,8 +82,12 @@ async function executar(req: NextRequest): Promise<Response> {
 
   const deps = depsReais(admin);
   const depsDoCatalogo = depsDoCatalogoReais(admin);
+  const depsAssinaturas = depsDeAssinaturasReais(admin);
+  const depsCarrinhos = depsDosCarrinhosReais(admin);
   let iniciados = 0;
   let falhas = 0;
+  let assinaturasCriadas = 0;
+  let carrinhosRegistrados = 0;
   for (const orgId of decidirQuemReconciliar((linhas ?? []) as LinhaDeIntegracao[], estados, new Date())) {
     try {
       const r = await iniciarSincronizacao(deps, orgId, "reconciliacao");
@@ -98,8 +105,46 @@ async function executar(req: NextRequest): Promise<Response> {
         motivo: err instanceof Error ? err.message.slice(0, 200) : "erro_desconhecido",
       });
     }
+
+    // Eventos do site (cadastro e carrinho abandonado). Cada passo é isolado: a
+    // falha de um não pula o outro nem a loja seguinte, e só audita quando houve
+    // efeito (rodada que não fez nada não escreve na trilha).
+    //
+    // 1) Lojas conectadas antes de um evento novo entrar na lista recebem a
+    //    assinatura aqui, sem reconectar. Sem nada faltando, não chama a API.
+    try {
+      const a = await convergirAssinaturasDaLoja(depsAssinaturas, orgId);
+      if (a.criadas > 0) {
+        assinaturasCriadas += a.criadas;
+        await audit({ action: "nuvemshop.assinaturas_convergidas", organizationId: orgId, metadata: { criadas: a.criadas, falhas: a.falhas } });
+      }
+    } catch (err) {
+      logger.warn("[nuvemshop.reconcile] falha ao convergir as assinaturas", {
+        organization_id: orgId,
+        motivo: err instanceof Error ? err.message.slice(0, 200) : "erro_desconhecido",
+      });
+    }
+
+    // 2) Carrinhos abandonados: a API só os guarda por 30 dias, então o fato é
+    //    gravado aqui. Os já gravados custam uma consulta, não uma escrita.
+    try {
+      const c = await varrerCarrinhosAbandonados(depsCarrinhos, orgId);
+      if (c.gravados > 0) {
+        carrinhosRegistrados += c.gravados;
+        await audit({
+          action: "nuvemshop.carrinhos_abandonados_registrados",
+          organizationId: orgId,
+          metadata: { gravados: c.gravados, sem_contato: c.semContato, truncado: c.truncado },
+        });
+      }
+    } catch (err) {
+      logger.warn("[nuvemshop.reconcile] falha ao varrer os carrinhos abandonados", {
+        organization_id: orgId,
+        motivo: err instanceof Error ? err.message.slice(0, 200) : "erro_desconhecido",
+      });
+    }
   }
-  return ok({ candidatos: orgIds.length, iniciados, falhas });
+  return ok({ candidatos: orgIds.length, iniciados, falhas, assinaturas_criadas: assinaturasCriadas, carrinhos_registrados: carrinhosRegistrados });
 }
 
 export const GET = executar;

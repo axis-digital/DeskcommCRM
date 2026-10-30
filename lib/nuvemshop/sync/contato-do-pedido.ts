@@ -41,17 +41,38 @@ function vazio(v: string | null | undefined): boolean {
   return v === null || v === undefined || v.trim() === "";
 }
 
-export function extrairChaves(p: PedidoNuvemshop): ChavesDoContato {
-  const telefoneBruto = p.contact_phone ?? p.customer?.phone ?? p.customer?.billing_phone ?? null;
-  const emailBruto = (p.contact_email ?? p.customer?.email ?? "").trim().toLowerCase();
-  const cpfBruto = normalizeCpf(p.contact_identification ?? p.customer?.identification ?? "");
-  const nome = (p.contact_name ?? p.customer?.name ?? "").trim();
+/** Os campos como a plataforma entrega, antes de normalizar. */
+export interface CamposBrutosDoContato {
+  telefone?: string | null;
+  email?: string | null;
+  cpf?: string | null;
+  nome?: string | null;
+}
+
+/**
+ * As chaves de um contato a partir de campos crus: serve ao pedido, ao cadastro na
+ * loja e ao carrinho abandonado, que trazem os mesmos dados com nomes diferentes.
+ * Chave inválida vira `null` em vez de entrar torta na busca.
+ */
+export function chavesDe(c: CamposBrutosDoContato): ChavesDoContato {
+  const emailBruto = (c.email ?? "").trim().toLowerCase();
+  const cpfBruto = normalizeCpf(c.cpf ?? "");
+  const nome = (c.nome ?? "").trim();
   return {
-    telefone: normalizePhoneBR(telefoneBruto),
+    telefone: normalizePhoneBR(c.telefone ?? null),
     email: EMAIL.test(emailBruto) ? emailBruto : null,
     cpf: cpfBruto.length === 11 ? cpfBruto : null,
     nome: nome || null,
   };
+}
+
+export function extrairChaves(p: PedidoNuvemshop): ChavesDoContato {
+  return chavesDe({
+    telefone: p.contact_phone ?? p.customer?.phone ?? p.customer?.billing_phone ?? null,
+    email: p.contact_email ?? p.customer?.email ?? "",
+    cpf: p.contact_identification ?? p.customer?.identification ?? "",
+    nome: p.contact_name ?? p.customer?.name ?? "",
+  });
 }
 
 export function decidirContato(chaves: ChavesDoContato, candidatos: CandidatoDeContato[]): DecisaoDeContato {

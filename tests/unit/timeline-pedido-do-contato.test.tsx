@@ -41,6 +41,33 @@ const pedido = {
   evidence: null,
 };
 
+const abandono = {
+  id: "s-2",
+  organization_id: "org-1",
+  lead_id: null,
+  contact_id: "c-1",
+  source_module: "nuvemshop",
+  source_id: "s-2",
+  type: "carrinho_abandonado",
+  payload: { checkout_id: "411335234", total_cents: 29135, currency: "BRL", itens: 7 },
+  metadata: {},
+  performed_at: "2026-10-06T18:00:00.000Z",
+  performed_by_user_id: null,
+  actor_kind: "contact",
+  actor_agent_id: null,
+  reason: null,
+  evidence: null,
+};
+
+const cadastro = {
+  ...abandono,
+  id: "s-1",
+  source_id: "s-1",
+  type: "cadastro",
+  payload: { customer_id: "288418604" },
+  performed_at: "2026-10-05T12:00:00.000Z",
+};
+
 const nota = {
   id: "a-1",
   organization_id: "org-1",
@@ -65,7 +92,7 @@ vi.mock("@/hooks/contacts/useTimeline", () => ({
     isFetchingNextPage: false,
     fetchNextPage: () => undefined,
     refetch: () => undefined,
-    data: { pages: [{ data: [pedido, nota] }] },
+    data: { pages: [{ data: [pedido, abandono, cadastro, nota] }] },
   }),
 }));
 
@@ -94,12 +121,34 @@ describe("TimelineView — pedido da loja", () => {
   it("diz que o ator foi o cliente", () => {
     render(<TimelineView contactId="c-1" />);
 
-    expect(screen.getByText(/·\s*Cliente/)).toBeTruthy();
+    expect(screen.getAllByText(/·\s*Cliente/).length).toBeGreaterThanOrEqual(1);
   });
 
   it("a atividade comum segue com o rótulo e o motivo de sempre", () => {
     render(<TimelineView contactId="c-1" />);
 
     expect(screen.getByText("Primeira mensagem recebida")).toBeTruthy();
+  });
+});
+
+describe("TimelineView — eventos do site", () => {
+  it("escreve o cadastro como 'Cadastro na loja'", () => {
+    render(<TimelineView contactId="c-1" />);
+
+    expect(screen.getByText("Cadastro na loja")).toBeTruthy();
+  });
+
+  it("escreve o carrinho abandonado com o valor e a quantidade de itens", () => {
+    render(<TimelineView contactId="c-1" />);
+
+    expect(screen.getByText("Carrinho abandonado")).toBeTruthy();
+    const corpo = screen.getByText((_, el) => el?.tagName === "P" && semNbsp(el.textContent).includes("7 itens"));
+    expect(semNbsp(corpo.textContent)).toBe("R$ 291,35 · 7 itens");
+  });
+
+  it("nada que veio da loja cai no fallback 'Atividade registrada'", () => {
+    render(<TimelineView contactId="c-1" />);
+
+    expect(screen.queryByText("Atividade registrada")).toBeNull();
   });
 });

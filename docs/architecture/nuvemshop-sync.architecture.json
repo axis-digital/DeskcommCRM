@@ -155,7 +155,21 @@
       "lane": "humano",
       "col": 5,
       "type": "service",
-      "label": "Ficha do contato › linha do tempo: o pedido aparece junto das atividades, mesmo sem negócio (projeção de orders, sem cópia)"
+      "label": "Ficha do contato › linha do tempo: o pedido (projeção de orders) e os eventos do site aparecem junto das atividades, mesmo sem negócio"
+    },
+    {
+      "id": "handler-cliente",
+      "lane": "execucao",
+      "col": 7,
+      "type": "service",
+      "label": "nuvemshop-cliente: customer/created → GET /customers/{id} → cadastro em site_events"
+    },
+    {
+      "id": "site-events",
+      "lane": "banco",
+      "col": 3,
+      "type": "service",
+      "label": "site_events: o que a pessoa fez na loja (cadastro, carrinho abandonado), um por fato; apagado quando o contato é anonimizado"
     }
   ],
   "edges": [
@@ -282,6 +296,14 @@
     { "id": "e31", "from": "nuvemshop-products", "to": "tela-integracao", "label": "bloco Catálogo: quantos e o mais recente" },
     { "id": "e32", "from": "nuvemshop-products", "to": "cron-reconcile", "label": "o produto mais novo é o cursor da conferência" },
     { "id": "e33", "from": "orders", "to": "timeline-contato", "label": "a rota da timeline lê os pedidos do contato e da organização (GET /contacts/[id]/timeline)" },
-    { "id": "e34", "from": "contacts", "to": "timeline-contato", "label": "o contato é o dono da linha: pedido de contato sem negócio aparece igual" }
+    { "id": "e34", "from": "contacts", "to": "timeline-contato", "label": "o contato é o dono da linha: pedido de contato sem negócio aparece igual" },
+    { "id": "e35", "from": "event-log", "to": "handler-cliente", "label": "entrega nuvemshop.customer_created" },
+    { "id": "e36", "from": "handler-cliente", "to": "api-nuvemshop", "label": "GET /customers/{id}" },
+    { "id": "e37", "from": "handler-cliente", "to": "contacts", "label": "acha ou cria o contato por telefone, e-mail ou CPF; sem chave, não grava" },
+    { "id": "e38", "from": "handler-cliente", "to": "site-events", "label": "grava o cadastro (fn_gravar_evento_do_site, um por cliente)" },
+    { "id": "e39", "from": "cron-reconcile", "to": "api-nuvemshop", "label": "assina o evento novo nas lojas já conectadas e lê os carrinhos abandonados (até 5 páginas)" },
+    { "id": "e40", "from": "cron-reconcile", "to": "site-events", "label": "grava o carrinho abandonado; o que já está gravado só custa uma consulta" },
+    { "id": "e41", "from": "site-events", "to": "timeline-contato", "label": "a rota da timeline lê os eventos do contato (mesmo cursor dos pedidos)" },
+    { "id": "e42", "from": "contacts", "to": "site-events", "label": "anonimizar o contato apaga os eventos dele (gatilho)" }
   ]
 }
