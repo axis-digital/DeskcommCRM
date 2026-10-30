@@ -56,10 +56,16 @@ describe("useEnviosDeMidia", () => {
 
   it("a bolha aparece no mesmo tique do clique, ANTES de o upload terminar", () => {
     subirMock.mockReturnValue(new Promise(() => {}));
-    const { result } = montar();
+    // Conversa PRÓPRIA: este upload nunca termina, e os envios de uma conversa saem
+    // em série. Dividir "conv-1" com os outros casos deixaria todos presos atrás dele.
+    const { result } = montar("conv-upload-pendente");
 
     act(() =>
-      result.current.enviar({ conversationId: "conv-1", arquivo: arquivo(), legenda: "oi" }),
+      result.current.enviar({
+        conversationId: "conv-upload-pendente",
+        arquivo: arquivo(),
+        legenda: "oi",
+      }),
     );
 
     expect(result.current.pendentes).toHaveLength(1);
@@ -88,6 +94,34 @@ describe("useEnviosDeMidia", () => {
       (corpo as { metadata: { envio_local: string } }).metadata.envio_local,
     );
     expect(opts.timeoutMs).toBeGreaterThan(30_000);
+  });
+
+  it("⭐ dois anexos da MESMA conversa saem em ordem: o POST do 2º espera o do 1º, mesmo com o upload do 1º mais lento", async () => {
+    // [imagem, áudio] com a imagem subindo devagar: sem série, o áudio chegava ao
+    // servidor primeiro e o cliente o recebia antes da imagem (spec e2e
+    // `respostas-rapidas-conteudos`).
+    let liberarImagem!: (u: typeof SUBIDO) => void;
+    subirMock
+      .mockReturnValueOnce(new Promise((resolve) => (liberarImagem = resolve)))
+      .mockResolvedValueOnce({ ...SUBIDO, kind: "audio", storage_path: "org/conv-ordem/b.ogg" });
+    postMock.mockResolvedValue({ data: { id: "msg" } });
+    const { result } = montar("conv-ordem");
+
+    act(() => {
+      result.current.enviar({ conversationId: "conv-ordem", arquivo: arquivo(), legenda: "foto" });
+      result.current.enviar({ conversationId: "conv-ordem", arquivo: arquivo(), legenda: "" });
+    });
+
+    // A imagem começou a subir; o áudio NÃO: está atrás dela.
+    await waitFor(() => expect(subirMock).toHaveBeenCalledTimes(1));
+    await new Promise((resolve) => setTimeout(resolve, 10));
+    expect(subirMock).toHaveBeenCalledTimes(1);
+    expect(postMock).not.toHaveBeenCalled();
+
+    liberarImagem({ ...SUBIDO, storage_path: "org/conv-ordem/a.jpg" });
+    await waitFor(() => expect(postMock).toHaveBeenCalledTimes(2));
+    const tipos = postMock.mock.calls.map(([, corpo]) => (corpo as { type: string }).type);
+    expect(tipos).toEqual(["image", "audio"]);
   });
 
   it("falha no POST: a bolha fica com o motivo, o arquivo e a legenda; tentar de novo não sobe outra vez", async () => {

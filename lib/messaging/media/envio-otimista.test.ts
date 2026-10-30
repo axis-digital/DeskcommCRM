@@ -271,13 +271,17 @@ describe("criarSerieDeEnvios — uma conversa envia na ordem em que pediu", () =
 
     const p1 = naVez("conv-1", lenta.tarefa);
     const p2 = naVez("conv-1", rapida.tarefa);
-    await Promise.resolve();
+    await vi.waitFor(() => expect(registro).toEqual(["inicio:imagem"]));
+    // Dá tempo de sobra para a 2ª começar, se a série não a segurasse.
+    await new Promise((resolve) => setTimeout(resolve, 10));
     expect(registro).toEqual(["inicio:imagem"]);
     expect(rapida.tarefa).not.toHaveBeenCalled();
 
     lenta.terminar();
     await p1;
-    await vi.waitFor(() => expect(registro).toEqual(["inicio:imagem", "fim:imagem", "inicio:audio"]));
+    await vi.waitFor(() =>
+      expect(registro).toEqual(["inicio:imagem", "fim:imagem", "inicio:audio"]),
+    );
     rapida.terminar();
     await p2;
     expect(registro).toEqual(["inicio:imagem", "fim:imagem", "inicio:audio", "fim:audio"]);
@@ -291,8 +295,7 @@ describe("criarSerieDeEnvios — uma conversa envia na ordem em que pediu", () =
 
     const pa = naVez("conv-1", a.tarefa);
     const pb = naVez("conv-2", b.tarefa);
-    await Promise.resolve();
-    expect(registro).toEqual(["inicio:conv-1", "inicio:conv-2"]);
+    await vi.waitFor(() => expect(registro).toEqual(["inicio:conv-1", "inicio:conv-2"]));
 
     a.terminar();
     b.terminar();
@@ -311,5 +314,53 @@ describe("criarSerieDeEnvios — uma conversa envia na ordem em que pediu", () =
     await expect(p1).rejects.toThrow("falha inesperada");
     await p2;
     expect(seguinte).toHaveBeenCalledTimes(1);
+  });
+
+  it("⭐ um envio que NUNCA termina (upload preso na rede) não bloqueia a conversa para sempre", async () => {
+    // Sem teto, um upload pendurado travaria TODOS os envios seguintes da conversa
+    // — antes da série só aquela bolha ficava presa. O teto devolve o comportamento
+    // de antes no caso degenerado: passado o prazo, o seguinte sai.
+    vi.useFakeTimers();
+    try {
+      const naVez = criarSerieDeEnvios({ esperaMaximaMs: 5_000 });
+      const preso = vi.fn(() => new Promise<void>(() => {}));
+      const seguinte = vi.fn(async () => {});
+
+      void naVez("conv-1", preso);
+      const p2 = naVez("conv-1", seguinte);
+
+      await vi.advanceTimersByTimeAsync(4_999);
+      expect(seguinte).not.toHaveBeenCalled();
+
+      await vi.advanceTimersByTimeAsync(2);
+      await p2;
+      expect(seguinte).toHaveBeenCalledTimes(1);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("o teto NÃO adianta a tarefa seguinte quando a anterior termina dentro do prazo", async () => {
+    vi.useFakeTimers();
+    try {
+      const naVez = criarSerieDeEnvios({ esperaMaximaMs: 5_000 });
+      const registro: string[] = [];
+      const lenta = tarefaManual(registro, "imagem");
+      const rapida = tarefaManual(registro, "audio");
+
+      const p1 = naVez("conv-1", lenta.tarefa);
+      const p2 = naVez("conv-1", rapida.tarefa);
+      await vi.advanceTimersByTimeAsync(3_000);
+      expect(registro).toEqual(["inicio:imagem"]);
+
+      lenta.terminar();
+      await p1;
+      await vi.advanceTimersByTimeAsync(0);
+      expect(registro).toEqual(["inicio:imagem", "fim:imagem", "inicio:audio"]);
+      rapida.terminar();
+      await p2;
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });
