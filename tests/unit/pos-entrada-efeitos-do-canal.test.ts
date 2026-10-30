@@ -62,6 +62,15 @@ let rpcErro: { message: string } | null = null;
  */
 let historicoDoContato: { id: string | null; count: number } = { id: "msg-1", count: 1 };
 let historicoErro: { message: string } | null = null;
+/**
+ * Fork: o carimbo da origem da página lê o `source` do contato (para não reescrever o de quem já
+ * é cliente da loja). O padrão é o contato que nasceu no WhatsApp; a leitura NÃO entra em
+ * `sequencia`, que os casos comparam por ordem.
+ */
+let contatoLido: { data: { source: string | null } | null; error: { message: string } | null } = {
+  data: { source: "whatsapp" },
+  error: null,
+};
 let ultimoUpdate: Record<string, unknown> | null = null;
 let ultimaRpc: Record<string, unknown> | null = null;
 /** TODAS as chamadas de RPC, na ordem, com o NOME da função. */
@@ -155,6 +164,7 @@ const admin = {
             return consulta;
           },
           async maybeSingle() {
+            if (tabela === "contacts") return contatoLido;
             if (tabela !== "messages") return { data: null, count: null, error: null };
             sequencia.push("select:messages");
             return {
@@ -224,6 +234,7 @@ beforeEach(() => {
   rpcErro = null;
   historicoDoContato = { id: "msg-1", count: 1 };
   historicoErro = null;
+  contatoLido = { data: { source: "whatsapp" }, error: null };
   ultimoUpdate = null;
   ultimaRpc = null;
   rpcChamadas = [];
@@ -832,6 +843,29 @@ describe("a origem da página que veio no texto", () => {
       p_platform: "site",
       p_metadata: { ad_platform: "site", utm_source: "instagram", gclid: "Cj0KCQjw" },
     });
+  });
+
+  it("⭐ cliente da loja (source 'nuvemshop'): a origem é estampada SEM reescrever o source para 'site'", async () => {
+    contatoLido = { data: { source: "nuvemshop" }, error: null };
+
+    await rodar({ texto: `oi! vi voces no site ${CODIGO}` });
+
+    const i = indiceDoRpc("fn_estampar_atribuicao_de_anuncio");
+    expect(i, "a origem da página não foi estampada no contato").toBeGreaterThanOrEqual(0);
+    expect(rpcChamadas[i]?.args).toMatchObject({
+      p_contact: "contato-1",
+      p_platform: "nuvemshop",
+      p_metadata: { ad_platform: "site", utm_source: "instagram" },
+    });
+  });
+
+  it("não conseguir ler o contato não estampa (na dúvida, não grava) e os outros efeitos seguem", async () => {
+    contatoLido = { data: null, error: { message: "banco fora do ar" } };
+
+    await rodar({ texto: `oi! vi voces no site ${CODIGO}` });
+
+    expect(nomesDeRpc()).not.toContain("fn_estampar_atribuicao_de_anuncio");
+    expect(garantirLeadDaConversa).toHaveBeenCalled();
   });
 
   it("sem código no texto, nada é estampado", async () => {

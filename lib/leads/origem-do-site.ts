@@ -233,6 +233,44 @@ export async function estamparOrigemDaPagina(
   return !error;
 }
 
+/** `source` de contato que um carimbo de origem NUNCA reescreve: o contato nasceu daquela integração. */
+const FONTES_QUE_SE_MANTEM: ReadonlySet<string> = new Set(["nuvemshop"]);
+
+/**
+ * `estamparOrigemDaPagina` para quem chega pelo WhatsApp: preserva o `source` do cliente da loja.
+ *
+ * A função do banco grava `source = p_platform`, e o padrão ('site') é o certo para o contato que
+ * nasce no WhatsApp. O contato que o sync da loja criou, porém, tem `source = 'nuvemshop'`; um
+ * cliente da loja que chama no WhatsApp pela primeira vez vindo de uma página com UTM tinha o
+ * `source` trocado por 'site', perdendo a marca de que é cliente da loja. Aqui o `source` atual é
+ * lido (da organização: o admin ignora a RLS) e, sendo de integração, repassado.
+ *
+ * Na dúvida não grava: se a leitura falha ou o contato não está na organização, devolve `false`.
+ * O custo de uma origem faltando é um relatório mais pobre; o de um `source` trocado calado é
+ * um contato fora da marca da integração.
+ */
+export async function estamparOrigemDaPaginaPreservandoAFonte(
+  admin: Admin,
+  organizationId: string,
+  contactId: string,
+  origem: OrigemDaPagina,
+  opcoes: { via?: string } = {},
+): Promise<boolean> {
+  const { data, error } = await admin
+    .from("contacts")
+    .select("source")
+    .eq("organization_id", organizationId)
+    .eq("id", contactId)
+    .maybeSingle();
+  if (error || !data) return false;
+  const atual = (data as { source: string | null }).source;
+  const fonte = atual && FONTES_QUE_SE_MANTEM.has(atual) ? atual : undefined;
+  return estamparOrigemDaPagina(admin, organizationId, contactId, origem, {
+    ...opcoes,
+    ...(fonte ? { fonte } : {}),
+  });
+}
+
 /**
  * A origem só vale na PRIMEIRA mensagem do contato.
  *
