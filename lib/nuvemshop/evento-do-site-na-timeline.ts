@@ -2,7 +2,7 @@ import { MOEDA_PADRAO, formatCents } from "@/lib/money";
 import type { TimelineItemDoContato } from "@/lib/types/contacts";
 
 /**
- * Os eventos do site (`site_events`, migration 9040) na linha do tempo do contato.
+ * Os eventos do site (`site_events`, migration 9902) na linha do tempo do contato.
  *
  * Diferente do pedido, que é projetado de `orders`, estes têm tabela própria porque
  * não existe fonte de origem para eles. Entram na MESMA rota e no MESMO formato de

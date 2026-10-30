@@ -1,7 +1,7 @@
 import { chavesDe, type ChavesDoContato } from "./sync/contato-do-pedido";
 
 /**
- * O que a pessoa faz na loja, traduzido para `site_events` (migration 9040).
+ * O que a pessoa faz na loja, traduzido para `site_events` (migration 9902).
  *
  * Puro de propósito (sem banco, sem rede): é o que o handler do webhook e o cron
  * do carrinho abandonado usam para montar o fato, e o que os testes medem.

@@ -2,7 +2,7 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import pg from "pg";
 
 /**
- * `site_events` e `fn_gravar_evento_do_site` (migration 9040): o evento do site
+ * `site_events` e `fn_gravar_evento_do_site` (migration 9902): o evento do site
  * (cadastro na loja, carrinho, checkout, abandono) é guardado uma vez por fato,
  * nunca com contato de outra organização ou anonimizado, lido só pela própria
  * organização e escrito só pelo servidor.
