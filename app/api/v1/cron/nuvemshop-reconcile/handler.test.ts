@@ -8,6 +8,7 @@ const m = vi.hoisted(() => ({
   iniciarCatalogo: vi.fn(),
   convergir: vi.fn(),
   varrer: vi.fn(),
+  carimbar: vi.fn(),
 }));
 vi.mock("@/lib/auth/cron-auth", () => ({ autorizaCron: m.autoriza }));
 vi.mock("@/lib/audit", () => ({ audit: m.audit }));
@@ -21,6 +22,10 @@ vi.mock("@/lib/nuvemshop/sync/assinaturas-deps", () => ({ depsDeAssinaturasReais
 vi.mock("@/lib/nuvemshop/sync/carrinhos-abandonados", () => ({
   depsDosCarrinhosReais: () => ({}),
   varrerCarrinhosAbandonados: m.varrer,
+}));
+vi.mock("@/lib/nuvemshop/sync/origem-dos-pedidos", () => ({
+  depsDaOrigemDosPedidosReais: () => ({}),
+  carimbarOrigemDosPedidos: m.carimbar,
 }));
 vi.mock("@/lib/supabase/admin", () => ({
   createAdminClient: () => ({
@@ -55,6 +60,8 @@ describe("GET nuvemshop-reconcile", () => {
     m.convergir.mockResolvedValue({ criadas: 0, falhas: 0 });
     m.varrer.mockReset();
     m.varrer.mockResolvedValue({ gravados: 0, semContato: 0, truncado: false });
+    m.carimbar.mockReset();
+    m.carimbar.mockResolvedValue({ lidos: 0, carimbados: 0, semOrigem: 0, falhas: 0, truncado: false });
   });
 
   it("sem secret → 403", async () => {
@@ -70,7 +77,7 @@ describe("GET nuvemshop-reconcile", () => {
       .mockResolvedValueOnce({ ok: true, runId: "r2" });
     const { GET } = await import("./route");
     const body = await (await GET(req())).json();
-    expect(body.data).toEqual({ candidatos: 2, iniciados: 1, falhas: 0, assinaturas_criadas: 0, carrinhos_registrados: 0 });
+    expect(body.data).toEqual({ candidatos: 2, iniciados: 1, falhas: 0, assinaturas_criadas: 0, carrinhos_registrados: 0, origens_carimbadas: 0 });
     expect(m.audit).toHaveBeenCalledTimes(1);
     expect(m.audit).toHaveBeenCalledWith(expect.objectContaining({ action: "nuvemshop.sync_requested", organizationId: "b" }));
   });
@@ -79,7 +86,7 @@ describe("GET nuvemshop-reconcile", () => {
     m.iniciar.mockRejectedValueOnce(new Error("boom")).mockResolvedValueOnce({ ok: true, runId: "r2" });
     const { GET } = await import("./route");
     const body = await (await GET(req())).json();
-    expect(body.data).toEqual({ candidatos: 2, iniciados: 1, falhas: 1, assinaturas_criadas: 0, carrinhos_registrados: 0 });
+    expect(body.data).toEqual({ candidatos: 2, iniciados: 1, falhas: 1, assinaturas_criadas: 0, carrinhos_registrados: 0, origens_carimbadas: 0 });
     expect(m.audit).toHaveBeenCalledTimes(1);
   });
 
@@ -140,5 +147,35 @@ describe("GET nuvemshop-reconcile", () => {
     const { GET } = await import("./route");
     await GET(req());
     expect(m.iniciarCatalogo).toHaveBeenCalledTimes(2);
+  });
+
+  it("origem dos pedidos: audita só quando carimbou algo, e conta no corpo", async () => {
+    m.iniciar.mockResolvedValue({ ok: false, motivo: "sync_em_andamento" });
+    m.carimbar
+      .mockResolvedValueOnce({ lidos: 5, carimbados: 0, semOrigem: 5, falhas: 0, truncado: false })
+      .mockResolvedValueOnce({ lidos: 40, carimbados: 3, semOrigem: 1, falhas: 2, truncado: true });
+    const { GET } = await import("./route");
+    const body = await (await GET(req())).json();
+    expect(body.data.origens_carimbadas).toBe(3);
+    expect(m.audit).toHaveBeenCalledTimes(1);
+    expect(m.audit).toHaveBeenCalledWith(
+      expect.objectContaining({
+        action: "nuvemshop.origem_dos_pedidos_carimbada",
+        organizationId: "b",
+        metadata: expect.objectContaining({ carimbados: 3, falhas: 2, truncado: true }),
+      }),
+    );
+  });
+
+  it("falha na origem dos pedidos não impede a loja seguinte nem derruba a rodada", async () => {
+    m.iniciar.mockResolvedValue({ ok: false, motivo: "sync_em_andamento" });
+    m.carimbar
+      .mockRejectedValueOnce(new Error("orders_leitura:42703"))
+      .mockResolvedValueOnce({ lidos: 2, carimbados: 2, semOrigem: 0, falhas: 0, truncado: false });
+    const { GET } = await import("./route");
+    const resposta = await GET(req());
+    expect(resposta.status).toBe(200);
+    expect(m.carimbar).toHaveBeenCalledTimes(2);
+    expect((await resposta.json()).data.origens_carimbadas).toBe(2);
   });
 });

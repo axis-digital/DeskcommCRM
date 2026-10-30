@@ -19,6 +19,7 @@ import { iniciarSincronizacao } from "@/lib/nuvemshop/sync/iniciar";
 import { convergirAssinaturasDaLoja } from "@/lib/nuvemshop/sync/assinaturas";
 import { depsDeAssinaturasReais } from "@/lib/nuvemshop/sync/assinaturas-deps";
 import { depsDosCarrinhosReais, varrerCarrinhosAbandonados } from "@/lib/nuvemshop/sync/carrinhos-abandonados";
+import { carimbarOrigemDosPedidos, depsDaOrigemDosPedidosReais } from "@/lib/nuvemshop/sync/origem-dos-pedidos";
 import { ehOperante, STATUS_OPERANTE, statusDaOrgEmbutida } from "@/lib/organizacao/operante";
 import { createAdminClient } from "@/lib/supabase/admin";
 
@@ -84,10 +85,12 @@ async function executar(req: NextRequest): Promise<Response> {
   const depsDoCatalogo = depsDoCatalogoReais(admin);
   const depsAssinaturas = depsDeAssinaturasReais(admin);
   const depsCarrinhos = depsDosCarrinhosReais(admin);
+  const depsOrigem = depsDaOrigemDosPedidosReais(admin);
   let iniciados = 0;
   let falhas = 0;
   let assinaturasCriadas = 0;
   let carrinhosRegistrados = 0;
+  let origensCarimbadas = 0;
   for (const orgId of decidirQuemReconciliar((linhas ?? []) as LinhaDeIntegracao[], estados, new Date())) {
     try {
       const r = await iniciarSincronizacao(deps, orgId, "reconciliacao");
@@ -143,8 +146,35 @@ async function executar(req: NextRequest): Promise<Response> {
         motivo: err instanceof Error ? err.message.slice(0, 200) : "erro_desconhecido",
       });
     }
+
+    // 3) Origem do contato, lida da `landing_url` dos pedidos já gravados (UTM e click
+    //    ids). O primeiro toque é decidido pelo banco; aqui só se oferece o pedido mais
+    //    antigo com marcador de cada contato. Cobre também os pedidos já sincronizados.
+    try {
+      const o = await carimbarOrigemDosPedidos(depsOrigem, orgId);
+      if (o.carimbados > 0) {
+        origensCarimbadas += o.carimbados;
+        await audit({
+          action: "nuvemshop.origem_dos_pedidos_carimbada",
+          organizationId: orgId,
+          metadata: { carimbados: o.carimbados, falhas: o.falhas, truncado: o.truncado },
+        });
+      }
+    } catch (err) {
+      logger.warn("[nuvemshop.reconcile] falha ao carimbar a origem dos pedidos", {
+        organization_id: orgId,
+        motivo: err instanceof Error ? err.message.slice(0, 200) : "erro_desconhecido",
+      });
+    }
   }
-  return ok({ candidatos: orgIds.length, iniciados, falhas, assinaturas_criadas: assinaturasCriadas, carrinhos_registrados: carrinhosRegistrados });
+  return ok({
+    candidatos: orgIds.length,
+    iniciados,
+    falhas,
+    assinaturas_criadas: assinaturasCriadas,
+    carrinhos_registrados: carrinhosRegistrados,
+    origens_carimbadas: origensCarimbadas,
+  });
 }
 
 export const GET = executar;

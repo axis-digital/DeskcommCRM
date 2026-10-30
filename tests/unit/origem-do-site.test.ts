@@ -150,6 +150,28 @@ describe("a estampagem no contato", () => {
     });
   });
 
+  it("sem opções, o padrão é o de sempre: source 'site' e nenhuma marca de via", async () => {
+    const { admin, chamadas } = bancoDeMentira();
+    await estamparOrigemDaPagina(admin, "org-1", "contato-1", { utm: { utm_source: "ig" }, capturadaEm: null });
+    expect(chamadas[0]!.p_platform).toBe("site");
+    expect(chamadas[0]!.p_metadata).not.toHaveProperty("origem_via");
+  });
+
+  it("⭐ `fonte` repassa o source que o contato JÁ TEM (o LGPD acha o contato da loja por 'nuvemshop') e `via` fica registrado", async () => {
+    const { admin, chamadas } = bancoDeMentira();
+    await estamparOrigemDaPagina(
+      admin,
+      "org-1",
+      "contato-1",
+      { utm: { utm_source: "ig" }, capturadaEm: "2026-10-01T10:00:00.000Z" },
+      { fonte: "nuvemshop", via: "pedido_nuvemshop" },
+    );
+    expect(chamadas[0]).toMatchObject({
+      p_platform: "nuvemshop",
+      p_metadata: { ad_platform: "site", origem: "site", origem_via: "pedido_nuvemshop", utm_source: "ig" },
+    });
+  });
+
   it("devolve false e não lança quando o banco recusa", async () => {
     const { admin } = bancoDeMentira({ message: "permission denied" });
     await expect(
