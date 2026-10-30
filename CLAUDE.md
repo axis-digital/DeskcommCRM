@@ -50,6 +50,17 @@ As 0900 e 0901 (axis, já na `main`) seguem fora da faixa e precisam ir para 900
 upstream chega nelas em cerca de 30 dias. Contra `origin/main`, o `checar-colisao-de-migration`
 dá falso positivo quando uma migration renumerada é removida; meça contra `upstream/main`.
 
+**Atualização de 30/10/2026 — a upstream entrou na faixa 9xxx, e o fim da faixa é o do fork.**
+Desde 26/10 a upstream numera em 9016–9049 (cerca de 8 por dia), e PRs abertos dela reservam
+9019–9048. A baixa 9xxx deixou de ser exclusiva do fork: a nossa 9039 colidiu no merge e a 9022 e
+a 9040 colidiriam com os PRs #3579 e #3625 dela. **Migration do fork nasce no fim da faixa:
+9900–9999.** Ocupadas: 9900 (reenvio de conversão GA4), 9901 (grants de `integration_sync_state`)
+e 9902 (`site_events`); próximo livre: **9903**. As 9002–9006 ficam onde estão (a upstream começou
+em 9016). `renumerar.py --proximo-livre` e o `checar-colisao-de-migration` medem a upstream, então
+o "próximo livre" que eles imprimem (9050 em 30/10) **não** vale para o fork: use 9903 em diante.
+Renumerar migration que já está na `main` do fork exige PR próprio, ANTES do merge da upstream que
+traz a colisão — o checador compara contra `origin/main` e reprova o renome dentro do próprio merge.
+
 ---
 
 ## Stack canônica

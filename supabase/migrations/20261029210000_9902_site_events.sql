@@ -1,6 +1,6 @@
 -- manifest: **Eventos do site na linha do tempo do contato (etapa 1).** Cria `site_events` (cadastro na loja, carrinho adicionado, checkout iniciado e carrinho abandonado; um por fato, único por organização + `dedupe_key`; leitura pela organização, escrita só pelo servidor, com `ga_client_id` e `ga_session_id` já previstos, nulos) e a função `fn_gravar_evento_do_site` (`security definer` só para `service_role`; contato de outra organização ou anonimizado não é aceito; o mesmo fato regravado atualiza o payload e nunca duplica). Um gatilho em `contacts` apaga os eventos da pessoa quando ela é anonimizada (por qualquer caminho). Privilégios explícitos por papel, porque a Supabase deixa de conceder permissão automática a tabela nova em 30/10/2026. Idempotente.
 
--- 9040 — eventos do site na linha do tempo do contato
+-- 9902 — eventos do site na linha do tempo do contato
 --
 -- Por quê: `crm_lead_activities.lead_id` é NOT NULL, então quem só se cadastrou ou
 -- abandonou o carrinho (sem negócio) não tem onde gravar atividade. O pedido é

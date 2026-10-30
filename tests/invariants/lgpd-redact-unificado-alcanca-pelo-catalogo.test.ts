@@ -240,7 +240,7 @@ const DECISOES: Record<string, Decisao> = {
   site_events: {
     decidida: "redigir",
     caminho: "gatilho",
-    razao: "fn_site_events_apaga_ao_anonimizar (9040): o que a pessoa fez na loja (cadastro, carrinho abandonado) é comportamento ligado a ela — apaga na virada, não redige, porque o evento sem o contato não diz nada a ninguém. O titular recebe esses registros na cópia dos dados (secao `site_events` do data.json) enquanto a pessoa não é anonimizada.",
+    razao: "fn_site_events_apaga_ao_anonimizar (9902): o que a pessoa fez na loja (cadastro, carrinho abandonado) é comportamento ligado a ela — apaga na virada, não redige, porque o evento sem o contato não diz nada a ninguém. O titular recebe esses registros na cópia dos dados (secao `site_events` do data.json) enquanto a pessoa não é anonimizada.",
   },
   ai_reply_drafts: {
     decidida: "redigir",

@@ -572,7 +572,9 @@ feature já existe no código, nas issues ou nos PRs da upstream; e, se existir,
 (3) só então criar a branch a partir de `origin/main` atualizada.
 
 **Migrations exclusivas do fork** usam `NNNN` na faixa **9000–9999**, nunca o próximo número da
-upstream, que avança cerca de 7,5 por dia e colidiu duas vezes em dois dias. Detalhes no `CLAUDE.md`.
+upstream, que avança cerca de 7,5 por dia e colidiu duas vezes em dois dias. Desde 30/10/2026 a
+upstream também numera em 9xxx (9016–9049), então o fork usa o **fim** da faixa: 9900 em diante
+(próximo livre: 9903). Detalhes no `CLAUDE.md`.
 
 ## Regra final — não invente
 

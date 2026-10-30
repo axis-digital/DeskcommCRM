@@ -62930,7 +62930,7 @@ create trigger trg_limpar_snapshot_catalogo_ao_anonimizar
   for each row when (new.is_anonymized and not old.is_anonymized)
   execute function public.fn_limpar_snapshot_catalogo_ao_anonimizar();
 
--- ---- reenvio de conversão: une GA4/SemOrigem e LeadSubmitted (migration 9022) ----
+-- ---- reenvio de conversão: une GA4/SemOrigem e LeadSubmitted (migration 9900) ----
 create or replace function public.fn_solicitar_reenvio_conversao(p_org uuid, p_lead uuid, p_event text)
 returns boolean language plpgsql set search_path = public as $$
 declare v_linha public.ad_conversion_dispatches%rowtype;
@@ -66287,7 +66287,7 @@ begin
 end;
 $function$;
 
--- ---- eventos do site na linha do tempo do contato (migration 9040) ----
+-- ---- eventos do site na linha do tempo do contato (migration 9902) ----
 create table if not exists public.site_events (
   id uuid primary key default gen_random_uuid(),
   organization_id uuid not null references public.organizations(id) on delete cascade,
@@ -70282,7 +70282,7 @@ create unique index if not exists inbox_task_reminder_ocasiao_unique
   on public.agent_inbox_items (organization_id, ref_id, kind, para_user_id, task_reminder_due_at)
   where ref_kind = 'task' and task_reminder_due_at is not null and status <> 'resolved';
 
--- ---- grants explícitos de integration_sync_state (migration 9039) ----
+-- ---- grants explícitos de integration_sync_state (migration 9901) ----
 revoke all on table public.integration_sync_state from anon, authenticated, service_role;
 grant select on table public.integration_sync_state to authenticated;
 grant select, insert, update, delete on table public.integration_sync_state to service_role;
