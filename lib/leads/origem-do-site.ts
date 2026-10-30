@@ -199,22 +199,34 @@ export function extrairOrigemDaPagina(texto: string | null | undefined): OrigemD
  *
  * `utm_*` vão achatados no metadata junto do resto: é o formato que a leitura
  * de conversões e a ficha do contato já consomem.
+ *
+ * ─── `fonte`: o `source` que o contato JÁ TEM ────────────────────────────────
+ *
+ * A função do banco grava `source = p_platform`. Para quem chega pelo WhatsApp
+ * isso é `"site"`, o padrão. Mas um contato que nasceu da loja tem
+ * `source = 'nuvemshop'`, e o LGPD o localiza por esse valor (redact e cópia do
+ * titular): reescrevê-lo para `"site"` tiraria o contato do alcance do direito
+ * do titular. Quem carimba um contato que já tem `source` passa o que ele tem.
+ * `via` registra por onde a origem foi lida (`origem_via`), para a ficha e a
+ * auditoria distinguirem o marcador do WhatsApp do pedido da loja.
  */
 export async function estamparOrigemDaPagina(
   admin: Admin,
   organizationId: string,
   contactId: string,
   origem: OrigemDaPagina,
+  opcoes: { fonte?: string; via?: string } = {},
 ): Promise<boolean> {
   const { error } = await admin.rpc("fn_estampar_atribuicao_de_anuncio", {
     p_org: organizationId,
     p_contact: contactId,
-    p_platform: "site",
+    p_platform: opcoes.fonte ?? "site",
     p_metadata: {
       ad_platform: "site",
       ad_source_id: null,
       origem: "site",
       origem_capturada_em: origem.capturadaEm,
+      ...(opcoes.via ? { origem_via: opcoes.via } : {}),
       ...origem.utm,
     },
   });

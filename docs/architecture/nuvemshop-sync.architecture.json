@@ -304,6 +304,8 @@
     { "id": "e39", "from": "cron-reconcile", "to": "api-nuvemshop", "label": "assina o evento novo nas lojas já conectadas e lê os carrinhos abandonados (até 5 páginas)" },
     { "id": "e40", "from": "cron-reconcile", "to": "site-events", "label": "grava o carrinho abandonado; o que já está gravado só custa uma consulta" },
     { "id": "e41", "from": "site-events", "to": "timeline-contato", "label": "a rota da timeline lê os eventos do contato (mesmo cursor dos pedidos)" },
-    { "id": "e42", "from": "contacts", "to": "site-events", "label": "anonimizar o contato apaga os eventos dele (gatilho)" }
+    { "id": "e42", "from": "contacts", "to": "site-events", "label": "anonimizar o contato apaga os eventos dele (gatilho)" },
+    { "id": "e43", "from": "cron-reconcile", "to": "orders", "label": "lê a landing_url dos pedidos de contatos sem origem (só os com UTM, fbclid ou gclid; o mais antigo primeiro; até 500 por rodada)" },
+    { "id": "e44", "from": "cron-reconcile", "to": "contacts", "label": "carimba a origem do contato pelo mesmo caminho da página, preservando o primeiro toque e o source (o LGPD acha o contato da loja por ele)" }
   ]
 }
