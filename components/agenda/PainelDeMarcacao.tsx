@@ -449,8 +449,9 @@ export function PainelDeMarcacao({
    * próximo horário, amanhã, atrás de uma seta que nada apontava. Todo mês.
    * Foi o que reprovou o e2e de todos os PRs em 30/09/2026 a partir de ~16h BRT.
    *
-   * A decisão é tomada UMA vez, quando os horários do mês de abertura chegam:
-   * sem nenhum horário publicado nele, o painel passa ao mês seguinte. Quem
+   * A decisão é tomada UMA vez, quando chega uma resposta conclusiva (jornada
+   * publicada, sem erro) para o mês de abertura: sem nenhum horário publicado
+   * nele, o painel passa ao mês seguinte. Quem
    * volta à mão (para um encaixe hoje) fica onde voltou. Sem jornada publicada
    * não há o que procurar no mês seguinte, e o aviso é o próximo passo.
    */
@@ -458,9 +459,13 @@ export function PainelDeMarcacao({
   // ser pintado (https://react.dev/learn/you-might-not-need-an-effect).
   const [aberturaDecidida, setAberturaDecidida] = React.useState(false);
   const aberturaCarregada = mesCarregado != null && dadosDoMesEmTela && isSameMonth(mes, ancora);
-  if (!aberturaDecidida && aberturaCarregada && !instanteInicial) {
+  // Só uma resposta CONCLUSIVA gasta a decisão: com jornada publicada e sem erro.
+  // O painel abre no primeiro tipo por nome, que pode não ter jornada; a resposta
+  // dele ("não publicou") não diz nada sobre vaga, e gastar a decisão nela deixava
+  // quem trocava para o tipo com jornada preso num mês morto (sexta 30/10, 17h30).
+  if (!aberturaDecidida && aberturaCarregada && !instanteInicial && publicouHorarios && !erroAoCarregar) {
     setAberturaDecidida(true);
-    if (publicouHorarios && !erroAoCarregar && !semanas.flat().some(temHorario)) {
+    if (!semanas.flat().some(temHorario)) {
       setMes(startOfMonth(addDays(startOfMonth(mes), 32)));
     }
   }
