@@ -512,6 +512,22 @@ test("sete combinações e edição de áudio no teto5 conservam bytes e snapsho
       expect(envios).toEqual(esperados);
     }
     expect(envios).toHaveLength(10);
+    // Fork: o diálogo de anexo fecha NA HORA (bolha otimista, `useEnviosDeMidia`) e o
+    // upload + POST seguem em segundo plano. No caminho antigo ele só fechava depois do
+    // POST responder, e o `toHaveCount(0)` acima sincronizava esta leitura com o servidor
+    // sem querer. O handler grava `queued` e depois `sent` + `external_id` no mesmo
+    // request, então basta esperar o estado final antes de ler — a ordem e o conteúdo
+    // continuam afirmados abaixo, sobre as mesmas linhas.
+    await expect
+      .poll(
+        async () => {
+          const r = await admin.from("messages").select("status,external_id")
+            .eq("organization_id", org).eq("conversation_id", conversa).eq("direction", "outbound");
+          return r.data?.length === 10 && r.data.every((m) => m.status === "sent" && Boolean(m.external_id));
+        },
+        { timeout: 15_000, message: "as 10 mensagens deveriam chegar a `sent` com `external_id`" },
+      )
+      .toBe(true);
     const persistidos = await admin.from("messages").select("type,body,status,external_id,media_storage_path")
       .eq("organization_id", org).eq("conversation_id", conversa).eq("direction", "outbound").order("created_at");
     expect(persistidos.error === null).toBe(true);
