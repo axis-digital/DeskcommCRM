@@ -7,6 +7,7 @@
 
 import { createAdminClient } from "@/lib/supabase/admin";
 import { perfilDaOrganizacao } from "@/lib/legal/perfil-do-pais";
+import { acharContatoDaLoja } from "./contato-da-loja";
 import { computeDueAt } from "./sla";
 import type { LgpdRequest, LgpdRequestType, LgpdScope } from "./types";
 
@@ -100,10 +101,11 @@ export async function findLgpdRequest(
 /**
  * Find an internal contact by Nuvemshop customer ID stored in source_metadata.
  *
- * Nuvemshop contacts are synced with source='nuvemshop' and their customer ID
- * is stored in `source_metadata->>'nuvemshop_customer_id'`. If that lookup
- * yields nothing (contact never imported), we fall back to email match via
- * the payload (caller provides email if available).
+ * The store sync writes `source_metadata = { store_id, customer_id }`; `acharContatoDaLoja`
+ * tries that key and then the legacy `nuvemshop_customer_id`, and does not depend on the
+ * contact's `source` (an attribution stamp can rewrite it). If neither yields a contact
+ * (never imported, or ambiguous), we fall back to email match via the payload (caller
+ * provides email if available).
  *
  * L-03: returning null is valid — request is still logged.
  */
@@ -115,21 +117,12 @@ export async function findContactByExternalId(
   const admin = createAdminClient();
 
   // Primary: match by Nuvemshop customer ID stored in source_metadata
-  const { data: bySourceMeta, error: err1 } = await admin
-    .from("contacts")
-    .select("id")
-    .eq("organization_id", organizationId) // programmatic tenant filter
-    .eq("source", "nuvemshop")
-    .eq("source_metadata->>nuvemshop_customer_id", externalCustomerId)
-    .maybeSingle();
-
-  if (err1) {
-    console.warn(
-      `[lgpd-customer-redact] findContactByExternalId (source_metadata) error: ${err1.message}`,
-    );
+  const achado = await acharContatoDaLoja(admin, organizationId, externalCustomerId);
+  for (const erro of achado.erros) {
+    console.warn(`[lgpd-customer-redact] findContactByExternalId (source_metadata) error: ${erro}`);
   }
 
-  if (bySourceMeta) return { id: bySourceMeta.id };
+  if (achado.contato) return achado.contato;
 
   // Fallback: match by normalized email if provided
   if (fallbackEmail) {

@@ -22,6 +22,7 @@ import {
 import { logger } from "@/lib/logger";
 import { textoLegivelDeMencao } from "@/lib/notifications/mentions";
 import { camposLegiveis, perguntasDosGrafos, type CampoLegivel } from "@/lib/lgpd/campos-personalizados";
+import { acharContatoDaLoja } from "@/lib/lgpd/contato-da-loja";
 import { maskPhone } from "@/lib/lgpd/mask";
 import { phoneLookupVariants } from "@/lib/channels/phone-variants";
 import type { Json } from "@/lib/database.types";
@@ -1121,20 +1122,15 @@ export async function collectExportData(args: CollectArgs): Promise<ExportPayloa
 
   // Resolve contact_id when only external customer id is provided.
   if (!contactId && externalCustomerId) {
-    const { data, error } = await admin
-      .from("contacts")
-      .select("id")
-      .eq("organization_id", organizationId)
-      .eq("source", "nuvemshop")
-      .eq("source_metadata->>nuvemshop_customer_id", externalCustomerId)
-      .maybeSingle();
-    if (error) {
+    // A chave do sync (`customer_id` + `store_id`) e a legada; ver `contato-da-loja.ts`.
+    const achado = await acharContatoDaLoja(admin, organizationId, externalCustomerId);
+    for (const erro of achado.erros) {
       logger.warn("[lgpd-export-worker] resolve-by-external failed", {
         request_id: requestId,
-        error: error.message,
+        error: erro,
       });
     }
-    if (data) contactId = data.id;
+    if (achado.contato) contactId = achado.contato.id;
   }
 
   // No contact AND no external customer -> empty footprint.

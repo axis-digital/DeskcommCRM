@@ -45,7 +45,7 @@ import { garantirLeadDaConversa } from "@/lib/leads/nascimento-do-lead";
 import type { CanonicalLostReason } from "@/lib/schemas/leads";
 import {
   ehAPrimeiraMensagemDoContato,
-  estamparOrigemDaPagina,
+  estamparOrigemDaPaginaPreservandoAFonte,
   extrairOrigemDaPagina,
 } from "@/lib/leads/origem-do-site";
 import { logger } from "@/lib/logger";
@@ -718,7 +718,13 @@ async function guardarOrigemDaPagina(admin: Admin, entrada: EntradaDeMensagem): 
 
     const origem = { utm, capturadaEm: new Date().toISOString() };
 
-    const gravou = await estamparOrigemDaPagina(admin, entrada.organizationId, entrada.contactId, origem);
+    // Preserva o `source` de quem já é cliente da loja ('nuvemshop'); ver o invólucro.
+    const gravou = await estamparOrigemDaPaginaPreservandoAFonte(
+      admin,
+      entrada.organizationId,
+      entrada.contactId,
+      origem,
+    );
     if (!gravou) {
       logger.warn("pos-entrada: origem da página NÃO gravada (a mensagem entra assim mesmo)", {
         contactId: entrada.contactId,
