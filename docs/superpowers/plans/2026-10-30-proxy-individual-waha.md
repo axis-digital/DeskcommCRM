@@ -28,10 +28,12 @@ O alvo inicial é o WAHA compartilhado principal e os canais por QR do CRM. O `S
 Salvaguardas propostas para aplicar a liberação automática (a confirmar ao implementar, porque o plano proíbe liberar por timeout ou por observação única):
 1. **Relógio.** Conta desde a primeira observação de `FAILED`/`STOPPED` fora de uma operação aberta (reserva, `aplicando`, criação com `start=false`). Zera se a sessão voltar a `STARTING`, `SCAN_QR_CODE` ou `WORKING`, ou se o `config.proxy` dela mudar. Sessão nova em criação, que nasce `STOPPED`, não conta.
 2. **Confirmação no dia 30.** Antes de liberar, GET completo e atual da instância (com paginação validada) e comparação de identidade. Libera sozinho apenas se a sessão **não existir mais** ou **não tiver mais aquele proxy configurado**. Lista vazia, incompleta ou falha de rede contam como "não confirmado" e adiam.
-3. **Sessão ainda existente com o proxy configurado no dia 30.** Liberar o endereço nesse caso permitiria dois números no mesmo IP se ela reiniciar. Decisão pendente (ver abaixo): escalar para revisão com alerta, ou limpar o `config.proxy` da sessão parada antes de liberar. Até decidir, esse caso **não** libera.
-4. **Rastro.** Cada liberação registra instância, sessão, dias parada, o que o GET confirmou e o operador de revisão, sem endereço, usuário ou senha.
-
-**Pendente:** escolher entre escalar ou limpar o `config.proxy` no caso do item 3.
+3. **Sessão ainda existente com o proxy configurado no dia 30 — decisão do usuário (03/11/2026): limpar o `config.proxy` e então liberar.** Liberar sem limpar permitiria dois números no mesmo IP se ela reiniciasse; por isso a limpeza vem antes e é condição da liberação. Regras da limpeza:
+   - Reconfirmar com GET imediatamente antes: a sessão segue `FAILED`/`STOPPED` e o proxy configurado é o mesmo da reserva. Se o estado mudou, abortar, zerar o relógio e não liberar.
+   - PUT com **merge**, removendo só `config.proxy`; webhooks, ignore, grupos, acervo e campos desconhecidos são preservados (AC-05). Sem `start` nem `restart`.
+   - Novo GET confirma a remoção; só então a linha do pool vira `livre`. Falha ou resultado ambíguo vira `incerto` e **não** libera (item 2 da Fase 1).
+   - Efeito colateral aceito: se essa sessão reiniciar depois, ela sobe sem proxy até receber outro. No modo gerenciado, a barreira pré-início e o watchdog devem provisionar um novo proxy antes de ela conectar; provar isso em staging (Fase 5) antes de ligar a limpeza em produção. Em sessão que já foi pareada, isso significa troca de IP, o que o plano veda como automático: tratar como exceção explícita desta decisão, aplicada só a sessões paradas há 30 dias, e registrar no rastro.
+4. **Rastro.** Cada liberação registra instância, sessão, dias parada, o que o GET confirmou, se houve limpeza de `config.proxy` e o operador de revisão, sem endereço, usuário ou senha.
 
 O limite de tentativas, a política para sessões antigas compartilhando IP e o procedimento de troca de IP de sessão pareada precisam ser decididos com o responsável pela operação. Não usar esses pontos como autorização para desconectar números.
 
