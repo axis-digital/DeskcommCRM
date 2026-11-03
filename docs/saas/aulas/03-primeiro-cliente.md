@@ -18,7 +18,7 @@ empresa-cliente criada e entregue por convite.
 3. **Modo de cadastro**: quando usar aberto, com aprovação ou só por convite.
 4. **Criar a empresa** em Tenants › **Novo tenant**, com a razão social e o e-mail do responsável. Diga por que nunca usar o
    próprio e-mail.
-5. **O convite**: enviado por e-mail ou copiado com **Copiar convite**; vale 24 horas.
+5. **O convite**: enviado por e-mail ou copiado com **Copiar convite**; vale 7 dias.
 6. **Aceitar o convite** numa janela anônima, como o cliente faria.
 
 ## O erro que vale mostrar

@@ -82,13 +82,15 @@ export async function sendOnboardingInvites(payload: InvitePayload): Promise<Sen
   for (const inv of input.invitations) {
     const email = inv.email.trim().toLowerCase();
     const inviteId = randomUUID();
-    const exp = Math.floor(Date.now() / 1000) + INVITE_TTL_SECONDS;
+    const iat = Math.floor(Date.now() / 1000);
+    const exp = iat + INVITE_TTL_SECONDS;
     const token = signInviteToken({
       invite_id: inviteId,
       email,
       organization_id: ctx.orgId,
       role: inv.role,
       exp,
+      iat,
     });
     const acceptUrl = `${baseUrl.replace(/\/$/, "")}/team/accept-invite/${token}`;
     const expiresAt = new Date(exp * 1000);
