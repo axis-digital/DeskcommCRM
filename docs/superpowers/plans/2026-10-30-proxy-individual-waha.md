@@ -21,9 +21,19 @@ O alvo inicial é o WAHA compartilhado principal e os canais por QR do CRM. O `S
 
 **Decisão do usuário:** proxies já configurados em sessões ativas devem ser registrados no pool como em uso, preservando o proxy atual de cada sessão. Isso requer confrontar endereço e porta com o pool e vincular a atribuição à identidade da sessão, sem exibir credenciais.
 
-**Premissas propostas para confirmação antes do rollout:** (1) proxy individual obrigatório por sessão, com exclusividade do endereço enquanto qualquer sessão o mantém configurado, inclusive `FAILED` e `STOPPED`; (2) na ausência do pool ou do provisionador, nova sessão permanece parada e apresenta erro recuperável; (3) instalações self-host comuns continuam sem dependência de n8n ou pool, e somente a instalação que habilitar o modo gerenciado exige proxy. A exclusividade de IP é uma proposta operacional, não uma garantia previamente fornecida pelo usuário. O tratamento de sessões `FAILED` e `STOPPED` continua em aberto: por segurança, não disponibilizar o endereço delas para outra sessão até essa decisão.
+**Premissas propostas para confirmação antes do rollout:** (1) proxy individual obrigatório por sessão, com exclusividade do endereço enquanto qualquer sessão o mantém configurado, inclusive `FAILED` e `STOPPED`; (2) na ausência do pool ou do provisionador, nova sessão permanece parada e apresenta erro recuperável; (3) instalações self-host comuns continuam sem dependência de n8n ou pool, e somente a instalação que habilitar o modo gerenciado exige proxy. A exclusividade de IP é uma proposta operacional, não uma garantia previamente fornecida pelo usuário. O tratamento de sessões `FAILED` e `STOPPED` foi decidido em 03/11/2026 (parágrafo seguinte).
 
-O período de quarentena, o limite de tentativas, a política para sessões antigas compartilhando IP e o procedimento de troca de IP de sessão pareada precisam ser decididos com o responsável pela operação. Não usar esses pontos como autorização para desconectar números.
+**Decisão do usuário (03/11/2026) — sessões `FAILED` e `STOPPED`:** a sessão continua dona do proxy enquanto está nesses estados (retenção). Aos **14 dias** contínuos nesse estado, abre-se revisão visível ao operador, sem liberar nada. Aos **30 dias**, a liberação é automática, sujeita às salvaguardas abaixo.
+
+Salvaguardas propostas para aplicar a liberação automática (a confirmar ao implementar, porque o plano proíbe liberar por timeout ou por observação única):
+1. **Relógio.** Conta desde a primeira observação de `FAILED`/`STOPPED` fora de uma operação aberta (reserva, `aplicando`, criação com `start=false`). Zera se a sessão voltar a `STARTING`, `SCAN_QR_CODE` ou `WORKING`, ou se o `config.proxy` dela mudar. Sessão nova em criação, que nasce `STOPPED`, não conta.
+2. **Confirmação no dia 30.** Antes de liberar, GET completo e atual da instância (com paginação validada) e comparação de identidade. Libera sozinho apenas se a sessão **não existir mais** ou **não tiver mais aquele proxy configurado**. Lista vazia, incompleta ou falha de rede contam como "não confirmado" e adiam.
+3. **Sessão ainda existente com o proxy configurado no dia 30.** Liberar o endereço nesse caso permitiria dois números no mesmo IP se ela reiniciar. Decisão pendente (ver abaixo): escalar para revisão com alerta, ou limpar o `config.proxy` da sessão parada antes de liberar. Até decidir, esse caso **não** libera.
+4. **Rastro.** Cada liberação registra instância, sessão, dias parada, o que o GET confirmou e o operador de revisão, sem endereço, usuário ou senha.
+
+**Pendente:** escolher entre escalar ou limpar o `config.proxy` no caso do item 3.
+
+O limite de tentativas, a política para sessões antigas compartilhando IP e o procedimento de troca de IP de sessão pareada precisam ser decididos com o responsável pela operação. Não usar esses pontos como autorização para desconectar números.
 
 ## Fase 0 — inventário e contenção
 
@@ -40,7 +50,7 @@ O período de quarentena, o limite de tentativas, a política para sessões anti
 1. Definir identidade estável `(instância WAHA, session_name)` e estados persistentes como `reservado`, `aplicando`, `confirmado`, `incerto` e `quarentena`, com identificador de operação e lease. Verificar compatibilidade com os estados atuais e com todos os consumidores antes de migrar.
 2. Em transação no banco dono do pool, reservar de forma atômica uma linha válida e livre com bloqueio de linha/`SKIP LOCKED`, e garantir no banco a unicidade de sessão e de atribuição ativa por proxy. Repetição da mesma identidade retorna a mesma reserva. Um conflito de concorrência deve tentar outro candidato ou sinalizar esgotamento, nunca atribuir o mesmo proxy a duas sessões.
 3. HTTP não participa da transação: persistir intenção antes do PUT e confirmar depois. Timeout, falha de rede, encerramento de execução ou resposta ambígua vira `incerto`; reler WAHA e comparar identidade e proxy antes de decidir. **Nunca liberar apenas por timeout** ou por falha em confirmar: o PUT pode ter sido aplicado.
-4. Liberar a reserva apenas quando o WAHA confirmar que o proxy não está configurado naquela sessão e nenhum outro proprietário o utiliza, ou após ausência exata e confirmação conforme política. Uma sessão em `FAILED` ou `STOPPED` ainda detém o proxy. Exclusão, logout, arquivamento e restauração têm efeitos distintos: definir e testar cada um.
+4. Liberar a reserva apenas quando o WAHA confirmar que o proxy não está configurado naquela sessão e nenhum outro proprietário o utiliza, ou após ausência exata e confirmação conforme política. Uma sessão em `FAILED` ou `STOPPED` ainda detém o proxy: revisão aos 14 dias e liberação automática aos 30, com as salvaguardas da decisão de 03/11/2026 em "Escopo e decisões abertas". Exclusão, logout, arquivamento e restauração têm efeitos distintos: definir e testar cada um.
 5. Manter versionamento de schema e rollback do banco do pool próprio, com backup, pré-checagem de duplicidades e migração aditiva. A tripla migration/baseline do DeskcommCRM aplica-se apenas a alterações no seu banco, não substitui o processo do banco externo.
 
 ## Fase 2 — provisionador por sessão
@@ -80,7 +90,7 @@ O período de quarentena, o limite de tentativas, a política para sessões anti
 - **AC-03:** pool esgotado, erro ou resultado desconhecido não iniciam nova sessão no modo obrigatório; erro é visível e recuperável. O modo self-host sem pool continua funcionando como antes.
 - **AC-04:** timeout após PUT aplicado, falha após reserva e reinício do executor convergem sem liberar IP em uso nem reservar outro; testar cada ponto de falha.
 - **AC-05:** webhooks, ignore, grupos, acervo e campos adicionais sobrevivem ao PUT; segredos não aparecem em respostas, logs e dados de execução acessíveis ao operador.
-- **AC-06:** watchdog/rotação não liberam proxy de sessão existente, inclusive `STOPPED`/`FAILED`, não tratam lista vazia/incompleta como ausência e não alteram sessão não pertencente ao escopo.
+- **AC-06:** watchdog/rotação não liberam proxy de sessão existente, inclusive `STOPPED`/`FAILED`, antes de 30 dias contínuos e da confirmação por GET completo (revisão visível aos 14 dias); não tratam lista vazia/incompleta como ausência e não alteram sessão não pertencente ao escopo.
 - **AC-07:** inventário do pool e sessões está reconciliado antes da liberação de novos leases em produção; duplicidade e divergência têm decisão explícita, sem trocar IP automaticamente.
 - **AC-08:** todo proxy já configurado em sessão ativa, com correspondência e propriedade inequívocas no pool, fica registrado como `atribuido` à sessão existente; validação compara WAHA e pool antes e depois, sem reiniciar sessão. Conflitos permanecem bloqueados para reutilização e são relatados.
 
