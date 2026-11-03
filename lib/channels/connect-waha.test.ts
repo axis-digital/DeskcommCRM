@@ -1,6 +1,8 @@
 import { describe, expect, it, vi } from "vitest";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { connectWahaChannel, renomearSessaoParaOTeto } from "./connect-waha";
+import { criarProvisionadorDeProxy } from "@/lib/waha/provisionador-de-proxy";
+import { confirmarProxyAntesDoInicio } from "@/lib/waha/proxy-antes-do-inicio";
 vi.mock("@/lib/audit", () => ({ audit: vi.fn() }));
 const org = "20000000-0000-4000-8000-000000000001";
 const key = "20000000-0000-4000-8000-000000000002";
@@ -50,6 +52,36 @@ function fixture(linha: Partial<typeof channel> & { phone_number?: string | null
   return { db, transport, finishes, renomeios, input: { organizationId: org, idempotencyKey: key, userId: key, requestId: key } };
 }
 describe("conexão recuperável", () => {
+  it("encadeia cliente, verificação da sessão e start no modo de pool simulado", async () => {
+    const f = fixture();
+    const fetch = vi.fn(async () => new Response(JSON.stringify({ sessao: "owned", server: "proxy:8080", confirmado: true }), { status: 200 }));
+    vi.stubGlobal("fetch", fetch);
+    try {
+      const leitor = { getVerifiedSession: vi.fn(async (name: string) => ({ name, status: "STOPPED", config: { proxy: { server: "proxy:8080" } } })) };
+      const provisionar = criarProvisionadorDeProxy({ url: "http://n8n.internal/provisionar", token: "teste" });
+      await connectWahaChannel(f.db, f.db, f.transport, {
+        ...f.input, proxyAntesDoInicio: (nome) => confirmarProxyAntesDoInicio(nome, provisionar, leitor),
+      });
+      expect(f.transport.createSession.mock.invocationCallOrder[0]!).toBeLessThan(fetch.mock.invocationCallOrder[0]!);
+      expect(fetch.mock.invocationCallOrder[0]!).toBeLessThan(leitor.getVerifiedSession.mock.invocationCallOrder[0]!);
+      expect(leitor.getVerifiedSession.mock.invocationCallOrder[0]!).toBeLessThan(f.transport.startExistingSession.mock.invocationCallOrder[0]!);
+    } finally { vi.unstubAllGlobals(); }
+  });
+  it("confirma o proxy antes de iniciar quando a barreira foi configurada", async () => {
+    const f = fixture();
+    const barreira = vi.fn(async () => {});
+    await connectWahaChannel(f.db, f.db, f.transport, { ...f.input, proxyAntesDoInicio: barreira });
+    expect(barreira).toHaveBeenCalledWith("owned");
+    expect(f.transport.createSession.mock.invocationCallOrder[0]!).toBeLessThan(barreira.mock.invocationCallOrder[0]!);
+    expect(barreira.mock.invocationCallOrder[0]!).toBeLessThan(f.transport.startExistingSession.mock.invocationCallOrder[0]!);
+  });
+  it("se a barreira falha preserva sessão e não pede start", async () => {
+    const f = fixture();
+    await expect(connectWahaChannel(f.db, f.db, f.transport, { ...f.input, proxyAntesDoInicio: async () => { throw new Error("proxy_nao_confirmado"); } })).rejects.toThrow("connection_repair_required");
+    expect(f.transport.startExistingSession).not.toHaveBeenCalled();
+    expect(f.transport.deleteSession).not.toHaveBeenCalled();
+    expect(f.finishes.at(-1)).toMatchObject({ p_status: "FAILED" });
+  });
   it("publica somente o status confirmado pelo transporte e pelo DB", async () => {
     const f = fixture(); const result = await connectWahaChannel(f.db, f.db, f.transport, f.input);
     expect(result.channel.status).toBe("SCAN_QR_CODE");

@@ -30,6 +30,8 @@ type Transport = Pick<WahaClient, "createSession" | "startExistingSession" | "st
 export interface ConnectChannelInput {
   organizationId: string; idempotencyKey: string; userId: string; requestId: string;
   displayName?: string; onboarding?: boolean; restart?: boolean;
+  /** Barreira opcional da instalação; sem ela, mantém o contrato legado. */
+  proxyAntesDoInicio?: (nome: string) => Promise<void>;
 }
 
 /** Única reserva WAHA: auth client reserva, service client confirma por lease+org.
@@ -104,6 +106,7 @@ export async function connectWahaChannel(authDb: SupabaseClient, serviceDb: Supa
       : await waha.createSession(channel.waha_session_name);
     created = creation.created;
     if (created) await finish("remote_created");
+    if (input.proxyAntesDoInicio) await input.proxyAntesDoInicio(channel.waha_session_name);
     const remote = await waha.startExistingSession(channel.waha_session_name);
     if (remote.name !== channel.waha_session_name || !["STARTING", "SCAN_QR_CODE", "WORKING"].includes(remote.status)) {
       throw new Error("connection_postcondition_failed");
