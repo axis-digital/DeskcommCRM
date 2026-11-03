@@ -99,7 +99,24 @@ export interface OpcoesDeExtracao {
   heapMb?: number;
   /** Depois disto o filho é morto e a extração falha com `PdfExtractError`. */
   timeoutMs?: number;
+  /**
+   * Maior PDF aceito, em bytes. Padrão `TETO_DE_BYTES_DO_PDF`. Acima disto a
+   * extração recusa ANTES de abrir o motor (nem `spawn`, nem `import` do pdfjs).
+   */
+  maxBytes?: number;
 }
+
+/**
+ * Teto do arquivo, e não só do heap. O `--max-old-space-size` do filho não
+ * conta o PDF: o buffer no pai, a entrada padrão do filho e a cópia
+ * `Uint8Array` são memória externa. No worker (cgroup de 512 MB, ~232 MB de RSS
+ * do pai sob `tsx`, filho com 160 MB de heap + ~70 MB de runtime) sobram ~40 MB
+ * para três cópias do arquivo — ou seja, ~13 MB de PDF. Acima disso o kernel
+ * estoura o cgroup e o OOM killer escolhe o maior processo, que é o worker, não
+ * o filho. 10 MiB cobre com folga PDF de texto (catálogo, contrato, proposta);
+ * PDF maior que isso é quase sempre imagem escaneada, que não tem texto a extrair.
+ */
+export const TETO_DE_BYTES_DO_PDF = 10 * 1024 * 1024;
 
 const PDFJS_LEGACY = "pdfjs-dist/legacy/build/pdf.mjs";
 const HEAP_DO_FILHO_MB = 160;
@@ -135,6 +152,13 @@ export async function extractPdfText(
   buffer: Buffer,
   opcoes: OpcoesDeExtracao = {},
 ): Promise<string> {
+  const maxBytes = opcoes.maxBytes ?? TETO_DE_BYTES_DO_PDF;
+  if (buffer.length > maxBytes) {
+    const mb = (n: number) => (n / 1024 / 1024).toFixed(1);
+    throw new PdfExtractError(
+      `PDF grande demais para extrair texto (${mb(buffer.length)} MB; o teto é ${mb(maxBytes)} MB)`,
+    );
+  }
   const estrategia = opcoes.estrategia ?? estrategiaPadrao();
   if (estrategia === "processo-a-parte") return extrairEmProcessoAParte(buffer, opcoes);
   return extrairEmProcesso(buffer);
