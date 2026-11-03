@@ -54,11 +54,16 @@ function fixture(linha: Partial<typeof channel> & { phone_number?: string | null
 describe("conexão recuperável", () => {
   it("encadeia cliente, verificação da sessão e start no modo de pool simulado", async () => {
     const f = fixture();
-    const fetch = vi.fn(async () => new Response(JSON.stringify({ sessao: "owned", server: "proxy:8080", confirmado: true }), { status: 200 }));
+    const fetch = vi.fn(async (_url: string, opcoes: RequestInit) => {
+      const { instance, session_name, operation_id } = JSON.parse(String(opcoes.body));
+      return new Response(JSON.stringify({
+        resultado: "confirmado", instance, sessao: session_name, operation_id, server: "proxy:8080", reutilizado: false,
+      }), { status: 200 });
+    });
     vi.stubGlobal("fetch", fetch);
     try {
       const leitor = { getVerifiedSession: vi.fn(async (name: string) => ({ name, status: "STOPPED", config: { proxy: { server: "proxy:8080" } } })) };
-      const provisionar = criarProvisionadorDeProxy({ url: "http://n8n.internal/provisionar", token: "teste" });
+      const provisionar = criarProvisionadorDeProxy({ url: "http://n8n.internal/provisionar", token: "teste", instancia: "principal" });
       await connectWahaChannel(f.db, f.db, f.transport, {
         ...f.input, proxyAntesDoInicio: (nome) => confirmarProxyAntesDoInicio(nome, provisionar, leitor),
       });

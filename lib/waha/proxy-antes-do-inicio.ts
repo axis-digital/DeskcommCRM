@@ -1,5 +1,23 @@
-/** Contrato interno proposto. Não aciona nenhum provisionador por si só. */
-export type ProvisionarProxy = (nome: string) => Promise<{ sessao: string; server: string; confirmado: boolean }>;
+/** Códigos seguros que o CRM pode mostrar ao operador; nunca carregam endereço nem credencial. */
+export const CODIGOS_DE_PROXY = ["pool_esgotado", "conflito", "incerto", "indisponivel"] as const;
+export type CodigoDeProxy = (typeof CODIGOS_DE_PROXY)[number];
+
+export class ErroDeProxy extends Error {
+  readonly codigo: CodigoDeProxy;
+  constructor(mensagem: string, codigo: CodigoDeProxy) {
+    super(mensagem);
+    this.name = "ErroDeProxy";
+    this.codigo = codigo;
+  }
+}
+
+function codigoSeguro(erro: unknown): CodigoDeProxy {
+  const codigo = (erro as { codigo?: unknown } | null)?.codigo;
+  return CODIGOS_DE_PROXY.find((c) => c === codigo) ?? "incerto";
+}
+
+/** Contrato interno (v1). O segundo argumento identifica a tentativa de conexão. */
+export type ProvisionarProxy = (nome: string, operacao?: string) => Promise<{ sessao: string; server: string; confirmado: boolean }>;
 
 type LeitorDaSessao = {
   getVerifiedSession(nome: string): Promise<{ name: string; status: string; config?: Record<string, unknown> | null } | null>;
@@ -8,7 +26,9 @@ type LeitorDaSessao = {
 /**
  * Só confirma a barreira com recibo para a identidade exata e GET posterior da
  * mesma sessão, ainda parada. A confirmação não prova o IP efetivo de saída.
- * Qualquer resultado ambíguo é uma falha; segredos não entram na exceção.
+ * Qualquer resultado ambíguo é uma falha com código seguro; segredos não entram
+ * na exceção. Falha sem código conhecido vira `incerto`: o chamador repete a
+ * mesma identidade e nunca inicia a sessão.
  */
 export async function confirmarProxyAntesDoInicio(
   nome: string,
@@ -26,7 +46,7 @@ export async function confirmarProxyAntesDoInicio(
       (proxy as Record<string, unknown>).server !== recibo.server) {
       throw new Error("pós-condição inválida");
     }
-  } catch {
-    throw new Error("proxy_nao_confirmado");
+  } catch (erro) {
+    throw new ErroDeProxy("proxy_nao_confirmado", codigoSeguro(erro));
   }
 }
