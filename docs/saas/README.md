@@ -75,7 +75,7 @@ Tudo no painel do dono, em `https://SEU_DOMINIO/admin`:
    Nunca use o seu e-mail: a empresa vira sua e nenhum convite sai.
 3. Com a cobrança ligada ([`cobranca.md`](cobranca.md)), escolha o **Plano de cobrança**: a
    empresa começa em teste grátis pelos dias do plano. Sem plano, ela é **isenta**.
-4. O convite vale 24 horas. Sem e-mail configurado, use **Copiar convite** e mande o link.
+4. O convite vale 7 dias. Sem e-mail configurado, use **Copiar convite** e mande o link.
 5. Enquanto o cliente não aceita, você é administrador provisório e pode deixar a empresa pronta.
    Para montar os agentes, roteadores e follow-ups por nicho, use o guia
    [`deskcomm-cliente-novo`](../../.agents/skills/deskcomm-cliente-novo/SKILL.md).

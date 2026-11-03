@@ -78,6 +78,7 @@ export async function aplicarConvite(params: {
     p_role: payload.role,
     p_invited_by: payload.invited_by ?? null,
     p_issued_at: payload.iat ? new Date(payload.iat * 1000).toISOString() : null,
+    // Sem `iat` só restam tokens legados, emitidos quando o convite valia 24 h.
     p_invited_at: new Date((payload.iat ?? payload.exp - 86400) * 1000).toISOString(),
   });
 

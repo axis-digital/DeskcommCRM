@@ -9987,8 +9987,8 @@ export const DICIONARIO: Traducoes = {
     es: "Espera unos minutos y vuelve a abrir el enlace de la invitación.",
   },
   "Convite inválido ou expirado": { es: "Invitación inválida o vencida" },
-  "Este link não é válido ou já passou da janela de 24h. Peça um novo convite ao admin do tenant.": {
-    es: "Este enlace no es válido o ya pasaron las 24h de vigencia. Pide una nueva invitación al admin del tenant.",
+  "Este link não é válido ou já passou da janela de 7 dias. Peça um novo convite ao admin do tenant.": {
+    es: "Este enlace no es válido o ya pasaron los 7 días de vigencia. Pide una nueva invitación al admin del tenant.",
   },
   "Você foi convidado": { es: "Te invitaron" },
   "Para aceitar o convite como": { es: "Para aceptar la invitación como" },

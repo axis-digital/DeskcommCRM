@@ -59,7 +59,7 @@ export function decidirConviteDoSignup(
 
   const payload = verifyInviteToken(bruto);
   // FALHA FECHADA. Token expirado ou adulterado NÃO pode cair no provisionamento:
-  // o convite dura 24h e o link de confirmação de e-mail tem prazo próprio, então
+  // o convite dura 7 dias e o link de confirmação de e-mail tem prazo próprio, então
   // quem demora entre "criar conta" e "confirmar e-mail" reproduziria o defeito
   // original — agora com um conserto por cima dando a impressão de resolvido.
   if (!payload) return { tipo: "recusar", motivo: "token_invalido" };

@@ -56,7 +56,7 @@ export async function semear(c: Contexto) {
   }, { onConflict: "user_id,organization_id" }), "vínculo do Marcos");
   semErro(await db.from("attendant_availability").delete().eq("organization_id", org).eq("user_id", marcos), "disponibilidade do Marcos");
 
-  // ---------- convites (valem 24 h: INVITE_TTL_SECONDS em lib/auth/invite-token.ts) ----------
+  // ---------- convites (valem 7 dias: INVITE_TTL_SECONDS em lib/auth/invite-token.ts) ----------
   const CONVITES = [
     // o e-mail não saiu (instalação sem provedor de e-mail): o link é copiado à mão
     { n: 1, email: "joana.martins@clinicabemviver.com.br", role: "agent", email_dispatched: false, created_at: ha(3 * 60), last_sent_at: ha(3 * 60), resend_count: 0, expires_at: daqui(21 * 60) },
