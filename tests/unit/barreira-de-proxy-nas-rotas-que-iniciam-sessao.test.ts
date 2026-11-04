@@ -15,9 +15,9 @@ import { describe, expect, it } from "vitest";
  *   2. uma varredura de `app/` reprova qualquer arquivo que inicie sessão e não
  *      esteja na lista.
  *
- * Fora desta cerca, e declarado: o reconciliador do worker
- * (`lib/agent-engine/edge/crm/session-reconciler.ts`) envia `POST .../start`
- * direto para sessões `STOPPED` e AINDA NÃO usa a barreira (plano Fase 3.3).
+ * O reconciliador do worker (`session-reconciler.ts`), que dá `POST .../start` em
+ * sessões `STOPPED`, tem cerca própria:
+ * `reconciliador-respeita-a-barreira-de-proxy.test.ts`.
  */
 const RAIZ = process.cwd();
 const ler = (arquivo: string) => readFileSync(join(RAIZ, arquivo), "utf8");
