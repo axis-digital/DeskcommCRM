@@ -1,10 +1,7 @@
-import { ErroDeProxy, type ProvisionarProxy } from "@/lib/waha/proxy-antes-do-inicio";
-import {
-  proxyAntesDoInicioDaInstalacao,
-  type EnvDoPoolDeProxy,
-} from "@/lib/waha/proxy-da-instalacao";
+import { ErroDeProxy, type ProvisionarProxy } from "./proxy-antes-do-inicio";
+import { proxyAntesDoInicioDaInstalacao, type EnvDoPoolDeProxy } from "./proxy-da-instalacao";
 
-import type { Logger } from "../../obs/logger";
+import type { Logger } from "@/lib/agent-engine/obs/logger";
 
 type Sessao = { name: string; status: string; config?: Record<string, unknown> | null };
 

@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { criarBarreiraDoWatchdog } from "./barreira-de-proxy-do-worker";
-import { ErroDeProxy } from "@/lib/waha/proxy-antes-do-inicio";
+import { ErroDeProxy } from "./proxy-antes-do-inicio";
 
 const log = { info: vi.fn(), warn: vi.fn(), error: vi.fn() };
 const pool = {

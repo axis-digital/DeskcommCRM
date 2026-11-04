@@ -97,7 +97,7 @@ import { crmEdgeConfigFromEnv } from "@/lib/agent-engine/edge/crm/mcp-client";
 import { enforceHolds } from "@/lib/agent-engine/edge/crm/session-watchdog";
 import { runVoiceCallsBridgeLoop } from "@/lib/wacalls/events-bridge";
 import { runSessionWatchdogLoop } from "@/lib/agent-engine/edge/crm/session-reconciler";
-import { criarBarreiraDoWatchdog } from "@/lib/agent-engine/edge/crm/barreira-de-proxy-do-worker";
+import { criarBarreiraDoWatchdog } from "@/lib/waha/barreira-de-proxy-do-worker";
 import { runHealthLoop } from "@/lib/agent-engine/health/circuit";
 import { runFlywheelLoop } from "@/lib/agent-engine/flywheel/live";
 import { llmEdgeConfigFromEnv } from "@/lib/agent-engine/edge/llm/run-model-call";
