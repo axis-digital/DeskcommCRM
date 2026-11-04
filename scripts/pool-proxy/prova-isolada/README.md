@@ -41,6 +41,36 @@ docker exec -i -e K="$PT_WAHA_API_KEY" -e T="<bearer sintético do workflow>" \
 2. Inserir **uma** linha livre no pool, depois `bateria-fase2-concorrencia.mjs`.
 3. `falhas.mjs`: injeção de falha (`docker pause proxytest-waha` em instantes escalonados) para `indisponivel` e `incerto`.
 
+## Fase 1 — estados de reserva (SQL)
+
+Migração aditiva [`../fase1-estados.sql`](../fase1-estados.sql) provada em banco próprio
+(`pool_fase1`, recriado a cada execução; não toca `pool_sintetico`):
+
+```bash
+./fase1/rodar.sh          # esquema legado + v1 -> migração 2x -> 45 asserções -> concorrência
+```
+
+O que a prova cobre:
+
+- **Idempotência:** a migração roda duas vezes seguidas, em transação única, sem erro.
+- **Legado:** linha já atribuída vira `incerto/legado_nao_verificado` (ninguém verificou o WAHA);
+  escritor antigo (`reservar_proxy_waha` v1) continua funcionando e cai em `incerto/escritor_legado`.
+- **Máquina de estados:** transições válidas e inválidas, dono da operação, lease vencido virando
+  `incerto` (nunca `livre`), liberação só por `liberar_proxy_waha` com ausência confirmada.
+- **Guarda opt-in** (`waha_proxy_pool_guarda.ativa`, nasce desligada): ligada, o banco recusa
+  liberação ou troca de atribuição que não venha de `liberar_proxy_waha`.
+- **Concorrência com largada sincronizada** (todas as conexões esperam num lock e disparam juntas):
+  1 linha livre e 8 sessões diferentes -> 1 ganha e ninguém leva erro; a mesma identidade em 6
+  chamadas -> mesmo proxy, 1 linha, zero erros. 4 rodadas por cenário.
+
+**A prova vigia:** sabotar uma cópia do SQL a deixa vermelha. Sem `SKIP LOCKED`, 8 sessões recebem
+o mesmo proxy; sem o bloqueio por sessão, 2 a 4 de 6 chamadas da mesma identidade levam erro.
+Para repetir: `PT_SQL_DIR=<pasta com cópias sabotadas>/ ./fase1/rodar.sh`.
+
+Uma versão anterior desta prova disparava os workers em sequência e passava com a proteção
+removida (cada `docker exec` demora mais que a reserva, então nada se sobrepunha). A largada
+sincronizada e a contagem de erros existem por causa disso.
+
 ## Descartar
 
 ```bash
