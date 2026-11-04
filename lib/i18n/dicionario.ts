@@ -40,6 +40,12 @@ import { TEXTOS_AGENDA_SERVICOS } from "./agenda-servicos";
 type Traducoes = Record<string, Partial<Record<Exclude<Idioma, "pt-BR">, string>>>;
 
 export const DICIONARIO: Traducoes = {
+  // Falha de PROXY no cartão de Conexões (modo de pool gerenciado). Os quatro valores
+  // vêm de MENSAGEM_DO_PROXY (lib/channels/motivo-de-proxy.ts), a mesma fonte da API.
+  "Não há proxy livre para este número agora. A conexão foi guardada e nada foi iniciado; peça a quem administra a instalação para liberar proxies e tente de novo em Conexões.": { es: "No hay un proxy libre para este número ahora. La conexión quedó guardada y no se inició nada; pide a quien administra la instalación que libere proxies y vuelve a intentarlo en Conexiones." },
+  "O proxy desta conexão precisa de revisão antes de iniciar. Nada foi iniciado nem trocado; avise quem administra a instalação.": { es: "El proxy de esta conexión necesita revisión antes de iniciar. No se inició ni se cambió nada; avisa a quien administra la instalación." },
+  "Não foi possível confirmar o proxy desta conexão. Nada foi iniciado; tente novamente em instantes em Conexões.": { es: "No fue posible confirmar el proxy de esta conexión. No se inició nada; vuelve a intentarlo en unos instantes en Conexiones." },
+  "O serviço de proxy está indisponível. Nada foi iniciado; tente novamente em instantes em Conexões.": { es: "El servicio de proxy no está disponible. No se inició nada; vuelve a intentarlo en unos instantes en Conexiones." },
   "Com regras nesta lista, o telefone vinculado à conversa escolhe o agente antes da IA. Os demais números usam o fallback público. Intenções, campanhas e o agente anterior não mudam essa escolha.": { es: "Con reglas en esta lista, el teléfono vinculado a la conversación elige el agente antes de la IA. Los demás números usan el agente público de reserva. Las intenciones, campañas y el agente anterior no cambian esta elección." },
   "Telefone com DDI": { es: "Teléfono con código de país" },
   "Agente reservado": { es: "Agente reservado" },
