@@ -1,8 +1,12 @@
 import { describe, expect, it, vi } from "vitest";
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { connectWahaChannel, renomearSessaoParaOTeto } from "./connect-waha";
+import {
+  ChannelConnectionError,
+  connectWahaChannel,
+  renomearSessaoParaOTeto,
+} from "./connect-waha";
 import { criarProvisionadorDeProxy } from "@/lib/waha/provisionador-de-proxy";
-import { confirmarProxyAntesDoInicio } from "@/lib/waha/proxy-antes-do-inicio";
+import { confirmarProxyAntesDoInicio, ErroDeProxy } from "@/lib/waha/proxy-antes-do-inicio";
 vi.mock("@/lib/audit", () => ({ audit: vi.fn() }));
 const org = "20000000-0000-4000-8000-000000000001";
 const key = "20000000-0000-4000-8000-000000000002";
@@ -174,6 +178,32 @@ describe("conexão recuperável", () => {
     expect(f.transport.deleteSession).not.toHaveBeenCalled();
     expect(f.finishes.at(-1)).toMatchObject({ p_status: "FAILED" });
   });
+  it.each([
+    ["pool_esgotado", 503],
+    ["conflito", 409],
+    ["incerto", 502],
+    ["indisponivel", 503],
+  ] as const)(
+    "barreira com código seguro %s vira erro tipado, preserva a sessão e grava o motivo",
+    async (codigo, status) => {
+      const f = fixture();
+      const erro = await connectWahaChannel(f.db, f.db, f.transport, {
+        ...f.input,
+        proxyAntesDoInicio: async () => {
+          throw new ErroDeProxy("proxy_nao_confirmado", codigo);
+        },
+      }).catch((e: unknown) => e);
+      expect(erro).toBeInstanceOf(ChannelConnectionError);
+      expect(erro).toMatchObject({
+        code: `connection_proxy_${codigo}`,
+        status,
+        technical: { proxy: codigo },
+      });
+      expect(f.transport.startExistingSession).not.toHaveBeenCalled();
+      expect(f.transport.deleteSession).not.toHaveBeenCalled();
+      expect(f.finishes.at(-1)).toMatchObject({ p_status: "FAILED", p_reason: `proxy_${codigo}` });
+    },
+  );
   it("publica somente o status confirmado pelo transporte e pelo DB", async () => {
     const f = fixture();
     const result = await connectWahaChannel(f.db, f.db, f.transport, f.input);

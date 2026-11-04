@@ -2,6 +2,14 @@
 export const CODIGOS_DE_PROXY = ["pool_esgotado", "conflito", "incerto", "indisponivel"] as const;
 export type CodigoDeProxy = (typeof CODIGOS_DE_PROXY)[number];
 
+/** Falta de recurso (pool, serviço) é 503; conflito é 409; resultado incerto é 502. */
+export const STATUS_HTTP_DO_PROXY: Record<CodigoDeProxy, number> = {
+  pool_esgotado: 503,
+  conflito: 409,
+  incerto: 502,
+  indisponivel: 503,
+};
+
 export class ErroDeProxy extends Error {
   readonly codigo: CodigoDeProxy;
   constructor(mensagem: string, codigo: CodigoDeProxy) {

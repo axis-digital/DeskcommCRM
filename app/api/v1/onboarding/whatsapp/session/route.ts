@@ -9,6 +9,7 @@ import { getWahaClient } from "@/lib/waha/client";
 import { connectWahaChannel, ChannelConnectionError } from "@/lib/channels/connect-waha";
 import { loadOnboardingChannel } from "@/lib/channels/onboarding-session";
 import { traduzirLimiteDoPlano } from "@/lib/cobranca/limites";
+import { barreiraDeProxyDaRota, falhaDeProxyDaConexao } from "@/lib/waha/proxy-na-rota";
 
 export async function GET(): Promise<Response> {
   const requestId = randomUUID();
@@ -37,15 +38,21 @@ export async function POST(req: Request): Promise<Response> {
   if (!auth.ok) return auth.response;
   if (await mfaEmDivida()) return fail("mfa_required", "Confirme a verificação em duas etapas.", 403, { requestId });
   const waha = getWahaClient(); if (!waha) return fail("waha_not_configured", "O serviço de conexão está indisponível. Tente novamente.", 503, { requestId });
+  // Modo de pool gerenciado (opt-in): config inválida recusa ANTES de reservar.
+  const proxy = barreiraDeProxyDaRota(waha);
+  if (!proxy.ok) return fail(proxy.falha.code, proxy.falha.message, proxy.falha.status, { requestId });
   try {
     const result = await connectWahaChannel(await createClient(), createAdminClient(), waha, {
       organizationId: auth.org.orgId, idempotencyKey: req.headers.get("Idempotency-Key") ?? "",
       userId: auth.user.id, requestId, onboarding: true, restart: new URL(req.url).searchParams.get("restart") === "1",
+      proxyAntesDoInicio: proxy.barreira,
     });
     return ok({ status: result.channel.status, session: result.channel.waha_session_name, channel_session_id: result.channel.id }, { requestId });
   } catch (error) {
     const limite = traduzirLimiteDoPlano(error, auth.user.idioma);
     if (limite) return fail(limite.code, limite.message, 409, { requestId, details: limite.details });
+    const semProxy = falhaDeProxyDaConexao(error);
+    if (semProxy) return fail(semProxy.code, semProxy.message, semProxy.status, { requestId, details: (error as ChannelConnectionError).technical });
     if (error instanceof ChannelConnectionError) return fail(error.code,
       error.code === "connection_in_progress" ? "A conexão ainda está sendo preparada. Aguarde e tente novamente."
         : error.code === "connection_session_name_too_long" ? "O identificador desta conexão passou do limite que o WhatsApp aceita. Nada foi criado no WhatsApp — atualize o sistema e tente novamente."

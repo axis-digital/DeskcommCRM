@@ -22,6 +22,7 @@ import { createChannelSchema } from "@/lib/schemas/channels";
 import { createClient } from "@/lib/supabase/server";
 import { getWahaClient } from "@/lib/waha/client";
 import { traduzir } from "@/lib/i18n/dicionario";
+import { barreiraDeProxyDaRota, falhaDeProxyDaConexao } from "@/lib/waha/proxy-na-rota";
 import { traduzirLimiteDoPlano } from "@/lib/cobranca/limites";
 
 export const dynamic = "force-dynamic";
@@ -120,15 +121,22 @@ export async function POST(req: NextRequest): Promise<Response> {
     });
   }
 
+  // Modo de pool gerenciado (opt-in): config inválida recusa ANTES de reservar.
+  const proxy = barreiraDeProxyDaRota(waha);
+  if (!proxy.ok) return fail(proxy.falha.code, t(proxy.falha.message), proxy.falha.status, { requestId });
+
   try {
     const result = await connectWahaChannel(await createClient(), createAdminClient(), waha, {
       organizationId: activeOrg.orgId, idempotencyKey: req.headers.get("Idempotency-Key") ?? "",
       userId: user.id, requestId, displayName: parsed.data.display_name,
+      proxyAntesDoInicio: proxy.barreira,
     });
     return ok(result.channel, { requestId, status: result.replay ? 200 : 201 });
   } catch (error) {
     const limite = traduzirLimiteDoPlano(error, authz.user.idioma);
     if (limite) return fail(limite.code, limite.message, 409, { requestId, details: limite.details });
+    const semProxy = falhaDeProxyDaConexao(error);
+    if (semProxy) return fail(semProxy.code, t(semProxy.message), semProxy.status, { requestId, details: (error as ChannelConnectionError).technical });
     if (error instanceof ChannelConnectionError) return fail(error.code,
       error.code === "connection_in_progress" ? t("A conexão ainda está sendo preparada. Aguarde e tente novamente.")
         : error.code === "connection_session_name_too_long" ? t("O identificador desta conexão passou do limite que o WhatsApp aceita. Nada foi criado no WhatsApp — atualize o sistema e tente novamente.")

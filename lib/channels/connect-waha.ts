@@ -7,6 +7,7 @@ import {
 } from "@/lib/channels/nome-da-sessao";
 import { lerGuardarHistorico } from "@/lib/channels/acervo-do-historico";
 import type { WahaClient } from "@/lib/waha/client";
+import { ErroDeProxy, STATUS_HTTP_DO_PROXY } from "@/lib/waha/proxy-antes-do-inicio";
 import { WahaSessionError } from "@/lib/waha/client";
 import { sincronizarRecebimentoDeGrupos } from "@/lib/grupos/sincronizar-filtro";
 import { lerLimiteEstourado } from "@/lib/cobranca/limites";
@@ -128,6 +129,15 @@ export async function connectWahaChannel(authDb: SupabaseClient, serviceDb: Supa
       requestId: input.requestId, metadata: { provider: "waha", origin: input.onboarding ? "onboarding" : "connections" } });
     return { channel: persisted, replay: false };
   } catch (cause) {
+    // Barreira de proxy com código seguro: o operador precisa de um próximo passo
+    // específico (sem proxy livre, conflito, aguardar...), não do reparo genérico.
+    // A sessão remota é preservada; nunca carrega endereço nem credencial.
+    if (cause instanceof ErroDeProxy) {
+      await finish("FAILED", `proxy_${cause.codigo}`);
+      throw new ChannelConnectionError(`connection_proxy_${cause.codigo}`, STATUS_HTTP_DO_PROXY[cause.codigo], {
+        proxy: cause.codigo,
+      });
+    }
     const code = "connection_repair_required";
     await finish("FAILED", code);
     throw new ChannelConnectionError(code, 502, cause instanceof WahaSessionError
