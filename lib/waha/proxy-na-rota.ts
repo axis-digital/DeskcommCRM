@@ -1,4 +1,5 @@
 import { ChannelConnectionError } from "@/lib/channels/connect-waha";
+import { MENSAGEM_DO_PROXY } from "@/lib/channels/motivo-de-proxy";
 import {
   CODIGOS_DE_PROXY,
   STATUS_HTTP_DO_PROXY,
@@ -39,17 +40,6 @@ export function barreiraDeProxyDaRota(
     };
   }
 }
-
-const MENSAGEM_DO_PROXY: Record<CodigoDeProxy, string> = {
-  pool_esgotado:
-    "Não há proxy livre para este número agora. A conexão foi guardada e nada foi iniciado; peça a quem administra a instalação para liberar proxies e tente de novo em Conexões.",
-  conflito:
-    "O proxy desta conexão precisa de revisão antes de iniciar. Nada foi iniciado nem trocado; avise quem administra a instalação.",
-  incerto:
-    "Não foi possível confirmar o proxy desta conexão. Nada foi iniciado; tente novamente em instantes em Conexões.",
-  indisponivel:
-    "O serviço de proxy está indisponível. Nada foi iniciado; tente novamente em instantes em Conexões.",
-};
 
 /** Falha de rota para um código seguro de proxy. */
 export function falhaDoCodigoDeProxy(codigo: CodigoDeProxy): FalhaDeRota {
