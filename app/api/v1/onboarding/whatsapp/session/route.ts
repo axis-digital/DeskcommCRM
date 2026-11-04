@@ -13,51 +13,111 @@ import { barreiraDeProxyDaRota, falhaDeProxyDaConexao } from "@/lib/waha/proxy-n
 
 export async function GET(): Promise<Response> {
   const requestId = randomUUID();
-  const user = await loadAuthUser(); if (!user) return fail("unauthenticated", "Sessão expirada", 401, { requestId });
+  const user = await loadAuthUser();
+  if (!user) return fail("unauthenticated", "Sessão expirada", 401, { requestId });
   const ativa = await orgAtivaDaApi(user, requestId);
   if (!ativa.ok) return ativa.response;
-  const org = ativa.org; if (!org) return fail("tenant_not_found", "Sem organização ativa", 404, { requestId });
-  if (await mfaEmDivida()) return fail("mfa_required", "Confirme a verificação em duas etapas.", 403, { requestId });
-  const waha = getWahaClient(); if (!waha) return ok({ status: "WAHA_NOT_CONFIGURED", session: null }, { requestId });
+  const org = ativa.org;
+  if (!org) return fail("tenant_not_found", "Sem organização ativa", 404, { requestId });
+  if (await mfaEmDivida())
+    return fail("mfa_required", "Confirme a verificação em duas etapas.", 403, { requestId });
+  const waha = getWahaClient();
+  if (!waha) return ok({ status: "WAHA_NOT_CONFIGURED", session: null }, { requestId });
   try {
-    const db = await createClient(); const channel = await loadOnboardingChannel(db, org.orgId);
-    if (!channel || channel.archived_at) return ok({ status: "NOT_STARTED", session: null }, { requestId });
+    const db = await createClient();
+    const channel = await loadOnboardingChannel(db, org.orgId);
+    if (!channel || channel.archived_at)
+      return ok({ status: "NOT_STARTED", session: null }, { requestId });
     const remote = await waha.getVerifiedSession(channel.waha_session_name);
     const status = remote?.status ?? "STOPPED";
-    const { error, data } = await db.from("channel_sessions").update({ status, last_health_check_at: new Date().toISOString() })
-      .eq("organization_id", org.orgId).eq("id", channel.id).is("archived_at", null).select("id").maybeSingle();
+    const { error, data } = await db
+      .from("channel_sessions")
+      .update({ status, last_health_check_at: new Date().toISOString() })
+      .eq("organization_id", org.orgId)
+      .eq("id", channel.id)
+      .is("archived_at", null)
+      .select("id")
+      .maybeSingle();
     if (error || !data) throw new Error("connection_sync_failed");
-    return ok({ status, session: channel.waha_session_name, channel_session_id: channel.id }, { requestId });
-  } catch { return fail("connection_status_failed", "Não foi possível conferir a conexão. Tente novamente.", 502, { requestId }); }
+    return ok(
+      { status, session: channel.waha_session_name, channel_session_id: channel.id },
+      { requestId },
+    );
+  } catch {
+    return fail(
+      "connection_status_failed",
+      "Não foi possível conferir a conexão. Tente novamente.",
+      502,
+      { requestId },
+    );
+  }
 }
 
 export async function POST(req: Request): Promise<Response> {
-  const denied = await requireSupportWrite(); if (denied) return denied;
+  const denied = await requireSupportWrite();
+  if (denied) return denied;
   const requestId = randomUUID();
-  const auth = await requireRole("admin", { requestId, resource: "channel_sessions", allowPlatformAdmin: true });
+  const auth = await requireRole("admin", {
+    requestId,
+    resource: "channel_sessions",
+    allowPlatformAdmin: true,
+  });
   if (!auth.ok) return auth.response;
-  if (await mfaEmDivida()) return fail("mfa_required", "Confirme a verificação em duas etapas.", 403, { requestId });
-  const waha = getWahaClient(); if (!waha) return fail("waha_not_configured", "O serviço de conexão está indisponível. Tente novamente.", 503, { requestId });
+  if (await mfaEmDivida())
+    return fail("mfa_required", "Confirme a verificação em duas etapas.", 403, { requestId });
+  const waha = getWahaClient();
+  if (!waha)
+    return fail(
+      "waha_not_configured",
+      "O serviço de conexão está indisponível. Tente novamente.",
+      503,
+      { requestId },
+    );
   // Modo de pool gerenciado (opt-in): config inválida recusa ANTES de reservar.
   const proxy = barreiraDeProxyDaRota(waha);
-  if (!proxy.ok) return fail(proxy.falha.code, proxy.falha.message, proxy.falha.status, { requestId });
+  if (!proxy.ok)
+    return fail(proxy.falha.code, proxy.falha.message, proxy.falha.status, { requestId });
   try {
     const result = await connectWahaChannel(await createClient(), createAdminClient(), waha, {
-      organizationId: auth.org.orgId, idempotencyKey: req.headers.get("Idempotency-Key") ?? "",
-      userId: auth.user.id, requestId, onboarding: true, restart: new URL(req.url).searchParams.get("restart") === "1",
+      organizationId: auth.org.orgId,
+      idempotencyKey: req.headers.get("Idempotency-Key") ?? "",
+      userId: auth.user.id,
+      requestId,
+      onboarding: true,
+      restart: new URL(req.url).searchParams.get("restart") === "1",
       proxyAntesDoInicio: proxy.barreira,
     });
-    return ok({ status: result.channel.status, session: result.channel.waha_session_name, channel_session_id: result.channel.id }, { requestId });
+    return ok(
+      {
+        status: result.channel.status,
+        session: result.channel.waha_session_name,
+        channel_session_id: result.channel.id,
+      },
+      { requestId },
+    );
   } catch (error) {
     const limite = traduzirLimiteDoPlano(error, auth.user.idioma);
-    if (limite) return fail(limite.code, limite.message, 409, { requestId, details: limite.details });
+    if (limite)
+      return fail(limite.code, limite.message, 409, { requestId, details: limite.details });
     const semProxy = falhaDeProxyDaConexao(error);
-    if (semProxy) return fail(semProxy.code, semProxy.message, semProxy.status, { requestId, details: (error as ChannelConnectionError).technical });
-    if (error instanceof ChannelConnectionError) return fail(error.code,
-      error.code === "connection_in_progress" ? "A conexão ainda está sendo preparada. Aguarde e tente novamente."
-        : error.code === "connection_session_name_too_long" ? "O identificador desta conexão passou do limite que o WhatsApp aceita. Nada foi criado no WhatsApp — atualize o sistema e tente novamente."
-        : "Não foi possível concluir a conexão. Tente novamente ou repare o número em Conexões.",
-      error.status, { requestId, details: error.technical });
-    return fail("internal_error", "Não foi possível concluir a conexão. Tente novamente.", 500, { requestId });
+    if (semProxy)
+      return fail(semProxy.code, semProxy.message, semProxy.status, {
+        requestId,
+        details: (error as ChannelConnectionError).technical,
+      });
+    if (error instanceof ChannelConnectionError)
+      return fail(
+        error.code,
+        error.code === "connection_in_progress"
+          ? "A conexão ainda está sendo preparada. Aguarde e tente novamente."
+          : error.code === "connection_session_name_too_long"
+            ? "O identificador desta conexão passou do limite que o WhatsApp aceita. Nada foi criado no WhatsApp — atualize o sistema e tente novamente."
+            : "Não foi possível concluir a conexão. Tente novamente ou repare o número em Conexões.",
+        error.status,
+        { requestId, details: error.technical },
+      );
+    return fail("internal_error", "Não foi possível concluir a conexão. Tente novamente.", 500, {
+      requestId,
+    });
   }
 }
