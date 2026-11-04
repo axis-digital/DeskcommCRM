@@ -17,10 +17,15 @@ function codigoSeguro(erro: unknown): CodigoDeProxy {
 }
 
 /** Contrato interno (v1). O segundo argumento identifica a tentativa de conexão. */
-export type ProvisionarProxy = (nome: string, operacao?: string) => Promise<{ sessao: string; server: string; confirmado: boolean }>;
+export type ProvisionarProxy = (
+  nome: string,
+  operacao?: string,
+) => Promise<{ sessao: string; server: string; confirmado: boolean }>;
 
 type LeitorDaSessao = {
-  getVerifiedSession(nome: string): Promise<{ name: string; status: string; config?: Record<string, unknown> | null } | null>;
+  getVerifiedSession(
+    nome: string,
+  ): Promise<{ name: string; status: string; config?: Record<string, unknown> | null } | null>;
 };
 
 /**
@@ -37,13 +42,24 @@ export async function confirmarProxyAntesDoInicio(
 ): Promise<void> {
   try {
     const recibo = await provisionar(nome);
-    if (recibo.confirmado !== true || recibo.sessao !== nome || typeof recibo.server !== "string" || !recibo.server.trim()) {
+    if (
+      recibo.confirmado !== true ||
+      recibo.sessao !== nome ||
+      typeof recibo.server !== "string" ||
+      !recibo.server.trim()
+    ) {
       throw new Error("recibo inválido");
     }
     const sessao = await transporte.getVerifiedSession(nome);
     const proxy = sessao?.config?.proxy;
-    if (sessao?.name !== nome || sessao.status !== "STOPPED" || !proxy || typeof proxy !== "object" || Array.isArray(proxy) ||
-      (proxy as Record<string, unknown>).server !== recibo.server) {
+    if (
+      sessao?.name !== nome ||
+      sessao.status !== "STOPPED" ||
+      !proxy ||
+      typeof proxy !== "object" ||
+      Array.isArray(proxy) ||
+      (proxy as Record<string, unknown>).server !== recibo.server
+    ) {
       throw new Error("pós-condição inválida");
     }
   } catch (erro) {

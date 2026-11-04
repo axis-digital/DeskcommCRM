@@ -10,12 +10,18 @@ const INSTANCIA_MAXIMA = 64;
 
 const identidade = { instance: z.string(), sessao: z.string(), operation_id: z.string() };
 const respostaSchema = z.discriminatedUnion("resultado", [
-  z.strictObject({ resultado: z.literal("confirmado"), ...identidade, server: z.string(), reutilizado: z.boolean() }),
+  z.strictObject({
+    resultado: z.literal("confirmado"),
+    ...identidade,
+    server: z.string(),
+    reutilizado: z.boolean(),
+  }),
   z.strictObject({ resultado: z.literal("pool_esgotado"), ...identidade }),
   z.strictObject({ resultado: z.literal("incerto"), ...identidade }),
   z.strictObject({ resultado: z.literal("indisponivel"), ...identidade }),
   z.strictObject({
-    resultado: z.literal("conflito"), ...identidade,
+    resultado: z.literal("conflito"),
+    ...identidade,
     codigo: z.enum(["proxy_de_outra_sessao", "divergente_do_pool", "sessao_nao_parada"]),
   }),
 ]);
@@ -35,22 +41,38 @@ function enderecoDoProxyValido(server: string): boolean {
 }
 
 const textoSimples = (valor: string, maximo: number) =>
-  valor.length > 0 && valor.length <= maximo && valor === valor.trim() && !/[\u0000-\u001f\u007f]/.test(valor);
+  valor.length > 0 &&
+  valor.length <= maximo &&
+  valor === valor.trim() &&
+  !/[\u0000-\u001f\u007f]/.test(valor);
 
 /**
  * Cliente do contrato v1; ainda não é configurado por nenhuma rota.
  * Desfecho que não seja `confirmado` vira `ErroDeProxy` com código seguro.
  * Erro de rede ou timeout depois do envio é `incerto`: a chamada pode ter chegado.
  */
-export function criarProvisionadorDeProxy(
-  config: { url: string; token: string; instancia: string; timeoutMs?: number },
-): ProvisionarProxy {
+export function criarProvisionadorDeProxy(config: {
+  url: string;
+  token: string;
+  instancia: string;
+  timeoutMs?: number;
+}): ProvisionarProxy {
   let url: URL;
   try {
     url = new URL(config.url);
-    if (!["http:", "https:"].includes(url.protocol) || url.username || url.password || url.search || url.hash ||
-      !config.token.trim() || /[\r\n]/.test(config.token) || !textoSimples(config.instancia, INSTANCIA_MAXIMA) ||
-      (config.timeoutMs !== undefined && (!Number.isInteger(config.timeoutMs) || config.timeoutMs < 1))) throw new Error();
+    if (
+      !["http:", "https:"].includes(url.protocol) ||
+      url.username ||
+      url.password ||
+      url.search ||
+      url.hash ||
+      !config.token.trim() ||
+      /[\r\n]/.test(config.token) ||
+      !textoSimples(config.instancia, INSTANCIA_MAXIMA) ||
+      (config.timeoutMs !== undefined &&
+        (!Number.isInteger(config.timeoutMs) || config.timeoutMs < 1))
+    )
+      throw new Error();
   } catch {
     throw new Error("proxy_configuracao_invalida");
   }
@@ -63,7 +85,11 @@ export function criarProvisionadorDeProxy(
       resposta = await fetch(url.toString(), {
         method: "POST",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${config.token}` },
-        body: JSON.stringify({ instance: config.instancia, session_name: nome, operation_id: operacao }),
+        body: JSON.stringify({
+          instance: config.instancia,
+          session_name: nome,
+          operation_id: operacao,
+        }),
         redirect: "error",
         signal: AbortSignal.timeout(config.timeoutMs ?? 15_000),
       });
@@ -79,7 +105,12 @@ export function criarProvisionadorDeProxy(
       throw falha("incerto");
     }
     const lido = respostaSchema.safeParse(corpo);
-    if (!lido.success || lido.data.instance !== config.instancia || lido.data.sessao !== nome || lido.data.operation_id !== operacao) {
+    if (
+      !lido.success ||
+      lido.data.instance !== config.instancia ||
+      lido.data.sessao !== nome ||
+      lido.data.operation_id !== operacao
+    ) {
       throw falha("incerto");
     }
     if (lido.data.resultado !== "confirmado") throw falha(lido.data.resultado);
