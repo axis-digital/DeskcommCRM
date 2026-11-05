@@ -1,25 +1,27 @@
 #!/usr/bin/env bash
 # Fork Axis — traz a main do upstream (melgarafael/DeskcommCRM) para uma branch
-# de sync a partir de `axis`. Não mescla em `axis`, não faz push de `axis`, não
-# faz deploy: isso é decisão de quem revisa (ver docs/axis-fork.md).
+# merge/upstream-AAAA-MM-DD criada a partir de origin/main (a produção do fork).
+# Não mescla em main, não faz push de main, não faz deploy: o merge entra por PR no
+# fork (base main), como manda o CLAUDE.md. Ver docs/axis-fork.md.
 #
 # Uso:
-#   scripts/axis-sync-upstream.sh               # branch sync/upstream-AAAA-MM-DD + merge + gates
-#   scripts/axis-sync-upstream.sh --push-main   # idem, e atualiza o espelho `main` do fork
+#   scripts/axis-sync-upstream.sh               # branch merge/upstream-AAAA-MM-DD + merge + gates
 #   scripts/axis-sync-upstream.sh --sem-testes  # pula typecheck/test:unit (só o merge)
 #
 # Antes de mesclar, leia o que mudou: https://www.deskcomm.com.br/changelog
 set -euo pipefail
 
-BASE="axis"
 UPSTREAM_REMOTE="upstream"
 FORK_REMOTE="origin"
-PUSH_MAIN=0
+BASE="$FORK_REMOTE/main"
 RODAR_TESTES=1
 
 for arg in "$@"; do
   case "$arg" in
-    --push-main) PUSH_MAIN=1 ;;
+    --push-main)
+      echo "ERRO: --push-main foi removido. Ele empurrava $UPSTREAM_REMOTE/main para a main do fork, que é a produção;" >&2
+      echo "      push direto na main está bloqueado e o upstream entra por PR (branch merge/upstream-AAAA-MM-DD)." >&2
+      exit 2 ;;
     --sem-testes) RODAR_TESTES=0 ;;
     -h|--help) sed -n '2,11p' "$0"; exit 0 ;;
     *) echo "argumento desconhecido: $arg" >&2; exit 2 ;;
@@ -49,24 +51,18 @@ VERSAO="$(git tag --merged "$UPSTREAM_REMOTE/main" --sort=-v:refname | grep -E '
 echo "==> $BASE: $FRENTE commits à frente, $ATRAS atrás de $UPSTREAM_REMOTE/main (versão mais nova: ${VERSAO:-desconhecida})"
 echo "    Leia o que mudou antes de mesclar: https://www.deskcomm.com.br/changelog"
 
-# 3. Espelho `main` do fork: só com flag explícita.
-if [ "$PUSH_MAIN" = "1" ]; then
-  echo "==> atualizando $FORK_REMOTE/main com $UPSTREAM_REMOTE/main"
-  git push "$FORK_REMOTE" "refs/remotes/$UPSTREAM_REMOTE/main:refs/heads/main"
-fi
-
 if [ "$ATRAS" = "0" ]; then
   echo "==> nada a trazer: $BASE já contém $UPSTREAM_REMOTE/main."
   exit 0
 fi
 
-# 4. Branch de sync a partir de axis.
-BRANCH="sync/upstream-$(date +%F)"
+# 3. Branch de merge a partir de origin/main (sem rastrear a main: nada daqui sobe para ela).
+BRANCH="merge/upstream-$(date +%F)"
 if git show-ref --verify --quiet "refs/heads/$BRANCH"; then
   echo "ERRO: a branch $BRANCH já existe. Apague-a ou continue nela à mão." >&2
   exit 1
 fi
-git switch -c "$BRANCH" "$BASE"
+git switch -c "$BRANCH" --no-track "$BASE"
 
 # 5. Merge (nunca rebase/reset/force).
 if ! git merge --no-ff --no-edit -m "merge: upstream/main $(date +%F) (${VERSAO:-sem tag})" "$UPSTREAM_REMOTE/main"; then
@@ -124,7 +120,8 @@ cat <<EOF
 
 ==> Próximos passos (manuais, depois de revisar):
     pnpm test:db                       # se o upstream trouxe migration (CONFERENCIA_KIT_RELEASE=${VERSAO:-vX.Y.Z} sem rede)
-    git switch $BASE && git merge --no-ff $BRANCH
-    git push $FORK_REMOTE $BASE
-    # rebuild das imagens :axis (app, worker — o scheduler segue a imagem publicada do upstream) e deploy com docker-compose.axis.yml
+    git push -u $FORK_REMOTE $BRANCH
+    gh pr create -R axis-digital/DeskcommCRM --base main --head $BRANCH   # SEMPRE com -R: sem ele o gh pode escolher o upstream
+    # ANTES de qualquer deploy: dump lógico do banco de produção + restore de ensaio (docs/axis-fork.md, "Antes de atualizar a produção")
+    # depois do merge do PR: rebuild das imagens :axis (app, worker — o scheduler segue a imagem publicada do upstream) e deploy com docker-compose.axis.yml
 EOF
