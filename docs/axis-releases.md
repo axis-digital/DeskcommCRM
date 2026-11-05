@@ -79,7 +79,37 @@ a release trouxe migration, o retorno do schema é restaurar o dump do passo 2 (
 
 ## Staging
 
-O staging deve rodar a mesma release que se pretende promover. Em 2026-11-05 ele estava em `a3019b912`
-(PR #37), com imagens construídas no host e o scheduler na imagem do upstream `1.74.0`, isto é, **fora da
-linha de produção**. Medir com os mesmos comandos de "Como conferir", trocando `deskcommcrm-*` por
-`deskcomm-staging-*`.
+O staging deve rodar a mesma release que se pretende promover. Medir com os mesmos comandos de "Como
+conferir", trocando `deskcommcrm-*` por `deskcomm-staging-*`.
+
+Em 2026-11-05, antes do ensaio abaixo, ele estava em `a3019b912` (PR #37), com imagens construídas no host e o
+scheduler na imagem do upstream `1.74.0`, isto é, **fora da linha de produção**.
+
+### Ensaio de promoção por digest no staging (2026-11-05)
+
+Primeiro uso do procedimento acima, no staging. **A produção não foi tocada** e continua na release 0.
+
+| Passo | Resultado medido |
+|---|---|
+| Ponto de volta | dump lógico do banco do staging (265 tabelas com dados) e tags `deskcomm-{app,worker}:staging-pre-ci-AAAAMMDD` |
+| Imagens | as da release `1.94.1` pelos três digests da tabela "Release 0", via um override de compose que só existe no host (`docker-compose.staging-ci.yml`, não versionado) |
+| Schema | `reaplicar_baseline` do próprio kit com o `supabase/baseline.sql` de `4483e76f0`: 1 passada, 0 erros; as colunas `runtime_confirmation` (migration 9024) e `force_requested` (9025) passaram a existir |
+| Checkout | movido de `a3019b912` para `4483e76f0` |
+| Saúde | `app`, `worker` e `scheduler` `healthy`; `APP_VERSION=1.94.1` nos três; `/` 200, `/app` 307, `/api/v1/health` 200 |
+| Identidade de runtime | `GET /api/v1/system/version` (sessão de super-admin): `identity.status=confirmed`, `revision=4483e76f0…`, `customized=false`, três serviços com a mesma revisão, `agent_online=true` |
+| Navegador (Chromium) | login, redirecionamento ao onboarding, onboarding, `/admin/sistema` (200): 0 erros de console e 0 respostas HTTP com status 400 ou mais |
+
+O que **não** foi provado, e não deve ser tratado como provado:
+
+- O painel de atualização (`/app/settings/atualizacao`) não foi renderizado: ele fica atrás do onboarding, que conecta
+  WhatsApp e IA (efeitos externos). Só a API que o alimenta foi lida.
+- Telas pós-onboarding (inbox, CRM) e envio pelo WhatsApp.
+- O botão "Atualizar agora" nunca foi acionado: no staging o `agent.sh` roda por cron a cada 5 minutos e executaria um
+  `update.sh` de verdade.
+- O banco do staging tem 48 MB, contra 1,1 GB da produção; o tempo e a carga do baseline em produção não foram medidos.
+- Na resposta da API, `compare_failed=true` e `official_latest_version` vazio: o staging não comparou com a última
+  release oficial. Não foi verificado se a produção se comporta igual; conferir antes de promover.
+
+Para repetir a leitura da identidade: com uma sessão de super-admin, `GET /api/v1/system/version` e conferir
+`identity.status`, `identity.revision`, `identity.customized` e `runtime_services[*].revision`. Para voltar o staging
+ao estado anterior, apague o override e suba os serviços sem ele (as imagens `:staging` e a `1.74.0` seguem no host).
