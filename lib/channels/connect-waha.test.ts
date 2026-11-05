@@ -1,28 +1,57 @@
 import { describe, expect, it, vi } from "vitest";
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { connectWahaChannel, renomearSessaoParaOTeto } from "./connect-waha";
+import {
+  ChannelConnectionError,
+  connectWahaChannel,
+  renomearSessaoParaOTeto,
+} from "./connect-waha";
+import { criarProvisionadorDeProxy } from "@/lib/waha/provisionador-de-proxy";
+import { confirmarProxyAntesDoInicio, ErroDeProxy } from "@/lib/waha/proxy-antes-do-inicio";
 vi.mock("@/lib/audit", () => ({ audit: vi.fn() }));
 const org = "20000000-0000-4000-8000-000000000001";
 const key = "20000000-0000-4000-8000-000000000002";
-const channel = { id: key, organization_id: org, waha_session_name: "owned", status: "STARTING", archived_at: null };
+const channel = {
+  id: key,
+  organization_id: org,
+  waha_session_name: "owned",
+  status: "STARTING",
+  archived_at: null,
+};
 /**
  * A linha como o banco a devolve. `reservado` é o que
  * `fn_reserve_channel_connection` retorna — e ela sobrescreve `status` com
  * `STARTING` antes do `returning`, então o status que chega ao código de
  * conexão NUNCA é o status real do canal. `phone_number`, sim.
  */
-function fixture(linha: Partial<typeof channel> & { phone_number?: string | null; metadata?: Record<string, unknown> } = {}) {
+function fixture(
+  linha: Partial<typeof channel> & {
+    phone_number?: string | null;
+    metadata?: Record<string, unknown>;
+  } = {},
+) {
   const finishes: Record<string, unknown>[] = [];
   const noBanco = { ...channel, phone_number: null as string | null, ...linha };
   const reservado = { ...noBanco, status: "STARTING" };
   const nomeInicial = reservado.waha_session_name;
   /** Nomes gravados por UPDATE, na ordem. Vazio = ninguém renomeou. */
   const renomeios: string[] = [];
-  const db = { rpc: vi.fn(async (name: string, args: Record<string, unknown>) => {
-    if (name === "fn_reserve_channel_connection") return { data: { channel: reservado, receipt_id: key, lease_token: key, replay: false }, error: null };
-    finishes.push(args);
-    return { data: { ...noBanco, waha_session_name: renomeios.at(-1) ?? nomeInicial, status: args.p_status }, error: null };
-  }),
+  const db = {
+    rpc: vi.fn(async (name: string, args: Record<string, unknown>) => {
+      if (name === "fn_reserve_channel_connection")
+        return {
+          data: { channel: reservado, receipt_id: key, lease_token: key, replay: false },
+          error: null,
+        };
+      finishes.push(args);
+      return {
+        data: {
+          ...noBanco,
+          waha_session_name: renomeios.at(-1) ?? nomeInicial,
+          status: args.p_status,
+        },
+        error: null,
+      };
+    }),
     // Simula o WHERE de verdade: cada filtro é conferido contra `noBanco`, e a
     // linha só é atualizada se TODOS casarem. Sem isso o teste não distingue
     // "a guarda está no UPDATE" de "a guarda sumiu do UPDATE".
@@ -30,11 +59,25 @@ function fixture(linha: Partial<typeof channel> & { phone_number?: string | null
       let casa = true;
       let pendente: Record<string, unknown> | null = null;
       const builder = {
-        update(row: Record<string, unknown>) { pendente = row; return builder; },
-        eq(coluna: string, valor: unknown) { casa &&= (noBanco as Record<string, unknown>)[coluna] === valor; return builder; },
-        is(coluna: string, valor: unknown) { casa &&= ((noBanco as Record<string, unknown>)[coluna] ?? null) === valor; return builder; },
-        neq(coluna: string, valor: unknown) { casa &&= (noBanco as Record<string, unknown>)[coluna] !== valor; return builder; },
-        select() { return builder; },
+        update(row: Record<string, unknown>) {
+          pendente = row;
+          return builder;
+        },
+        eq(coluna: string, valor: unknown) {
+          casa &&= (noBanco as Record<string, unknown>)[coluna] === valor;
+          return builder;
+        },
+        is(coluna: string, valor: unknown) {
+          casa &&= ((noBanco as Record<string, unknown>)[coluna] ?? null) === valor;
+          return builder;
+        },
+        neq(coluna: string, valor: unknown) {
+          casa &&= (noBanco as Record<string, unknown>)[coluna] !== valor;
+          return builder;
+        },
+        select() {
+          return builder;
+        },
         async maybeSingle() {
           if (casa && pendente) renomeios.push(pendente.waha_session_name as string);
           return { data: casa ? { id: noBanco.id } : null, error: null };
@@ -43,59 +86,202 @@ function fixture(linha: Partial<typeof channel> & { phone_number?: string | null
       return builder;
     }),
   } as unknown as SupabaseClient;
-  const transport = { getVerifiedSession: vi.fn(async () => null),
-    createSession: vi.fn(async (nome: string) => ({ created: true, session: { name: nome, status: "STOPPED" } })),
+  const transport = {
+    getVerifiedSession: vi.fn(async () => null),
+    createSession: vi.fn(async (nome: string) => ({
+      created: true,
+      session: { name: nome, status: "STOPPED" },
+    })),
     startExistingSession: vi.fn(async (nome: string) => ({ name: nome, status: "SCAN_QR_CODE" })),
-    deleteSession: vi.fn(async () => {}), stopSession: vi.fn(async () => {}) };
-  return { db, transport, finishes, renomeios, input: { organizationId: org, idempotencyKey: key, userId: key, requestId: key } };
+    deleteSession: vi.fn(async () => {}),
+    stopSession: vi.fn(async () => {}),
+  };
+  return {
+    db,
+    transport,
+    finishes,
+    renomeios,
+    input: { organizationId: org, idempotencyKey: key, userId: key, requestId: key },
+  };
 }
 describe("conexão recuperável", () => {
+  it("encadeia cliente, verificação da sessão e start no modo de pool simulado", async () => {
+    const f = fixture();
+    const fetch = vi.fn(async (_url: string, opcoes: RequestInit) => {
+      const { instance, session_name, operation_id } = JSON.parse(String(opcoes.body));
+      return new Response(
+        JSON.stringify({
+          resultado: "confirmado",
+          instance,
+          sessao: session_name,
+          operation_id,
+          server: "proxy:8080",
+          reutilizado: false,
+        }),
+        { status: 200 },
+      );
+    });
+    vi.stubGlobal("fetch", fetch);
+    try {
+      const leitor = {
+        getVerifiedSession: vi.fn(async (name: string) => ({
+          name,
+          status: "STOPPED",
+          config: { proxy: { server: "proxy:8080" } },
+        })),
+      };
+      const provisionar = criarProvisionadorDeProxy({
+        url: "http://n8n.internal/provisionar",
+        token: "teste",
+        instancia: "principal",
+      });
+      await connectWahaChannel(f.db, f.db, f.transport, {
+        ...f.input,
+        proxyAntesDoInicio: (nome) => confirmarProxyAntesDoInicio(nome, provisionar, leitor),
+      });
+      expect(f.transport.createSession.mock.invocationCallOrder[0]!).toBeLessThan(
+        fetch.mock.invocationCallOrder[0]!,
+      );
+      expect(fetch.mock.invocationCallOrder[0]!).toBeLessThan(
+        leitor.getVerifiedSession.mock.invocationCallOrder[0]!,
+      );
+      expect(leitor.getVerifiedSession.mock.invocationCallOrder[0]!).toBeLessThan(
+        f.transport.startExistingSession.mock.invocationCallOrder[0]!,
+      );
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
+  it("confirma o proxy antes de iniciar quando a barreira foi configurada", async () => {
+    const f = fixture();
+    const barreira = vi.fn(async () => {});
+    await connectWahaChannel(f.db, f.db, f.transport, { ...f.input, proxyAntesDoInicio: barreira });
+    expect(barreira).toHaveBeenCalledWith("owned");
+    expect(f.transport.createSession.mock.invocationCallOrder[0]!).toBeLessThan(
+      barreira.mock.invocationCallOrder[0]!,
+    );
+    expect(barreira.mock.invocationCallOrder[0]!).toBeLessThan(
+      f.transport.startExistingSession.mock.invocationCallOrder[0]!,
+    );
+  });
+  it("se a barreira falha preserva sessão e não pede start", async () => {
+    const f = fixture();
+    await expect(
+      connectWahaChannel(f.db, f.db, f.transport, {
+        ...f.input,
+        proxyAntesDoInicio: async () => {
+          throw new Error("proxy_nao_confirmado");
+        },
+      }),
+    ).rejects.toThrow("connection_repair_required");
+    expect(f.transport.startExistingSession).not.toHaveBeenCalled();
+    expect(f.transport.deleteSession).not.toHaveBeenCalled();
+    expect(f.finishes.at(-1)).toMatchObject({ p_status: "FAILED" });
+  });
+  it.each([
+    ["pool_esgotado", 503],
+    ["conflito", 409],
+    ["incerto", 502],
+    ["indisponivel", 503],
+  ] as const)(
+    "barreira com código seguro %s vira erro tipado, preserva a sessão e grava o motivo",
+    async (codigo, status) => {
+      const f = fixture();
+      const erro = await connectWahaChannel(f.db, f.db, f.transport, {
+        ...f.input,
+        proxyAntesDoInicio: async () => {
+          throw new ErroDeProxy("proxy_nao_confirmado", codigo);
+        },
+      }).catch((e: unknown) => e);
+      expect(erro).toBeInstanceOf(ChannelConnectionError);
+      expect(erro).toMatchObject({
+        code: `connection_proxy_${codigo}`,
+        status,
+        technical: { proxy: codigo },
+      });
+      expect(f.transport.startExistingSession).not.toHaveBeenCalled();
+      expect(f.transport.deleteSession).not.toHaveBeenCalled();
+      expect(f.finishes.at(-1)).toMatchObject({ p_status: "FAILED", p_reason: `proxy_${codigo}` });
+    },
+  );
   it("publica somente o status confirmado pelo transporte e pelo DB", async () => {
-    const f = fixture(); const result = await connectWahaChannel(f.db, f.db, f.transport, f.input);
+    const f = fixture();
+    const result = await connectWahaChannel(f.db, f.db, f.transport, f.input);
     expect(result.channel.status).toBe("SCAN_QR_CODE");
     expect(f.finishes.map((c) => c.p_status)).toEqual(["remote_created", "SCAN_QR_CODE"]);
   });
   it("timeout de criação não atesta ausência e preserva FAILED para reparo", async () => {
-    const f = fixture(); f.transport.createSession.mockRejectedValue(new Error("timeout"));
-    await expect(connectWahaChannel(f.db, f.db, f.transport, f.input)).rejects.toThrow("connection_repair_required");
+    const f = fixture();
+    f.transport.createSession.mockRejectedValue(new Error("timeout"));
+    await expect(connectWahaChannel(f.db, f.db, f.transport, f.input)).rejects.toThrow(
+      "connection_repair_required",
+    );
     expect(f.transport.deleteSession).not.toHaveBeenCalled();
     expect(f.finishes.at(-1)).toMatchObject({ p_status: "FAILED" });
   });
   it("falha após criação própria preserva remoto e marca FAILED", async () => {
-    const f = fixture(); f.transport.startExistingSession.mockRejectedValue(new Error("bad_start"));
-    await expect(connectWahaChannel(f.db, f.db, f.transport, f.input)).rejects.toThrow("connection_repair_required");
+    const f = fixture();
+    f.transport.startExistingSession.mockRejectedValue(new Error("bad_start"));
+    await expect(connectWahaChannel(f.db, f.db, f.transport, f.input)).rejects.toThrow(
+      "connection_repair_required",
+    );
     expect(f.transport.deleteSession).not.toHaveBeenCalled();
     expect(f.finishes.at(-1)).toMatchObject({ p_status: "FAILED" });
   });
   it("nova tentativa reutiliza a mesma identidade após falha", async () => {
-    const f = fixture(); f.transport.startExistingSession.mockRejectedValue(new Error("bad_start"));
-    await expect(connectWahaChannel(f.db, f.db, f.transport, f.input)).rejects.toThrow("connection_repair_required");
-    f.transport.createSession.mockResolvedValue({ created: false, session: { name: "owned", status: "STOPPED" } });
+    const f = fixture();
+    f.transport.startExistingSession.mockRejectedValue(new Error("bad_start"));
+    await expect(connectWahaChannel(f.db, f.db, f.transport, f.input)).rejects.toThrow(
+      "connection_repair_required",
+    );
+    f.transport.createSession.mockResolvedValue({
+      created: false,
+      session: { name: "owned", status: "STOPPED" },
+    });
     f.transport.startExistingSession.mockResolvedValue({ name: "owned", status: "SCAN_QR_CODE" });
-    expect((await connectWahaChannel(f.db, f.db, f.transport, f.input)).channel.status).toBe("SCAN_QR_CODE");
+    expect((await connectWahaChannel(f.db, f.db, f.transport, f.input)).channel.status).toBe(
+      "SCAN_QR_CODE",
+    );
     expect(f.transport.createSession).toHaveBeenNthCalledWith(2, "owned");
     expect(f.transport.startExistingSession).toHaveBeenNthCalledWith(2, "owned");
     expect(f.transport.deleteSession).not.toHaveBeenCalled();
   });
   it("sessão já existente não é propriedade de compensação da chamada", async () => {
-    const f = fixture(); f.transport.createSession.mockResolvedValue({ created: false, session: { name: "owned", status: "STOPPED" } });
+    const f = fixture();
+    f.transport.createSession.mockResolvedValue({
+      created: false,
+      session: { name: "owned", status: "STOPPED" },
+    });
     f.transport.startExistingSession.mockRejectedValue(new Error("bad_start"));
-    await expect(connectWahaChannel(f.db, f.db, f.transport, f.input)).rejects.toThrow("connection_repair_required");
+    await expect(connectWahaChannel(f.db, f.db, f.transport, f.input)).rejects.toThrow(
+      "connection_repair_required",
+    );
     expect(f.transport.deleteSession).not.toHaveBeenCalled();
   });
   it("lease perdida proíbe compensação destrutiva", async () => {
-    const f = fixture(); f.transport.startExistingSession.mockRejectedValue(new Error("bad_start"));
-    vi.mocked(f.db.rpc).mockImplementation(((name: string) => Promise.resolve( name === "fn_reserve_channel_connection"
-      ? { data: { channel, receipt_id: key, lease_token: key, replay: false }, error: null } as never
-      : { data: null, error: { message: "connection_lease_lost", code: "55P03" } })) as unknown as typeof f.db.rpc);
+    const f = fixture();
+    f.transport.startExistingSession.mockRejectedValue(new Error("bad_start"));
+    vi.mocked(f.db.rpc).mockImplementation(((name: string) =>
+      Promise.resolve(
+        name === "fn_reserve_channel_connection"
+          ? ({
+              data: { channel, receipt_id: key, lease_token: key, replay: false },
+              error: null,
+            } as never)
+          : { data: null, error: { message: "connection_lease_lost", code: "55P03" } },
+      )) as unknown as typeof f.db.rpc);
     await expect(connectWahaChannel(f.db, f.db, f.transport, f.input)).rejects.toThrow();
     expect(f.transport.deleteSession).not.toHaveBeenCalled();
   });
   it("replay confirmado não toca no transporte", async () => {
     const f = fixture();
-    vi.mocked(f.db.rpc).mockResolvedValue({ data: { channel: { ...channel, status: "SCAN_QR_CODE" }, receipt_id: key, replay: true }, error: null } as never);
+    vi.mocked(f.db.rpc).mockResolvedValue({
+      data: { channel: { ...channel, status: "SCAN_QR_CODE" }, receipt_id: key, replay: true },
+      error: null,
+    } as never);
     expect((await connectWahaChannel(f.db, f.db, f.transport, f.input)).replay).toBe(true);
-    expect(f.transport.createSession).not.toHaveBeenCalled();expect(f.transport.deleteSession).not.toHaveBeenCalled();
+    expect(f.transport.createSession).not.toHaveBeenCalled();
+    expect(f.transport.deleteSession).not.toHaveBeenCalled();
   });
 });
 
@@ -128,9 +314,14 @@ describe("nome de sessão fora do teto do WAHA", () => {
     // `status: "STARTING"` mesmo para um canal que estava parado, então quem
     // protege aqui é `phone_number` — e renomear desligaria o CRM da sessão
     // que existe no disco do WAHA.
-    const f = fixture({ waha_session_name: NOME_LEGADO, phone_number: "5511999990000", status: "STOPPED" });
+    const f = fixture({
+      waha_session_name: NOME_LEGADO,
+      phone_number: "5511999990000",
+      status: "STOPPED",
+    });
     await expect(connectWahaChannel(f.db, f.db, f.transport, f.input)).rejects.toMatchObject({
-      code: "connection_session_name_too_long", status: 409,
+      code: "connection_session_name_too_long",
+      status: 409,
       technical: { waha_session_name: NOME_LEGADO, comprimento: 69, teto: 54 },
     });
     expect(f.renomeios).toEqual([]);
@@ -138,19 +329,30 @@ describe("nome de sessão fora do teto do WAHA", () => {
     expect(f.transport.startExistingSession).not.toHaveBeenCalled();
     expect(f.transport.stopSession).not.toHaveBeenCalled();
     expect(f.transport.deleteSession).not.toHaveBeenCalled();
-    expect(f.finishes.at(-1)).toMatchObject({ p_status: "FAILED", p_reason: "session_name_too_long" });
+    expect(f.finishes.at(-1)).toMatchObject({
+      p_status: "FAILED",
+      p_reason: "session_name_too_long",
+    });
   });
 
   it("canal pareado E WORKING também não é renomeado", async () => {
-    const f = fixture({ waha_session_name: NOME_LEGADO, phone_number: "5511999990000", status: "WORKING" });
-    await expect(connectWahaChannel(f.db, f.db, f.transport, f.input)).rejects.toMatchObject({ code: "connection_session_name_too_long" });
+    const f = fixture({
+      waha_session_name: NOME_LEGADO,
+      phone_number: "5511999990000",
+      status: "WORKING",
+    });
+    await expect(connectWahaChannel(f.db, f.db, f.transport, f.input)).rejects.toMatchObject({
+      code: "connection_session_name_too_long",
+    });
     expect(f.renomeios).toEqual([]);
   });
 
   it("nome exatamente no teto (54) segue pelo caminho normal, sem renomeio", async () => {
     const nome = "o".repeat(54);
     const f = fixture({ waha_session_name: nome });
-    expect((await connectWahaChannel(f.db, f.db, f.transport, f.input)).channel.status).toBe("SCAN_QR_CODE");
+    expect((await connectWahaChannel(f.db, f.db, f.transport, f.input)).channel.status).toBe(
+      "SCAN_QR_CODE",
+    );
     expect(f.transport.createSession).toHaveBeenCalledWith(nome);
     expect(f.renomeios).toEqual([]);
   });
@@ -159,7 +361,9 @@ describe("nome de sessão fora do teto do WAHA", () => {
     const nome = `org_${org.replaceAll("-", "").slice(0, 8)}_${key.replaceAll("-", "")}`;
     expect(nome).toHaveLength(45);
     const f = fixture({ waha_session_name: nome });
-    expect((await connectWahaChannel(f.db, f.db, f.transport, f.input)).channel.status).toBe("SCAN_QR_CODE");
+    expect((await connectWahaChannel(f.db, f.db, f.transport, f.input)).channel.status).toBe(
+      "SCAN_QR_CODE",
+    );
     expect(f.transport.startExistingSession).toHaveBeenCalledWith(nome);
     expect(f.renomeios).toEqual([]);
   });
@@ -176,9 +380,14 @@ describe("renomearSessaoParaOTeto — a guarda também mora no WHERE", () => {
   const alvo = { id: key, organization_id: org, waha_session_name: NOME_LEGADO };
 
   it("linha PAREADA não casa no UPDATE: ninguém é renomeado e a função recusa", async () => {
-    const f = fixture({ waha_session_name: NOME_LEGADO, phone_number: "5511999990000", status: "STOPPED" });
+    const f = fixture({
+      waha_session_name: NOME_LEGADO,
+      phone_number: "5511999990000",
+      status: "STOPPED",
+    });
     await expect(renomearSessaoParaOTeto(f.db, alvo)).rejects.toMatchObject({
-      code: "connection_session_name_too_long", status: 409,
+      code: "connection_session_name_too_long",
+      status: 409,
       technical: { renomeio_recusado: true },
     });
     expect(f.renomeios).toEqual([]);
@@ -188,7 +397,9 @@ describe("renomearSessaoParaOTeto — a guarda também mora no WHERE", () => {
     const f = fixture({ waha_session_name: NOME_LEGADO, phone_number: null, status: "WORKING" });
     // A reserva sobrescreve o status com STARTING, então aqui o `neq` precisa
     // ver o estado da TABELA — que é o que este dublê guarda.
-    await expect(renomearSessaoParaOTeto(f.db, alvo)).rejects.toMatchObject({ code: "connection_session_name_too_long" });
+    await expect(renomearSessaoParaOTeto(f.db, alvo)).rejects.toMatchObject({
+      code: "connection_session_name_too_long",
+    });
     expect(f.renomeios).toEqual([]);
   });
 
@@ -210,8 +421,12 @@ describe("I1: conectar/reativar ressincroniza o filtro de grupos", () => {
       if (t !== "channel_session_groups") return fromOriginal(t);
       const b = {
         select: () => b,
-        eq: (c: string, v: unknown) => { filtros.push([c, v]); return b; },
-        then: (res: (v: unknown) => unknown) => Promise.resolve({ count: 1, error: null }).then(res),
+        eq: (c: string, v: unknown) => {
+          filtros.push([c, v]);
+          return b;
+        },
+        then: (res: (v: unknown) => unknown) =>
+          Promise.resolve({ count: 1, error: null }).then(res),
       };
       return b;
     };
@@ -219,8 +434,9 @@ describe("I1: conectar/reativar ressincroniza o filtro de grupos", () => {
     await connectWahaChannel(f.db, f.db, { ...f.transport, definirRecebimentoDeGrupos }, f.input);
     expect(definirRecebimentoDeGrupos).toHaveBeenCalledWith("owned", true);
     expect(filtros).toContainEqual(["organization_id", org]);
-    expect(f.transport.startExistingSession.mock.invocationCallOrder[0])
-      .toBeLessThan(definirRecebimentoDeGrupos.mock.invocationCallOrder[0]!);
+    expect(f.transport.startExistingSession.mock.invocationCallOrder[0]).toBeLessThan(
+      definirRecebimentoDeGrupos.mock.invocationCallOrder[0]!,
+    );
   });
 });
 
@@ -231,7 +447,10 @@ describe("limite de números do plano", () => {
     // número se perdia e a tela dizia "Não foi possível concluir a conexão".
     const f = fixture();
     const recusa = { code: "PT402", message: "limite_do_plano:canais:1" };
-    vi.mocked(f.db.rpc).mockImplementationOnce((async () => ({ data: null, error: recusa })) as never);
+    vi.mocked(f.db.rpc).mockImplementationOnce((async () => ({
+      data: null,
+      error: recusa,
+    })) as never);
     await expect(connectWahaChannel(f.db, f.db, f.transport, f.input)).rejects.toBe(recusa);
     expect(f.transport.createSession).not.toHaveBeenCalled();
   });
@@ -241,7 +460,9 @@ describe("a opção por conexão do acervo (#999)", () => {
   it("pede o store na criação SÓ quando o canal tem a opção ligada", async () => {
     const ligado = fixture({ metadata: { guardar_historico: true } });
     await connectWahaChannel(ligado.db, ligado.db, ligado.transport, ligado.input);
-    expect(ligado.transport.createSession).toHaveBeenCalledWith("owned", { guardarHistorico: true });
+    expect(ligado.transport.createSession).toHaveBeenCalledWith("owned", {
+      guardarHistorico: true,
+    });
 
     const desligado = fixture();
     await connectWahaChannel(desligado.db, desligado.db, desligado.transport, desligado.input);

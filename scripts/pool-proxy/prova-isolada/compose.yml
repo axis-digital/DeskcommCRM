@@ -1,0 +1,39 @@
+# Ambiente DESCARTÁVEL para provar o contrato v1 do provisionador de proxy WAHA.
+# Sem portas publicadas, dados em tmpfs, nomes proxytest-*. Nada daqui toca produção.
+name: proxytest
+
+services:
+  pg:
+    image: postgres:16
+    container_name: proxytest-pg
+    restart: "no"
+    environment:
+      POSTGRES_USER: proxytest
+      POSTGRES_PASSWORD: ${PT_PG_PASSWORD}
+      POSTGRES_DB: pool_sintetico
+    tmpfs:
+      - /var/lib/postgresql/data
+    labels:
+      proxytest: "1"
+    networks: [network_public]
+
+  waha:
+    image: devlikeapro/waha:latest-2026.7.2
+    container_name: proxytest-waha
+    restart: "no"
+    mem_limit: 1g
+    environment:
+      WAHA_API_KEY: ${PT_WAHA_API_KEY_HASH}
+      WAHA_DASHBOARD_ENABLED: "False"
+      WHATSAPP_DEFAULT_ENGINE: NOWEB
+      WHATSAPP_RESTART_ALL_SESSIONS: "False"
+    tmpfs:
+      - /app/.sessions
+      - /app/.media
+    labels:
+      proxytest: "1"
+    networks: [network_public]
+
+networks:
+  network_public:
+    external: true

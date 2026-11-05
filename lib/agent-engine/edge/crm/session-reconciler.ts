@@ -31,6 +31,7 @@ import { canonicalWahaExternalId, chatIdFromWaMessageId, parseWahaMessageId, wah
 import { chatIndividualDaMensagem } from '@/lib/waha/ultima-recebida';
 import { lerNumerosDeTeste, numeroPodeTestar, preGoLiveAtivo } from '@/lib/ai/elegibilidade/pre-go-live';
 import { canalDesativado } from '@/lib/channels/desativado';
+import { ErroDeProxy } from '@/lib/waha/proxy-antes-do-inicio';
 
 import type { Logger } from '../../obs/logger';
 
@@ -45,6 +46,12 @@ export interface WatchdogConfig {
   redriveBatchSize: number;
   /** espaçamento entre redrives (base + jitter) */
   redriveSpacingMs: number;
+  /**
+   * Modo de pool de proxy gerenciado (opt-in). Quando presente, uma sessão
+   * `STOPPED` só é religada depois que a barreira confirmar o proxy dela; se
+   * lançar, a sessão fica parada. Ausente = contrato legado, sem mudança.
+   */
+  barreiraDeProxy?: (nome: string) => Promise<void>;
 }
 
 interface WahaSession {
@@ -59,6 +66,39 @@ interface WahaSession {
  */
 export function deveRetomarSessao(status: string): boolean {
   return status.toUpperCase() === 'STOPPED';
+}
+
+/**
+ * Espera entre duas tentativas de barreira para a MESMA sessão que falhou. O tick
+ * roda a cada ~60 s: sem isto, um pool esgotado seria uma chamada ao provisionador
+ * (e uma linha de log) por minuto por sessão parada. A espera é só em memória — um
+ * restart do worker tenta de novo, o que é o que se quer.
+ */
+const ESPERA_APOS_FALHA_DE_PROXY_MS = 5 * 60_000;
+const proximaTentativaDeProxy = new Map<string, number>();
+
+/** `true` = pode iniciar. Qualquer falha (inclusive não tipada) bloqueia: falha fechado. */
+async function proxyLiberaOStart(
+  cfg: WatchdogConfig,
+  nome: string,
+  log: Logger,
+): Promise<boolean> {
+  if (!cfg.barreiraDeProxy) return true;
+  const quando = proximaTentativaDeProxy.get(nome);
+  if (quando !== undefined && Date.now() < quando) return false;
+  try {
+    await cfg.barreiraDeProxy(nome);
+    proximaTentativaDeProxy.delete(nome);
+    return true;
+  } catch (err) {
+    proximaTentativaDeProxy.set(nome, Date.now() + ESPERA_APOS_FALHA_DE_PROXY_MS);
+    // Só o código seguro: nunca a mensagem do erro (pode vir de rede) nem endereço.
+    log.warn('watchdog: sessão parada NÃO religada — proxy não confirmado', {
+      waha_session: nome,
+      proxy: err instanceof ErroDeProxy ? err.codigo : 'incerto',
+    });
+    return false;
+  }
 }
 
 async function startWahaSession(cfg: WatchdogConfig, name: string): Promise<boolean> {
@@ -123,7 +163,7 @@ export async function reconcileSessions(
     if (nossas.length === 0) continue;
 
     let nextStatus = wahaStatus;
-    if (deveRetomarSessao(wahaStatus)) {
+    if (deveRetomarSessao(wahaStatus) && (await proxyLiberaOStart(cfg, s.name, log))) {
       const started = await startWahaSession(cfg, s.name);
       if (started) {
         nextStatus = 'STARTING';

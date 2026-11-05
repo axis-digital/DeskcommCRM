@@ -1,0 +1,80 @@
+# Prova isolada do contrato v1 do provisionador de proxy WAHA
+
+Ambiente **descartável** para provar o contrato
+([`docs/superpowers/specs/2026-11-03-contrato-provisionador-proxy-waha.md`](../../../docs/superpowers/specs/2026-11-03-contrato-provisionador-proxy-waha.md))
+sem tocar em produção. Nada aqui usa o pool real, o WAHA real nem as credenciais reais.
+
+## O que existe
+
+| Peça                                                           | Onde                                     | Observação                                                                        |
+| -------------------------------------------------------------- | ---------------------------------------- | --------------------------------------------------------------------------------- |
+| Postgres de teste `proxytest-pg`                               | `compose.yml`                            | tmpfs; pool **sintético** (`proxy-sintetico-N.invalid`, hosts que nunca resolvem) |
+| WAHA de teste `proxytest-waha`                                 | `compose.yml`                            | imagem `latest-2026.7.2`, chave própria, sem webhook, sem pareamento              |
+| Workflow n8n `PROXYTEST - Provisionador contrato v1 (isolado)` | n8n, id `eBSaFjgccRXQ5mKG`               | **só no n8n, não versionado aqui**; credenciais `PROXYTEST - *`                   |
+| Pool                                                           | `scripts/pool-proxy/reserva-atomica.sql` | o protótipo, aplicado em `public.waha_proxy_pool` sintética                       |
+
+Os containers entram na rede `network_public` (a mesma do n8n) com prefixo `proxytest-`, sem porta
+publicada. Nenhum container existente muda de rede.
+
+## Como subir
+
+```bash
+export PT_PG_PASSWORD=$(openssl rand -hex 12)
+export PT_WAHA_API_KEY=$(openssl rand -hex 16)
+export PT_WAHA_API_KEY_HASH="sha512:$(printf %s "$PT_WAHA_API_KEY" | sha512sum | cut -d' ' -f1)"
+docker compose -f compose.yml up -d
+```
+
+Depois: criar `public.waha_proxy_pool` sintética (colunas de `reserva-atomica.sql`), aplicar
+`reserva-atomica.sql`, criar as 3 credenciais `PROXYTEST - *` no n8n e ativar o workflow.
+
+## Como provar
+
+Os scripts rodam **dentro** do container `proxytest-waha` (mesma rede do n8n) e nunca imprimem credenciais:
+
+```bash
+docker exec -i -e K="$PT_WAHA_API_KEY" -e T="<bearer sintético do workflow>" \
+  proxytest-waha node --input-type=module - < bateria-fase1.mjs
+```
+
+1. `bateria-fase1.mjs`: autenticação, validação, domínio (24 verificações).
+2. Inserir **uma** linha livre no pool, depois `bateria-fase2-concorrencia.mjs`.
+3. `falhas.mjs`: injeção de falha (`docker pause proxytest-waha` em instantes escalonados) para `indisponivel` e `incerto`.
+
+## Fase 1 — estados de reserva (SQL)
+
+Migração aditiva [`../fase1-estados.sql`](../fase1-estados.sql) provada em banco próprio
+(`pool_fase1`, recriado a cada execução; não toca `pool_sintetico`):
+
+```bash
+./fase1/rodar.sh          # esquema legado + v1 -> migração 2x -> 45 asserções -> concorrência
+```
+
+O que a prova cobre:
+
+- **Idempotência:** a migração roda duas vezes seguidas, em transação única, sem erro.
+- **Legado:** linha já atribuída vira `incerto/legado_nao_verificado` (ninguém verificou o WAHA);
+  escritor antigo (`reservar_proxy_waha` v1) continua funcionando e cai em `incerto/escritor_legado`.
+- **Máquina de estados:** transições válidas e inválidas, dono da operação, lease vencido virando
+  `incerto` (nunca `livre`), liberação só por `liberar_proxy_waha` com ausência confirmada.
+- **Guarda opt-in** (`waha_proxy_pool_guarda.ativa`, nasce desligada): ligada, o banco recusa
+  liberação ou troca de atribuição que não venha de `liberar_proxy_waha`.
+- **Concorrência com largada sincronizada** (todas as conexões esperam num lock e disparam juntas):
+  1 linha livre e 8 sessões diferentes -> 1 ganha e ninguém leva erro; a mesma identidade em 6
+  chamadas -> mesmo proxy, 1 linha, zero erros. 4 rodadas por cenário.
+
+**A prova vigia:** sabotar uma cópia do SQL a deixa vermelha. Sem `SKIP LOCKED`, 8 sessões recebem
+o mesmo proxy; sem o bloqueio por sessão, 2 a 4 de 6 chamadas da mesma identidade levam erro.
+Para repetir: `PT_SQL_DIR=<pasta com cópias sabotadas>/ ./fase1/rodar.sh`.
+
+Uma versão anterior desta prova disparava os workers em sequência e passava com a proteção
+removida (cada `docker exec` demora mais que a reserva, então nada se sobrepunha). A largada
+sincronizada e a contagem de erros existem por causa disso.
+
+## Descartar
+
+```bash
+docker compose -f compose.yml down
+```
+
+E apagar o workflow e as três credenciais `PROXYTEST - *` no n8n.

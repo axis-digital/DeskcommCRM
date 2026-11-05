@@ -57,6 +57,7 @@ import {
 } from "@/lib/ui/icons";
 import { canalDesativado } from "@/lib/channels/desativado";
 import { lerEstadoDoCanal } from "@/lib/channels/estado";
+import { MENSAGEM_DO_PROXY, motivoDeProxy } from "@/lib/channels/motivo-de-proxy";
 import { fonteDeTemplates } from "@/lib/channels/templates-fonte";
 import { useT } from "@/hooks/i18n/useT";
 import { AgendaDePausa } from "@/components/connections/AgendaDePausa";
@@ -561,6 +562,14 @@ export function ConnectionsClient({ wahaConfigured }: { wahaConfigured: boolean 
         <div className="grid grid-cols-1 gap-3 md:grid-cols-2 lg:grid-cols-3">
           {list.map((c) => {
             const info = statusInfo(c.status, t);
+            // Falha de PROXY (modo de pool gerenciado) não é número desvinculado:
+            // o motivo gravado em `status_reason` explica o que de fato falta.
+            // Só vale para sessão que não está de pé — um motivo antigo não pode
+            // sobreviver a uma conexão que voltou a funcionar.
+            const motivoProxy =
+              c.status === "FAILED" || c.status === "STOPPED"
+                ? motivoDeProxy(c.status_reason)
+                : null;
             const pausado = canalDesativado(c.metadata);
             const policy = routing.data?.data?.channels?.find((channel) => channel.id === c.id);
             // Sem o serviço no ar a rota de exclusão falha fechado (503) para
@@ -596,6 +605,11 @@ export function ConnectionsClient({ wahaConfigured }: { wahaConfigured: boolean 
                     ? `${t("Verificado")} ${new Date(c.last_health_check_at).toLocaleString(tagDoIdioma)}`
                     : t("Ainda não verificado")}
                 </p>
+                {motivoProxy && (
+                  <p role="status" className="text-xs text-error-fg">
+                    {t(MENSAGEM_DO_PROXY[motivoProxy])}
+                  </p>
+                )}
                 <ChannelAiAccess channelId={c.id} />
                 {dependeDoTransporte(c) && <ChannelAcervo channelId={c.id} />}
                 {dependeDoTransporte(c) && <ChannelHistorico channelId={c.id} />}

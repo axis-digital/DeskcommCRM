@@ -48,6 +48,8 @@ import { ARCHIVED_AT, queryTolerantToMissingArchived } from "@/lib/channels/arch
 import { createClient } from "@/lib/supabase/server";
 import { getWahaClient, wahaFriendlyError } from "@/lib/waha/client";
 import { traduzir } from "@/lib/i18n/dicionario";
+import { barreiraDeProxyDaRota, falhaDoCodigoDeProxy } from "@/lib/waha/proxy-na-rota";
+import { ErroDeProxy } from "@/lib/waha/proxy-antes-do-inicio";
 import { traduzirLimiteDoPlano } from "@/lib/cobranca/limites";
 
 export const dynamic = "force-dynamic";
@@ -168,6 +170,10 @@ export async function POST(
     }
   }
 
+  // Modo de pool gerenciado (opt-in): config inválida recusa antes de tocar o transporte.
+  const proxy = barreiraDeProxyDaRota(waha);
+  if (!proxy.ok) return fail(proxy.falha.code, t(proxy.falha.message), proxy.falha.status, { requestId });
+
   try {
     await assertWahaConnectionIdle(createAdminClient(), activeOrg.orgId, id);
     // A linha morta e sem número não ocupa vaga do plano (0809); revivê-la volta
@@ -188,6 +194,13 @@ export async function POST(
     // chamada é a de sempre, sem segundo argumento — e o store fica como o
     // canal o tem: só o PATCH /acervo desliga.
     const opcoesAcervo = lerGuardarHistorico(session.metadata) ? { guardarHistorico: true } : undefined;
+    // Modo de pool: garante a sessão parada (idempotente; recria se o volume do
+    // WAHA se perdeu) e só então confirma o proxy. Sem pool, nada disso roda.
+    if (proxy.barreira) {
+      if (opcoesAcervo) await waha.createSession(nomeParaOTransporte, opcoesAcervo);
+      else await waha.createSession(nomeParaOTransporte);
+      await proxy.barreira(nomeParaOTransporte);
+    }
     const remote = (await (opcoesAcervo
       ? waha.startSession(nomeParaOTransporte, opcoesAcervo)
       : waha.startSession(nomeParaOTransporte))) as { status?: string };
@@ -219,6 +232,12 @@ export async function POST(
     return ok({ id, status: nextStatus, force }, { requestId });
   } catch (err) {
     if (err instanceof ChannelConnectionError) return fail(err.code, "Uma conexão está em andamento. Aguarde e tente novamente.", err.status, { requestId });
+    if (err instanceof ErroDeProxy) {
+      await supabase.from("channel_sessions").update({ status: "FAILED", status_reason: `proxy_${err.codigo}`, last_status_change_at: new Date().toISOString() })
+        .eq("organization_id", activeOrg.orgId).eq("id", id);
+      const semProxy = falhaDoCodigoDeProxy(err.codigo);
+      return fail(semProxy.code, t(semProxy.message), semProxy.status, { requestId, details: { proxy: err.codigo } });
+    }
     await supabase.from("channel_sessions").update({ status: "FAILED", status_reason: "connection_repair_required", last_status_change_at: new Date().toISOString() })
       .eq("organization_id", activeOrg.orgId).eq("id", id);
     return fail("waha_error", wahaFriendlyError(err), 502, { requestId });

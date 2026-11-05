@@ -215,6 +215,12 @@ const schema = z.object({
   WAHA_ACCEPTED_ENGINES: z.string().optional().default(""),
   WAHA_SESSION_WEBHOOK: z.string().optional().default(""),
   WAHA_SESSION_PROXY: z.string().optional().default(""),
+  // Pool de proxy gerenciado por sessão (opt-in; lib/waha/proxy-da-instalacao.ts).
+  // As três juntas ligam o modo; vazias = contrato legado. Parcial, ou junto de
+  // WAHA_SESSION_PROXY, é recusado na conexão (falha fechado).
+  WAHA_PROXY_POOL_URL: z.string().optional().default(""),
+  WAHA_PROXY_POOL_TOKEN: z.string().optional().default(""),
+  WAHA_PROXY_POOL_INSTANCE: z.string().optional().default(""),
   // Origem interna pela qual o WAHA baixa a mídia enviada (lib/waha/media-url.ts). Vazio = URL pública.
   WAHA_MEDIA_BASE_URL: z.string().optional().default(""),
   // Dias de histórico importados ao parear um número (lib/waha/historico.ts). 0 = desligado.

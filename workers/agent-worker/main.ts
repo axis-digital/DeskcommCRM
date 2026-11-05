@@ -97,6 +97,7 @@ import { crmEdgeConfigFromEnv } from "@/lib/agent-engine/edge/crm/mcp-client";
 import { enforceHolds } from "@/lib/agent-engine/edge/crm/session-watchdog";
 import { runVoiceCallsBridgeLoop } from "@/lib/wacalls/events-bridge";
 import { runSessionWatchdogLoop } from "@/lib/agent-engine/edge/crm/session-reconciler";
+import { criarBarreiraDoWatchdog } from "@/lib/waha/barreira-de-proxy-do-worker";
 import { runHealthLoop } from "@/lib/agent-engine/health/circuit";
 import { runFlywheelLoop } from "@/lib/agent-engine/flywheel/live";
 import { llmEdgeConfigFromEnv } from "@/lib/agent-engine/edge/llm/run-model-call";
@@ -340,6 +341,18 @@ export async function startWorker(
             redriveMinAgeMs: env.WATCHDOG_REDRIVE_MIN_AGE_MS,
             redriveBatchSize: env.WATCHDOG_REDRIVE_BATCH_SIZE,
             redriveSpacingMs: env.WATCHDOG_REDRIVE_SPACING_MS,
+            // Modo de pool de proxy (opt-in): STOPPED só é religada com proxy confirmado.
+            barreiraDeProxy: criarBarreiraDoWatchdog(
+              {
+                WAHA_PROXY_POOL_URL: process.env.WAHA_PROXY_POOL_URL,
+                WAHA_PROXY_POOL_TOKEN: process.env.WAHA_PROXY_POOL_TOKEN,
+                WAHA_PROXY_POOL_INSTANCE: process.env.WAHA_PROXY_POOL_INSTANCE,
+                WAHA_SESSION_PROXY: process.env.WAHA_SESSION_PROXY,
+              },
+              env.WAHA_API_BASE_URL,
+              env.WAHA_API_KEY,
+              log,
+            ),
           },
           log,
           loopsAbort.signal,
