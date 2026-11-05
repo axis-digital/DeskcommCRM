@@ -1,7 +1,17 @@
 # Fork Axis do DeskcommCRM
 
-Branch de produção: `axis` (nunca `main`, que espelha o upstream). Remotes: `origin` =
-`axis-digital/DeskcommCRM` (fork), `upstream` = `melgarafael/DeskcommCRM`.
+Branch de produção: `main` do fork (`origin/main`); não existe branch `axis` (`git branch -a --list '*axis*'`
+devolve vazio) e a `main` **não** espelha o upstream. Todo PR é aberto só no fork (`gh pr create -R axis-digital/DeskcommCRM`,
+ver `CLAUDE.md`). Remotes: `origin` = `axis-digital/DeskcommCRM` (fork), `upstream` = `melgarafael/DeskcommCRM`.
+
+**A ponta da `main` não é o que roda em produção.** O que roda é a imagem `:axis` construída no host, e ela
+carrega o commit em `APP_VERSION`. Antes de qualquer sync ou deploy, meça a distância:
+
+```bash
+docker exec deskcommcrm-app-1 printenv APP_VERSION                  # 1.x.y-axis-<sha7>: o sha é o que vale, o número pode estar defasado
+git rev-list --count <sha7>..origin/main                            # commits que o próximo deploy leva
+git diff --name-only --diff-filter=A <sha7> origin/main -- supabase/migrations | wc -l   # migrations novas
+```
 
 ## O que é nosso (e só isso diverge do upstream)
 
@@ -26,23 +36,55 @@ Branch de produção: `axis` (nunca `main`, que espelha o upstream). Remotes: `o
 nova no upstream). Procure migrations, variáveis novas e mudanças no WAHA.
 
 ```bash
-scripts/axis-sync-upstream.sh              # fetch, conta atrás/à frente, cria sync/upstream-AAAA-MM-DD
-                                           # a partir de axis, mescla upstream/main, roda typecheck + test:unit
-scripts/axis-sync-upstream.sh --push-main  # idem, e atualiza o espelho `main` do fork (origin/main)
+scripts/axis-sync-upstream.sh              # fetch, conta atrás/à frente, cria merge/upstream-AAAA-MM-DD
+                                           # a partir de origin/main, mescla upstream/main, roda typecheck + test:unit
 ```
 
-O script exige árvore limpa, nunca faz rebase/reset/force e **não** mescla em `axis`, não dá push
-de `axis` e não faz deploy. Em conflito ele para e lista os arquivos com os pontos do fork que
-costumam conflitar. Sem conflito, ele imprime o próximo passo:
+O script exige árvore limpa, nunca faz rebase/reset/force e **não** mescla em `main`, não dá push
+de `main` e não faz deploy (a antiga opção `--push-main` foi removida: ela empurrava o upstream para a
+`main` do fork). Em conflito ele para e lista os arquivos com os pontos do fork que costumam
+conflitar. Sem conflito, ele imprime o próximo passo:
 
 ```bash
 pnpm test:db                                   # se o upstream trouxe migration (sem rede: CONFERENCIA_KIT_RELEASE=vX.Y.Z)
-git switch axis && git merge --no-ff sync/upstream-AAAA-MM-DD
-git push origin axis
+git push -u origin merge/upstream-AAAA-MM-DD
+gh pr create -R axis-digital/DeskcommCRM --base main --head merge/upstream-AAAA-MM-DD
+# depois do merge do PR e do "Antes de atualizar a produção" abaixo:
 # rebuild das imagens :axis (app, worker — o scheduler segue a imagem publicada do upstream) e deploy com docker-compose.axis.yml
 ```
 
 Não há GitHub Action para isso de propósito: o fork herdaria os workflows do upstream.
+
+## Antes de atualizar a produção
+
+O deploy leva o banco junto: migrations chegam pelo `baseline.sql` no `update.sh`. Antes de subir qualquer
+imagem nova, **o dump lógico e o restore têm de ter sido provados**, não presumidos.
+
+O backup do host (timers `axis-backup-*`, `systemctl list-timers | grep axis-backup`) copia arquivos, e o
+diretório de dados do Postgres do Deskcomm (`.runtime/supabase/volumes/db/data`, bind mount) está dentro dele
+com o banco em uso. Isso não substitui um dump lógico.
+
+```bash
+# 1. dump lógico (somente leitura; permissão 600)
+umask 077; OUT=/root/backups/deskcomm/baseline-logico-$(date +%Y%m%d-%H%M).dump
+docker exec deskcommcrm-supabase-db-1 pg_dump -U postgres -d postgres -Fc --no-comments > "$OUT"
+docker exec -i deskcommcrm-supabase-db-1 pg_restore --list < "$OUT" | grep -c ' TABLE DATA '   # tem de ser > 0
+
+# 2. restore de ensaio num Postgres EFÊMERO da MESMA major da produção (select version() em prod), sem rede
+docker run -d --name deskcomm-restore-ensaio --network none -e POSTGRES_PASSWORD="$(openssl rand -hex 16)" supabase/postgres:<tag da mesma major>
+docker exec deskcomm-restore-ensaio psql -U supabase_admin -d postgres -c "create database restore_test"
+docker exec -i deskcomm-restore-ensaio pg_restore -U supabase_admin -d restore_test --no-comments < "$OUT"
+
+# 3. veredito pela CONFERÊNCIA DO RESULTADO (como o restore.sh do kit), não pelo exit code do pg_restore:
+#    contagem por tabela em produção x restaurado; as centrais têm de ser idênticas.
+docker rm -f deskcomm-restore-ensaio
+```
+
+Esperado no ensaio: erros de `role "..." does not exist` (donos e grants de papéis que só existem em
+produção, ex.: `supabase_realtime_admin`, `supabase_functions_admin`, `dlt_nuvemshop_ro`) e nenhum outro tipo.
+Tabelas com escrita contínua (`messages`, `event_log`, `api_audit_log`, `webhook_events_log`) diferem pela
+deriva entre o dump e a contagem, com o restaurado **menor** que a produção; diferença para o outro lado ou
+em tabela central é defeito. Um PG de major diferente da produção não é prova de restore.
 
 Pontos de atenção no merge:
 
