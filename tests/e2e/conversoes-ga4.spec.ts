@@ -274,9 +274,9 @@ test("dono liga o GA4, testa a conexão, e o ganho chega ao GA4 com o client_id 
 
     // ── 5. Ganho no kanban, dreno, e o receptor recebe o evento ───────────
     await page.goto(`/app/pipelines/${nascimento.pipeline_default_id}`);
-    const card = page.getByRole("group", { name: `Lead: ${lead.title}`, exact: true });
+    const card = page.getByRole("group", { name: `Negócio: ${lead.title}`, exact: true });
     await expect(card, "o card do contato tem de estar no funil").toBeVisible({ timeout: 20_000 });
-    await card.getByRole("button", { name: "Ações do lead", exact: true }).click();
+    await card.getByRole("button", { name: "Ações do negócio", exact: true }).click();
     await page.getByRole("menuitem", { name: "Marcar como ganho", exact: true }).click();
     await expect
       .poll(

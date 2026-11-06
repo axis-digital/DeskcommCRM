@@ -170,7 +170,7 @@ test.describe("Funil: a aba abre o padrão e o dossiê responde a conversa", () 
     await page.waitForURL(new RegExp(`/app/pipelines/${funilId}$`), { timeout: 60_000 });
     const urlDoFunil = page.url();
 
-    await page.getByRole("group", { name: `Lead: ${TITULO_DO_NEGOCIO}` }).click();
+    await page.getByRole("group", { name: `Negócio: ${TITULO_DO_NEGOCIO}` }).click();
     const dossie = page.getByRole("dialog");
     const conversa = dossie.getByRole("region", { name: "Conversa" });
     await expect(conversa).toBeVisible({ timeout: 60_000 });
