@@ -92,9 +92,11 @@ digest. Sem migration e sem mudança de código: só a identidade do artefato.
 | Identidade | a imagem em uso passou a ter `RepoDigests`; `system_version` mostra `off_release=false` e a revisão `4483e76f0…`; o heartbeat do agente chegou depois da troca |
 | Persistência | `COMPOSE_EXTRA_FILES="docker-compose.axis.yml docker-compose.prod-ci.yml"` no `.env`, para que `up` feito pelo kit não volte às imagens `:axis` |
 
-O que **não** foi provado: telas logadas e envio pelo WhatsApp em produção (só saúde e rotas públicas) e o
-comportamento sob tráfego (a troca foi de madrugada). `compare_failed=true` continua, porque o fork não tem GitHub
-Release (ver a seção do `agent.sh`).
+Confirmado pelo dono depois da troca (2026-11-06): a **inbox de produção funciona** com as imagens do CI.
+
+O que **não** foi provado: as demais telas logadas, o envio de mensagem pelo WhatsApp (não consta que tenha sido
+testado) e o comportamento sob tráfego (a troca foi de madrugada). `compare_failed=true` continua, porque o fork
+não tem GitHub Release (ver a seção do `agent.sh`).
 
 Dívidas conhecidas: o override `docker-compose.prod-ci.yml` existe só no host (não versionado) e se perde se o
 diretório for recriado; o `.env` de produção ainda cita `APP_IMAGE` e `WORKER_IMAGE` do upstream (valores inertes,
