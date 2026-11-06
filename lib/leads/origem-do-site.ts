@@ -209,13 +209,21 @@ export function extrairOrigemDaPagina(texto: string | null | undefined): OrigemD
  * do titular. Quem carimba um contato que já tem `source` passa o que ele tem.
  * `via` registra por onde a origem foi lida (`origem_via`), para a ficha e a
  * auditoria distinguirem o marcador do WhatsApp do pedido da loja.
+ *
+ * `opcoes.inferencia` marca a origem que NÃO veio de um código no texto, e sim do
+ * horário de um clique sem dono (`lib/leads/origem-por-horario.ts`). Ela vira
+ * `origem_inferida_por` no metadata, para a ficha dizer que é dedução.
  */
 export async function estamparOrigemDaPagina(
   admin: Admin,
   organizationId: string,
   contactId: string,
   origem: OrigemDaPagina,
-  opcoes: { fonte?: string; via?: string } = {},
+  opcoes: {
+    fonte?: string;
+    via?: string;
+    inferencia?: { inferidaPor: "horario"; sourceAnterior: string | null };
+  } = {},
 ): Promise<boolean> {
   const { error } = await admin.rpc("fn_estampar_atribuicao_de_anuncio", {
     p_org: organizationId,
@@ -227,6 +235,14 @@ export async function estamparOrigemDaPagina(
       origem: "site",
       origem_capturada_em: origem.capturadaEm,
       ...(opcoes.via ? { origem_via: opcoes.via } : {}),
+      // `origem_inferida_source_anterior` é o que a origem deduzida desfeita devolve ao contato
+      // (`desfazerOrigemDeduzida`): a estampa troca `source` para "site".
+      ...(opcoes.inferencia
+        ? {
+            origem_inferida_por: opcoes.inferencia.inferidaPor,
+            origem_inferida_source_anterior: opcoes.inferencia.sourceAnterior,
+          }
+        : {}),
       ...origem.utm,
     },
   });
