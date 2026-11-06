@@ -143,6 +143,50 @@ Para repetir a leitura da identidade: com uma sessão de super-admin, `GET /api/
 `identity.status`, `identity.revision`, `identity.customized` e `runtime_services[*].revision`. Para voltar o staging
 ao estado anterior, apague o override e suba os serviços sem ele (as imagens `:staging` e a `1.74.0` seguem no host).
 
+### Promoção do staging para a `main` nova (2026-11-06)
+
+Staging promovido para o commit `40c6faec7` (PR #62, sync da upstream v1.102.0) **por digest**, com as imagens que o
+CI publicou para esse commit. **A produção não foi tocada** (`deskcommcrm-*` segue como estava; nenhum `update.sh`,
+nenhum "Atualizar agora").
+
+| Passo | Resultado medido |
+|---|---|
+| Imagens (labels `org.opencontainers.image.revision` = `40c6faec7dd8…`) | app `sha256:c5327964c9e14ea6bc689222f35e1e60d83e39d30a408e293b1e87287c2de9be`, worker `sha256:c5cb2bf5a521792a3dd41c0c6c675708b3f0f980a249efa0ab60b6650c91c9fd`, scheduler `sha256:559f630e76b8bb73cb0011dc0574ecf8bc00e4ad8dba2216c67a0fb1cd6186b4` |
+| Ponto de volta | dump lógico do banco do staging (`pg_restore -l`: 265 entradas de dados; 47 MB no banco) em `/root/backups/deskcomm/staging/`; tags `deskcomm-{app,worker,scheduler}:staging-pre-sync-1106` (imagens da 1.94.1); override anterior em `docker-compose.staging-ci.yml.bak-20261106` |
+| Composição | `docker-compose.staging-ci.yml` (só no host) reescrito com os três digests novos, somado a `prod`, `single-server` e `staging`; `config -q` OK |
+| Schema | `reaplicar_baseline` do kit com o `supabase/baseline.sql` de `40c6faec7`: **1 passada, 0 linhas de erro** (nem as benignas); traz a 9903 |
+| Checkout | `/root/projects/deskcomm-staging` movido de `4483e76f0` para `40c6faec7` (detached) |
+| Execução | `up -d --no-deps app worker scheduler` com `-p deskcomm-staging` |
+| Saúde | os três `healthy`, 0 reinícios; `APP_VERSION=40c6fae` nos três; `/` 200, `/app` 307, `/api/v1/health` 200 (Supabase, Redis e WAHA ok); `system_version.current_version=40c6faec7`; 0 linhas de log `error`/`fatal` no app |
+
+Prova pela tela (Chromium via Playwright, 1440×900; medidas por `getBoundingClientRect`, `getComputedStyle`, contagem de
+roles e captura de console/HTTP; evidência em `evidence/staging-sync-1106/`, dados brutos em `resultado.json` e
+`resultado-2.json`). Contas: um usuário admin da organização já onboardada e o admin da plataforma do staging.
+
+| Tela | Estado | Medido | Evidência |
+|---|---|---|---|
+| Ficha do negócio | **funciona** | 10 cards com nome acessível `Negócio: <título>` e 0 com `Lead: `; 10 botões `Ações do negócio`, 0 `Ações do lead`; a ficha abre (dialog 1152×900) com a seção "Dados do negócio". O "Negócio:" é o `aria-label` do card, não texto visível | `01-ficha-do-negocio.png` |
+| Admin | **funciona** | `/admin/dashboard` 200 (h1 "Dashboard", 19 itens de menu); `/admin/sistema` 200 (h1 "Recursos opcionais", 13 interruptores); 0 erros de console, 0 respostas ≥ 400 | `02a-…`, `02b-…` |
+| Editor de funil (`/app/settings/tenant/pipelines`) | **funciona** | título "Etapas do funil", 8 etapas com os nomes do funil Pedidos, 8 botões Arquivar, "Acrescentar etapa ao fim" e "Salvar estas escolhas" presentes; 0 erros. Não salvei nada | `03-editor-de-funil.png` |
+| Welcome (`/onboarding/welcome`) | **funciona** | com a organização ainda sem onboarding: título "Boas-vindas ao Axis CRM", 6 rótulos de etapa, botão "Continuar"; 0 erros. Com a organização já onboardada, a rota redireciona para `/app/inbox` (esperado) | `04-welcome.png` |
+| Cold Call | **funciona, mas só ligado** | módulo opcional, desligado por padrão: `/app/cold-call` devolve a tela 404 do app (desenho, #3933). Liguei o interruptor em `/admin/sistema` pela tela (`aria-checked` false→true, persistiu após reload): a página abre com h1 "Cold Call" e o botão "Criar funil de cold call", 0 erros. **Desliguei de novo**: o staging ficou como estava (`aria-checked=false`). Não criei funil nem importei lista. O link "Cold Call" não aparece no menu em nenhum dos dois estados medidos | `05a-…`, `05b-…`, `05c-…` |
+| Pino de localização GOWS | **funciona** | um webhook `message` com o payload GOWS (`_data.Info`/`Message.locationMessage`, `location`, `body` vazio) para o token da sessão: HTTP 200, linha em `messages` com `type=location` e `metadata.location` (nome, endereço, lat/lon); na tela o cartão (260×58) com o texto do pino, `href=https://maps.google.com/?q=-19.9167,-43.9345`, `target=_blank`, e o mesmo pino na ficha do negócio | `06-pino-de-localizacao-gows.png` |
+
+O que **não** foi provado:
+
+- O pino chegou por **webhook sintético** (sem assinatura, que o staging aceita porque `WAHA_WEBHOOK_REQUIRE_SIGNATURE=false`),
+  não de um aparelho com engine GOWS: prova a ingestão e a renderização, não a entrega real do WAHA. A sessão do staging é NOWEB.
+- Envio de mensagem pelo WhatsApp, o painel "Atualizar agora" e o comportamento sob tráfego.
+- O fluxo completo do Cold Call (criar funil, importar lista, ligar).
+
+Observações: o dossiê chama `GET /api/v1/proposals?lead_id=…` e recebe 404 porque a capacidade "propostas" está desligada
+nesta organização; a seção `PropostasDoNegocio` se oculta nesse caso (desenho desde 2026-09-27, não vem deste sync).
+Ficou no staging, por conta desta prova, o contato/negócio de teste "Prova Sync 0611" (+5531900001106) na organização principal.
+`system_version` no staging mostra `off_release=true` e `compare_failed=true`, como antes (o fork não tem GitHub Release).
+
+**Para voltar o staging:** apagar `docker-compose.staging-ci.yml` e subir `app worker scheduler` sem ele, ou apontar o
+override para as imagens `deskcomm-*:staging-pre-sync-1106`; o schema só volta restaurando o dump acima.
+
 ## O `agent.sh` do host (classificação medida em 2026-11-05)
 
 `hostgator-setup-kit/agent.sh` roda por cron a cada 5 minutos, em produção e no staging. Ele **não** é só um verificador

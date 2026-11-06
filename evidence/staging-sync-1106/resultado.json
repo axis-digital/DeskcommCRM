@@ -1,0 +1,99 @@
+{
+  "01-ficha-do-negocio": {
+    "nome": "01-ficha-do-negocio",
+    "veredito": "funciona",
+    "cards_negocio": 10,
+    "cards_com_rotulo_antigo_Lead": 0,
+    "exemplos": [
+      "Negócio: Prova Sync 0611",
+      "Negócio: Clara",
+      "Negócio: +5585992706000"
+    ],
+    "botoes_acoes_do_negocio": 10,
+    "botoes_acoes_do_lead": 0,
+    "ficha_aberta": 1,
+    "secao_dados_do_negocio": 1,
+    "caixa_da_ficha": {
+      "x": 288,
+      "y": 0,
+      "w": 1152,
+      "h": 900
+    },
+    "fonte_secao": "12px 500",
+    "console_errors": [
+      "Failed to load resource: the server responded with a status of 404 ()"
+    ],
+    "http_4xx_5xx": [
+      "404 /api/v1/proposals?lead_id=6651b4c6-9f48-4ab8-b41e-967a4d4a6685"
+    ]
+  },
+  "03-editor-de-funil": {
+    "nome": "03-editor-de-funil",
+    "veredito": "funciona (o \"quebrada\" do 1º passe era seletor errado do script, colunas=0; refeito em resultado-2.json: 8 etapas)",
+    "http": 200,
+    "titulo_visivel": true,
+    "colunas": 0,
+    "nomes": [],
+    "botoes_mover": 16,
+    "console_errors": [],
+    "http_4xx_5xx": []
+  },
+  "05a-cold-call-desligado": {
+    "nome": "05a-cold-call-desligado",
+    "veredito": "esperado: módulo opcional desligado por padrão (404 é o desenho)",
+    "http": 200,
+    "texto": "404 — Página não encontrada | Verifique o link ou volte pra inbox. | Voltar | Voltar pra Inbox",
+    "link_no_menu": 0,
+    "console_errors": [],
+    "http_4xx_5xx": []
+  },
+  "06-pino-de-localizacao-gows": {
+    "nome": "06-pino-de-localizacao-gows",
+    "veredito": "funciona",
+    "cartoes_de_pino": 1,
+    "texto": "Praça Sete (prova sync 06/11) — Belo Horizonte, MG",
+    "href": "https://maps.google.com/?q=-19.9167,-43.9345",
+    "target": "_blank",
+    "caixa_do_cartao": {
+      "x": 564,
+      "y": 268,
+      "w": 260,
+      "h": 58
+    },
+    "console_errors": [],
+    "http_4xx_5xx": []
+  },
+  "02a-admin-dashboard": {
+    "nome": "02a-admin-dashboard",
+    "veredito": "funciona",
+    "http": 200,
+    "url": "https://staging.deskcomm.axisaceleradora.com.br/admin/dashboard",
+    "h1": "Dashboard",
+    "itens_de_menu": 19,
+    "console_errors": [],
+    "http_4xx_5xx": []
+  },
+  "02b-admin-sistema": {
+    "nome": "02b-admin-sistema",
+    "veredito": "funciona",
+    "http": 200,
+    "h1": "Recursos opcionais",
+    "interruptores": 13,
+    "interruptor_cold_call": 1,
+    "console_errors": [],
+    "http_4xx_5xx": []
+  },
+  "04-welcome": {
+    "nome": "04-welcome",
+    "veredito": "funciona",
+    "http": 200,
+    "url": "https://staging.deskcomm.axisaceleradora.com.br/onboarding/welcome",
+    "titulo_boas_vindas": 1,
+    "rotulos_das_6_etapas": 6,
+    "botoes": [
+      "Continuar"
+    ],
+    "console_errors": [],
+    "http_4xx_5xx": []
+  }
+}
