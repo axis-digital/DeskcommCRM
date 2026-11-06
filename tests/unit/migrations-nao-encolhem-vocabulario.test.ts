@@ -65,6 +65,30 @@ const DIR_MIGRATIONS = path.join(process.cwd(), "supabase", "migrations");
  * dado existente faz o `update.sh` de um clone quebrar no meio.
  */
 const REMOCOES_DELIBERADAS: Record<string, { valores: string[]; porque: string }> = {
+  "20261027170000_9027_assinatura_desconectada_na_central.sql::agent_inbox_items_kind_check": {
+    valores: ["integracao_desautorizada"],
+    porque:
+      "O ENCONTRO de duas linhas de trabalho, igual ao da 0655: a 9005 (Nuvemshop, " +
+      "exclusiva do fork) acrescentou `integracao_desautorizada`, e a 9027 da " +
+      "upstream reconstruiu a constraint a partir da lista que ENXERGAVA, sem o valor " +
+      "do fork. Na `main` da upstream ela não remove nada; o buraco só existe na " +
+      "árvore do fork. A forward-fix é a 9903 " +
+      "(`inbox_kind_mantem_integracao_desautorizada_pos_sync`), que repete a lista da " +
+      "9033 com o valor do fork — o estado FINAL da cadeia tem o valor de volta. " +
+      "Migration aplicada não se edita.",
+  },
+  "20261028224500_9033_recuperar_mensagens_da_queda.sql::agent_inbox_items_kind_check": {
+    valores: ["integracao_desautorizada"],
+    porque:
+      "O ENCONTRO de duas linhas de trabalho, igual ao da 0655: a 9005 (Nuvemshop, " +
+      "exclusiva do fork) acrescentou `integracao_desautorizada`, e a 9033 da " +
+      "upstream reconstruiu a constraint a partir da lista que ENXERGAVA, sem o valor " +
+      "do fork. Na `main` da upstream ela não remove nada; o buraco só existe na " +
+      "árvore do fork. A forward-fix é a 9903 " +
+      "(`inbox_kind_mantem_integracao_desautorizada_pos_sync`), que repete a lista da " +
+      "9033 com o valor do fork — o estado FINAL da cadeia tem o valor de volta. " +
+      "Migration aplicada não se edita.",
+  },
   "20261019000002_0655_avisos_de_tarefa_na_central.sql::agent_inbox_items_kind_check": {
     valores: ["integracao_desautorizada"],
     porque:
@@ -196,9 +220,7 @@ describe("a cadeia de migrations não encolhe vocabulário de CHECK", () => {
       const anterior = acumulado.get(r.constraint);
       if (anterior !== undefined) {
         const liberado = REMOCOES_DELIBERADAS[`${r.arquivo}::${r.constraint}`]?.valores ?? [];
-        const sumiram = [...anterior].filter(
-          (v) => !r.valores.has(v) && !liberado.includes(v),
-        );
+        const sumiram = [...anterior].filter((v) => !r.valores.has(v) && !liberado.includes(v));
         if (sumiram.length > 0) {
           perdas.push(
             `${r.arquivo} reconstrói ${r.constraint} e perde: ${sumiram.sort().join(", ")}`,
@@ -238,10 +260,9 @@ describe("a cadeia de migrations não encolhe vocabulário de CHECK", () => {
   it("toda remoção liberada tem justificativa escrita", () => {
     for (const [chave, entrada] of Object.entries(REMOCOES_DELIBERADAS)) {
       expect(entrada.valores.length, `${chave} libera nada`).toBeGreaterThan(0);
-      expect(
-        entrada.porque.trim().length,
-        `${chave} não diz por que o valor saiu`,
-      ).toBeGreaterThan(30);
+      expect(entrada.porque.trim().length, `${chave} não diz por que o valor saiu`).toBeGreaterThan(
+        30,
+      );
     }
   });
 });

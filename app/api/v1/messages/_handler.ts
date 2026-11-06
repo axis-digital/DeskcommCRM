@@ -8,7 +8,9 @@ import {
 } from "@/lib/ai/replies/delivery";
 import { assertMeetingDeliverySupabase } from "@/lib/agenda/meet-delivery";
 import { AgendaDeferredError } from "@/lib/agenda/protecao-followup";
+import { AgendaPuladoError, MOTIVO_DO_PULO } from "@/lib/agenda/escolha-no-envio";
 import { assertAgendaEffectSupabase, guardAgendaEffect } from "@/lib/agenda/efeito";
+import { CHAVE_DO_PULO, retratoDoPulo } from "@/lib/inbox/pulo-da-agenda";
 import { mesmaFronteira, StaleServiceBoundaryError } from "@/lib/atendimento/fronteira";
 import { assertServiceBoundarySupabase } from "@/lib/atendimento/origem";
 import {
@@ -30,7 +32,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { ApiError } from "@/lib/api/types";
 import { decidirPreGoLiveDoCanalViaSupabase } from "@/lib/ai/elegibilidade/consulta-pre-go-live";
 import type { Actor, HandlerCtx } from "@/lib/api/handlers/types";
-import { audit } from "@/lib/audit";
+import { audit, isServiceRoleConfigured } from "@/lib/audit";
 import { traduzir } from "@/lib/i18n/dicionario";
 import { assertOrgOperante } from "@/lib/organizacao/operante";
 import {
@@ -42,10 +44,13 @@ import {
 } from "@/lib/channels";
 import { ARCHIVED_AT, queryTolerantToMissingArchived } from "@/lib/channels/archived";
 import { canalDesativado } from "@/lib/channels/desativado";
+import { botoesDaDefinicao } from "@/lib/channels/botoes-da-definicao";
 import { conferirDefinicao } from "@/lib/channels/conferir-definicao";
+import { CHAVE_DOS_BOTOES_DO_MODELO } from "@/lib/messaging/botoes-do-modelo";
 import { estadoDaJanela } from "@/lib/channels/janela";
 import { isMediaPathOwnedBy } from "@/lib/messaging/media/upload-validation";
 import { assertUrlDeMidiaSegura } from "@/lib/messaging/media/url-de-midia-externa";
+import { semChavesDaDerivacao } from "@/lib/messaging/media/leitura-adiada";
 import {
   buildVcard,
   normalizePhoneForDisplay,
@@ -55,7 +60,10 @@ import {
 import type { ListMessagesQuery, SendMessageInput } from "@/lib/schemas";
 import { sendTemplateForSession } from "@/lib/channels/meta/send-template-for-session";
 import {
+  CODIGO_NUMERO_DE_OUTRO,
+  conversaQueContinua,
   MENSAGEM_DO_NUMERO,
+  mensagemDaContinua,
   quadroDoNumero,
   vereditoDoNumero,
 } from "@/lib/channels/numero-do-atendente";
@@ -215,7 +223,7 @@ export function origemDaMensagem(actor: Actor): "user" | "ai" | "automation" | "
 }
 
 const MSG_COLS =
-  "id, organization_id, conversation_id, channel_session_id, contact_id, external_id, type, direction, status, ack, error_code, error_message, body, media_url, media_mime, media_size_bytes, media_storage_path, media_derived_text, media_derived_status, sent_via, sent_by_user_id, sent_on_behalf_of_user_id, sent_at, delivered_at, read_at, metadata, edited_at, revoked_at, reply_to_message_id, created_at, updated_at";
+  "id, organization_id, conversation_id, channel_session_id, contact_id, external_id, type, direction, status, ack, error_code, error_message, body, media_url, media_mime, media_size_bytes, media_storage_path, media_derived_text, media_derived_status, sent_via, sent_by_user_id, sent_on_behalf_of_user_id, sent_at, delivered_at, read_at, metadata, edited_at, revoked_at, reply_to_message_id, created_at, template_name, template_language, updated_at";
 
 /**
  * `Actor.type` → o vocabulário de `messages.sent_via` (o CHECK da coluna:
@@ -604,12 +612,43 @@ export async function sendMessageHandler(
     }
     const veredito = vereditoDoNumero(numero.quadro);
     if (!veredito.ok) {
+      // #3732: a recusa diz PARA ONDE IR. No caso que a issue mediu a conversa
+      // já é de quem está tentando responder — ela não pôde seguir o vendedor
+      // porque o contato tem outra conversa no número dele —, e mandar
+      // "transfira para você" de novo seria pedir o que já foi feito. O banco
+      // responde qual conversa continua (`fn_conversa_que_continua`, a MESMA
+      // peça que a adoção da transferência usa); a tela abre essa conversa e
+      // trava a caixa de resposta.
+      //
+      // Service role porque a conversa nova pode estar com outra pessoa: com a
+      // RLS de quem envia a leitura viria vazia justamente no caso em que o
+      // aviso mais importa. Falha aqui não muda a recusa — só o texto dela.
+      const continua =
+        veredito.codigo === CODIGO_NUMERO_DE_OUTRO && isServiceRoleConfigured()
+          ? await conversaQueContinua(createAdminClient(), {
+              organizationId: ctx.organization_id,
+              conversationId: input.conversation_id,
+              userId: ctx.actor.id,
+            })
+          : null;
+
+      // Traduz UMA vez: quando há continuação, a frase vem do modelo já
+      // traduzido (`mensagemDaContinua`), com o nome colado depois.
+      const mensagem = continua
+        ? mensagemDaContinua(continua, (texto) => traduzir(texto, ctx.idioma ?? "pt-BR"))
+        : traduzir(MENSAGEM_DO_NUMERO[veredito.codigo], ctx.idioma ?? "pt-BR");
+
       throw new ApiError(
         409,
         veredito.codigo,
-        { channel_session_id: c.channel_session_id },
+        {
+          channel_session_id: c.channel_session_id,
+          ...(continua
+            ? { conversa_que_continua: { id: continua.id, nome: continua.nome, propria: continua.propria } }
+            : {}),
+        },
         ctx.requestId,
-        traduzir(MENSAGEM_DO_NUMERO[veredito.codigo], ctx.idioma ?? "pt-BR"),
+        mensagem,
       );
     }
   }
@@ -737,7 +776,7 @@ export async function sendMessageHandler(
     if (coberta) {
       let nomeDoAtendente: string | null = null;
       if (origemDoEmissor === "user" && ctx.actor.type === "user") {
-        nomeDoAtendente = (await nomesDosAtendentes([ctx.actor.id])).get(ctx.actor.id) ?? null;
+        nomeDoAtendente = (await nomesDosAtendentes(ctx.organization_id, [ctx.actor.id])).get(ctx.actor.id) ?? null;
       }
       // #3310: com `por_agente` ligado, a IA assina com o nome do AGENTE QUE
       // ENVIOU (`ai_agents.name`) — com dois agentes no mesmo número, o cliente
@@ -915,6 +954,21 @@ export async function sendMessageHandler(
     );
   }
 
+  // Os BOTÕES que o modelo leva ao cliente, gravados na própria linha: o balão
+  // mostra o que o cliente recebeu, e não faz join (`lib/messaging/botoes-do-modelo.ts`).
+  // Lidos do espelho da definição — nunca do `metadata` de entrada, que é do
+  // cliente da API — e sem barrar nada: é dado de exibição.
+  const { [CHAVE_DOS_BOTOES_DO_MODELO]: _botoesDoCliente, ...metadataDeEntrada } = input.metadata ?? {};
+  const botoesDoModeloEnviado =
+    input.type === "template"
+      ? await botoesDaDefinicao(supabase, {
+          organizationId: ctx.organization_id,
+          channelSessionId: c.channel_session_id ?? null,
+          name: input.template_name ?? "",
+          language: input.template_language ?? "",
+        })
+      : [];
+
   const insertRow = {
     ...(ctx.internalMessageId ? { id: ctx.internalMessageId } : {}),
     organization_id: c.organization_id,
@@ -932,6 +986,13 @@ export async function sendMessageHandler(
     media_mime: input.media_mime ?? null,
     media_storage_path: input.media_storage_path ?? null,
     media_size_bytes: input.media_size_bytes ?? null,
+    // Fase 6a do plano de voz: o texto ORIGINAL de uma nota de voz, para a
+    // thread continuar legível depois que `body` deixou de ser o que o
+    // cliente lê. Ver o comentário de `aiVoiceDerivedText` em `HandlerCtx` —
+    // nunca vem do corpo da requisição.
+    ...(ctx.aiVoiceDerivedText
+      ? { media_derived_text: ctx.aiVoiceDerivedText, media_derived_status: "ready" }
+      : {}),
     sent_via: origemDaMensagem(ctx.actor),
     sent_by_user_id: ctx.actor.type === "user" ? ctx.actor.id : null,
     // A PESSOA, não o token (#1613). Só chega aqui pelo ctx validado na rota
@@ -939,9 +1000,13 @@ export async function sendMessageHandler(
     sent_on_behalf_of_user_id: ctx.onBehalfOf?.userId ?? null,
     sent_at: now,
     metadata: {
-      ...(input.metadata ?? {}),
+      // As chaves da derivação de mídia (âncora do dreno, marca de foto adiada)
+      // são do servidor: o dreno converte a âncora em data e o cron pede visão
+      // paga pela marca. O cliente não as forja — ver `CHAVES_DA_DERIVACAO`.
+      ...semChavesDaDerivacao(metadataDeEntrada),
       ...(ctx.actor.type === "ai_agent" ? { ai_actor_id: ctx.actor.id } : {}),
       ...(origemDoEmissor === "ai" ? { ai_actor_name: nomeDoAgente } : {}),
+      ...(botoesDoModeloEnviado.length > 0 ? { [CHAVE_DOS_BOTOES_DO_MODELO]: botoesDoModeloEnviado } : {}),
       // Os dois nomes viajam GRAVADOS porque o balão não faz join: "Fulano ·
       // via {token}" é desenhado da própria linha. Vêm DEPOIS de
       // `input.metadata` de propósito — metadata é entrada do cliente, e
@@ -1363,6 +1428,60 @@ export async function sendMessageHandler(
       if (updated) message = updated as unknown as Message;
       }
     } catch (err) {
+      if (err instanceof AgendaPuladoError) {
+        // O pulo por compromisso chega aqui pelo recheck do corte, DEPOIS do
+        // INSERT: relançar com a linha em `queued` deixava o redrive do
+        // watchdog (`redriveQueued`) mandá-la pelo canal — o que o operador
+        // escolheu NÃO mandar. A linha sai de `queued` como os bloqueios do
+        // watchdog saem (`pre_go_live`, `channel_disabled`); só se ainda estiver
+        // lá, para não rebaixar um `sent`.
+        //
+        // O RETRATO do compromisso vai no mesmo UPDATE (#3848): o código diz que
+        // foi um pulo, não diz QUAL compromisso barrou, e a Inbox mostra o selo
+        // com o motivo e o compromisso. A leitura do título é best-effort — se
+        // falhar, o selo aparece sem ele; o que não pode é a linha continuar em
+        // `queued` por causa de uma leitura acessória.
+        const protecao = err.protection;
+        let titulo: string | null = null;
+        if (protecao.appointment_id) {
+          // `try` porque esta leitura não decide nada: o que decide é o UPDATE
+          // abaixo, e um erro aqui (tabela ausente num clone antigo, dublê sem o
+          // método) não pode deixar a linha em `queued` — seria justamente o
+          // pedido de reenvio que este ramo existe para evitar.
+          try {
+            const { data: compromisso } = await supabase
+              .from("calendar_appointments")
+              .select("title")
+              .eq("organization_id", ctx.organization_id)
+              .eq("id", protecao.appointment_id)
+              .maybeSingle();
+            titulo = (compromisso as { title?: string | null } | null)?.title ?? null;
+          } catch {
+            titulo = null;
+          }
+        }
+        await supabase
+          .from("messages")
+          .update({
+            status: "failed",
+            error_code: MOTIVO_DO_PULO,
+            error_message: "Não enviada: o contato tem horário marcado e o fluxo está configurado para não enviar.",
+            metadata: {
+              ...((message.metadata ?? {}) as Record<string, unknown>),
+              [CHAVE_DO_PULO]: retratoDoPulo({
+                appointment_id: protecao.appointment_id,
+                motivo: protecao.motivo,
+                titulo,
+              }),
+            },
+          })
+          .eq("id", message.id)
+          .eq("organization_id", ctx.organization_id)
+          .eq("status", "queued")
+          .select("id")
+          .maybeSingle();
+        throw err;
+      }
       if (err instanceof StaleServiceBoundaryError || err instanceof AgendaDeferredError || err instanceof ApprovedReplyReceiptPersistenceError) throw err;
       const msg = err instanceof Error ? err.message : adapter.codes.unknownError;
       // `storage_sign_failed` fica literal: é falha do NOSSO Storage, não do

@@ -140,6 +140,10 @@ import {
   type LucideProps,
   Link as LinkLucide,
   ShoppingCart as ShoppingCartLucide,
+  Flame as FlameLucide,
+  Voicemail as VoicemailLucide,
+  AudioWaveform as AudioWaveformLucide,
+  CircleX as CircleXLucide,
 } from "lucide-react";
 
 export type AxisIconWeight = "thin" | "light" | "regular" | "duotone" | "bold" | "fill";
@@ -235,6 +239,11 @@ export const BellSlash = /* @__PURE__ */ axisIcon(BellOffLucide, "BellSlash");
 export const EnvelopeSimple = /* @__PURE__ */ axisIcon(MailLucide, "EnvelopeSimple");
 export const PaperPlaneTilt = /* @__PURE__ */ axisIcon(SendLucide, "PaperPlaneTilt");
 export const Smiley = /* @__PURE__ */ axisIcon(SmileLucide, "Smiley");
+// cold call (upstream): temperatura do lead, caixa postal, linha ativa, sem interesse
+export const Fire = /* @__PURE__ */ axisIcon(FlameLucide, "Fire");
+export const Voicemail = /* @__PURE__ */ axisIcon(VoicemailLucide, "Voicemail");
+export const Waveform = /* @__PURE__ */ axisIcon(AudioWaveformLucide, "Waveform");
+export const XCircle = /* @__PURE__ */ axisIcon(CircleXLucide, "XCircle");
 export const Check = /* @__PURE__ */ axisIcon(CheckLucide, "Check");
 export const Checks = /* @__PURE__ */ axisIcon(CheckCheckLucide, "Checks");
 export const DollarSign = /* @__PURE__ */ axisIcon(DollarSignLucide, "DollarSign");

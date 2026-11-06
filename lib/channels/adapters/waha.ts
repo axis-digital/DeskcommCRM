@@ -12,6 +12,7 @@ import { wahaSendPlanFor } from "@/lib/waha/media-send";
 import { reescreverOrigemDaMidia } from "@/lib/waha/media-url";
 import { baseDoStorage } from "@/lib/branding/logo";
 import {
+  numeroTemContaNoWhatsapp,
   resolveCanonicalCusChatId,
   resolvePhoneJidDigitsForCall,
   resolveWhatsappIdForContactCard,
@@ -156,6 +157,16 @@ export const wahaAdapter: ChannelAdapter = {
     const client = getWahaClient();
     if (!client) return null;
     return resolvePhoneJidDigitsForCall(client, input.sessionRef, input.phone);
+  },
+
+  /**
+   * `check-exists` em todas as grafias; transporte não configurado é `null`
+   * ("não deu para saber"), nunca `false`.
+   */
+  async numeroTemConta(input: { sessionRef: string; phone: string }): Promise<boolean | null> {
+    const client = getWahaClient();
+    if (!client) return null;
+    return numeroTemContaNoWhatsapp(client, input.sessionRef, input.phone);
   },
 
   /**

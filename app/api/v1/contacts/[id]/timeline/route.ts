@@ -229,7 +229,9 @@ export async function GET(
   // O nome do ator só se resolve para as ATIVIDADES (`lead_id` presente): o
   // pedido já sai pronto, com o cliente como ator e sem ninguém a consultar.
   const atividadesDaPagina = pageRows.filter((r): r is TimelineItem => r.lead_id !== null);
-  const nomeadas = new Map((await comNomeDoAtor(supabase, atividadesDaPagina)).map((r) => [r.id, r]));
+  const nomeadas = new Map(
+    (await comNomeDoAtor(supabase, contactRow.organization_id, atividadesDaPagina)).map((r) => [r.id, r]),
+  );
   const page = pageRows.map((r) => nomeadas.get(r.id) ?? r);
   const last = page[page.length - 1];
   const nextCursor =

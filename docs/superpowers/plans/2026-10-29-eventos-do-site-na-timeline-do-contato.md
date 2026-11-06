@@ -112,7 +112,7 @@ Projeção de `orders` em `GET /api/v1/contacts/[id]/timeline`; módulo puro `li
 - [x] **Carrinho abandonado:** a reconciliação lê até 5 páginas de 200 (não há webhook, a API não filtra por data e o carrinho pode aparecer até 6 horas depois, então um cursor por id pularia atrasados); a chave do fato evita duplicata e o que já está gravado custa uma consulta. Carrinho que virou pedido não conta. O token e a URL do checkout nunca são guardados.
 - [x] **Timeline do contato** soma `site_events` à projeção de pedidos (mesma rota, mesmo cursor, filtro `?type=`); a tela escreve "Cadastro na loja" e "Carrinho abandonado · R$ … · N itens".
 - [x] **LGPD:** a cópia dos dados do titular inclui os eventos (`site_events` no `data.json`); o teste congelado do `data.json` do Brasil ganhou um auxiliar que declara a chave como aditiva deste fork, sem tocar nas fixtures "antes do doc 88".
-- [x] Tradução (es/en), fragmento `.changes/`, mapa `nuvemshop-sync.architecture.json`, jornada J58.
+- [x] Tradução (es/en), fragmento `.changes/`, mapa `nuvemshop-sync.architecture.json`, jornada J68 (era J58 antes do sync de 2026-11-06).
 - [x] Invariante de banco da tabela (16 casos, com `authenticated` de verdade) e a suíte de banco.
 
 **O que a etapa 1 NÃO provou (declarado):**

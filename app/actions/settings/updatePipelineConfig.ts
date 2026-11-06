@@ -7,10 +7,7 @@ import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { audit } from "@/lib/audit";
 import { respostaParaOperador } from "@/lib/erros/para-operador";
-import {
-  pipelineConfigPatchSchema,
-  type PipelineConfigPatch,
-} from "@/lib/schemas/settings";
+import { pipelineConfigPatchSchema, type PipelineConfigPatch } from "@/lib/schemas/settings";
 import { loadAuthUser, mfaEmDivida, resolveActiveOrg } from "@/lib/auth/server";
 import { podeAdministrarEmpresa } from "@/lib/auth/pode-administrar-empresa";
 import {
@@ -19,8 +16,7 @@ import {
 } from "@/lib/automation/campo-do-gatilho-de-data";
 
 export type UpdatePipelineConfigResult =
-  | { ok: true }
-  | { ok: false; error: string; details?: unknown };
+  { ok: true } | { ok: false; error: string; details?: unknown };
 
 export async function updatePipelineConfig(
   pipelineId: string,
@@ -87,6 +83,12 @@ export async function updatePipelineConfig(
   // "Sem objetivo" tira só a chave — as demais de `settings` ficam como estão.
   if (parsed.data.objetivo === null) delete nextSettings.objetivo;
   else if (parsed.data.objetivo !== undefined) nextSettings.objetivo = parsed.data.objetivo;
+  // #4076 — a janela em que o perdido recente volta a ser o MESMO card. `0` é
+  // o desligado e vai como veio: pular o zero deixaria a janela antiga gravada
+  // e quem desmarcasse a opção continuaria reabrindo card.
+  if (parsed.data.reabrir_perdido_dias !== undefined) {
+    nextSettings.reabrir_perdido_dias = parsed.data.reabrir_perdido_dias;
+  }
   // A entrada do Inbox (issue #3011): a ETAPA em que a conversa nova vira card
   // neste funil. Grava o bloco inteiro, e não campo a campo, porque `ativa` e
   // `stage_id` são uma decisão só — desligar sem perder a etapa escolhida é o
@@ -155,6 +157,9 @@ export async function updatePipelineConfig(
       reabertura: parsed.data.reabertura ?? null,
       // Só quando o patch mexeu no objetivo; `null` aqui é "tirou o objetivo".
       ...(parsed.data.objetivo !== undefined ? { objetivo: parsed.data.objetivo } : {}),
+      // #4076: a janela (ou `0`, o desligamento) — decisão de quem opera, e o
+      // efeito dela é reabrir card existente, então fica registrado.
+      reabrir_perdido_dias: parsed.data.reabrir_perdido_dias ?? null,
       entrada_do_inbox_ativa: parsed.data.entrada_do_inbox?.ativa ?? null,
       // #2995: quantos cards o quadro deixa de mostrar é decisão de quem opera
       // — a auditoria registra o número (ou `0`, o desligamento).
