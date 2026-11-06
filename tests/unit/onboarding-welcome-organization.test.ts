@@ -34,6 +34,8 @@ function form(org: string | null = A) {
   d.set("display_name", "Empresa A");
   d.set("o_que_faz", "Serviços de teste");
   d.set("timezone", "America/Sao_Paulo");
+  // Perfil de negócio do fork: ao menos um objetivo é obrigatório.
+  d.append("objetivos", "captar_lead");
   return d;
 }
 beforeEach(() => {
@@ -67,7 +69,8 @@ describe("welcome preserva organização e condição atômica do wizard", () =>
           o_que_faz: "Serviços de teste",
         }),
       }),
-      { display_name: "Empresa A", timezone: "America/Sao_Paulo" },
+      // `objectContaining`: o fork grava também `settings.perfil_de_negocio`.
+      expect.objectContaining({ display_name: "Empresa A", timezone: "America/Sao_Paulo" }),
       { soNoWizard: true },
     );
     expect(f.audit).toHaveBeenCalledWith(

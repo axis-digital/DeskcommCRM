@@ -19,7 +19,9 @@ it.each([
     fireEvent.change(screen.getByLabelText("O que vocês fazem?"), {
       target: { value: "Serviços de teste" },
     });
-    fireEvent.click(screen.getByRole("checkbox"));
+    // O fork pede perfil de negócio no welcome: o aceite é a caixa de id `aceite_termos`.
+    fireEvent.click(container.querySelector("#aceite_termos")!);
+    fireEvent.click(screen.getByLabelText("Captar contatos interessados"));
     fireEvent.submit(container.querySelector("form")!);
     await waitFor(() => expect(f.accept).toHaveBeenCalled());
     const submitted = f.accept.mock.calls[0]?.[0] as FormData;

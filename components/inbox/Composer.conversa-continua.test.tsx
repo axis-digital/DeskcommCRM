@@ -17,6 +17,7 @@
  *  3. CONTROLE: a recusa SEM destino (o detalhe não veio) não monta faixa
  *     nenhuma — a guarda do número continua respondendo como antes.
  */
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { fireEvent, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
@@ -112,9 +113,11 @@ function recusaComContinua(nome: string | null, propria = false) {
 }
 
 function renderComposer(onAbrirConversa: (id: string) => void = vi.fn()) {
-  const vista = render(
-    <Composer conversationId={CONVERSA} onAbrirConversa={onAbrirConversa} />,
-  );
+  // O Composer do fork lê o QueryClient (bolha otimista do envio).
+  const qc = new QueryClient();
+  const vista = render(<Composer conversationId={CONVERSA} onAbrirConversa={onAbrirConversa} />, {
+    wrapper: ({ children }) => <QueryClientProvider client={qc}>{children}</QueryClientProvider>,
+  });
   return { ...vista, onAbrirConversa };
 }
 

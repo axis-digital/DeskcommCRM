@@ -32,7 +32,7 @@ vi.mock("@/components/voice/VoiceCallContext", () => ({
   useVoiceCall: () => ({ call: null, startCall: vi.fn(), hangUp: vi.fn(), ultimoFim: null }),
 }));
 // O ImportarLeads de verdade sobe arquivo; aqui ele é só o botão que avisa "importei".
-vi.mock("@/app/app/kanban/_components/ImportarLeads", () => ({
+vi.mock("@/app/app/kanban/funis/_components/ImportarLeads", () => ({
   ImportarLeads: ({ onImportado }: { onImportado?: () => void }) => (
     <button type="button" onClick={() => onImportado?.()}>
       importar-falso

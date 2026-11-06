@@ -10444,6 +10444,8 @@ alter table public.agent_inbox_items
     'integracao_desautorizada',
     -- (migration 9006) forward-fix: a 0655 reconstruiu esta lista sem o valor acima
     -- (9005, fork). A lista deste bloco é a canônica; a 9006 a repete inteira.
+    -- (migration 9903) mesmo forward-fix depois do sync de 2026-11-06: a 9027 e a
+    -- 9033 da upstream também a reconstroem sem o valor; a 9903 repete esta lista.
     -- (migration 0655, issue #2529) A tarefa vencida só aparecia em vermelho
     -- para quem ABRIA a lista de tarefas: quem não abria perdia o prazo em
     -- silêncio. O cron `task-reminder` varre `crm_tasks` com prazo na janela e
