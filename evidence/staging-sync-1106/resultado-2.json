@@ -1,0 +1,45 @@
+{
+  "editor": {
+    "veredito": "funciona",
+    "http": 200,
+    "titulo": true,
+    "etapas_arquivar": 8,
+    "nomes_das_etapas": [
+      "Carrinho abandonado",
+      "Aguardando pagamento",
+      "Pago",
+      "Em separação",
+      "Enviado",
+      "Entregue",
+      "Pós-venda",
+      "Cancelado"
+    ],
+    "botao_salvar": 1,
+    "botao_acrescentar": 1,
+    "caixa_primeira_linha": {
+      "x": 366,
+      "y": 598,
+      "w": 408,
+      "h": 40
+    },
+    "console_errors": [],
+    "http_4xx_5xx": []
+  },
+  "cold_antes": "false",
+  "cold_depois_de_clicar": "true",
+  "cold_apos_reload": "true",
+  "admin_probe": {
+    "console_errors": [],
+    "http_4xx_5xx": []
+  },
+  "cold_ligado": {
+    "http": 200,
+    "url": "https://staging.deskcomm.axisaceleradora.com.br/app/cold-call",
+    "h1": "Cold Call",
+    "corpo": "Cold Call | Monte sua fila de ligações | Criamos um funil só para o cold call, com as etapas e um roteiro para editar. Depois é importar a lista e começar a ligar, um lead por vez. | Criar funil de cold call",
+    "link_no_menu": 0,
+    "console_errors": [],
+    "http_4xx_5xx": []
+  },
+  "cold_restaurado": "false"
+}
