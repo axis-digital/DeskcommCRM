@@ -46,8 +46,8 @@ não implica "mesma imagem"; e o `APP_VERSION` do build do host (`1.94.0`) não 
 
 ## Promover uma release (procedimento)
 
-Nada disto atualiza produção sozinho; cada passo é uma decisão humana. **Não foi exercitado em produção**
-até este registro; o primeiro uso deve ser anotado na tabela abaixo.
+Nada disto atualiza produção sozinho; cada passo é uma decisão humana. Foi exercitado em produção uma vez, em
+2026-11-06 (seção "Promoção de 2026-11-06" abaixo); cada nova promoção deve ganhar a sua linha na tabela.
 
 1. A release `vX.Y.Z` existe, está contida na `main` e o CI publicou as três imagens (`imagens-ok`).
 2. **Dump lógico e restore de ensaio** do banco de produção (`axis-fork.md`, seção "Antes de atualizar a
@@ -76,6 +76,33 @@ a release trouxe migration, o retorno do schema é restaurar o dump do passo 2 (
 | Data | Release | Commit | Digests (app / worker / scheduler) | Migrations | Ponto de volta |
 |---|---|---|---|---|---|
 | 2026-11-05 | release 0 (host) | `4483e76f0` | — (sem digest; ver tabela acima) | — | `axis-rollback-20261028` |
+| 2026-11-06 | `1.94.1` (CI, por digest) | `4483e76f0` | app `407966240bd2…`, worker `652f8a668f04…`, scheduler `e3daafb92159…` (completos na tabela "Release 0") | nenhuma (mesmo commit e mesmo schema) | `deskcomm-{app,worker,scheduler}:axis-rollback-20261106` e o dump `baseline-20261106-0203.dump` |
+
+### Promoção de 2026-11-06 (produção)
+
+Troca das imagens construídas no host pelas do CI da **mesma** release (`1.94.1`, commit `4483e76f0`), fixadas por
+digest. Sem migration e sem mudança de código: só a identidade do artefato.
+
+| Passo | Resultado medido |
+|---|---|
+| Ponto de volta | dump lógico do banco (`/root/backups/deskcomm/diario/`, `sha256` conferido), tags `deskcomm-{app,worker,scheduler}:axis-rollback-20261106` e cópia do `.env` |
+| Composição | override `docker-compose.prod-ci.yml` somado a `docker-compose.prod.yml`, `docker-compose.single-server.yml` e `docker-compose.axis.yml`; a única diferença na composição resolvida foi `image` e `pull_policy` (rótulos do Traefik, redes e volumes iguais) |
+| Execução | `docker compose ... up -d --no-deps app worker scheduler`, rodado pelo dono no host |
+| Saúde | os três `healthy`, 0 reinícios; `APP_VERSION=1.94.1` (antes `1.94.0-axis-4483e76`); `/` 200, `/app` 307, `/api/v1/health` 200 com Supabase, Redis e WAHA ok; 0 erros de log |
+| Identidade | a imagem em uso passou a ter `RepoDigests`; `system_version` mostra `off_release=false` e a revisão `4483e76f0…`; o heartbeat do agente chegou depois da troca |
+| Persistência | `COMPOSE_EXTRA_FILES="docker-compose.axis.yml docker-compose.prod-ci.yml"` no `.env`, para que `up` feito pelo kit não volte às imagens `:axis` |
+
+O que **não** foi provado: telas logadas e envio pelo WhatsApp em produção (só saúde e rotas públicas) e o
+comportamento sob tráfego (a troca foi de madrugada). `compare_failed=true` continua, porque o fork não tem GitHub
+Release (ver a seção do `agent.sh`).
+
+Dívidas conhecidas: o override `docker-compose.prod-ci.yml` existe só no host (não versionado) e se perde se o
+diretório for recriado; o `.env` de produção ainda cita `APP_IMAGE` e `WORKER_IMAGE` do upstream (valores inertes,
+o override os substitui).
+
+**Para voltar:** retirar `docker-compose.prod-ci.yml` de `COMPOSE_EXTRA_FILES` (a cópia do `.env` anterior está em
+`/root/backups/deskcomm/`) e subir `app worker scheduler` de novo com os mesmos arquivos de compose; as imagens
+`deskcomm-*:axis` e `:axis-rollback-20261106` seguem no host. Esta troca não alterou o banco.
 
 ## Staging
 
