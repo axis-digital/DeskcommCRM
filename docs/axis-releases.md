@@ -113,3 +113,38 @@ O que **não** foi provado, e não deve ser tratado como provado:
 Para repetir a leitura da identidade: com uma sessão de super-admin, `GET /api/v1/system/version` e conferir
 `identity.status`, `identity.revision`, `identity.customized` e `runtime_services[*].revision`. Para voltar o staging
 ao estado anterior, apague o override e suba os serviços sem ele (as imagens `:staging` e a `1.74.0` seguem no host).
+
+## O `agent.sh` do host (classificação medida em 2026-11-05)
+
+`hostgator-setup-kit/agent.sh` roda por cron a cada 5 minutos, em produção e no staging. Ele **não** é só um verificador
+de saúde nem um atualizador automático: tem três funções.
+
+| Função | O que faz | Quem aciona |
+|---|---|---|
+| Heartbeat | envia ao app versão, revisão e confirmação de runtime (alimenta `system_version`) | o cron |
+| Executor | roda `update.sh --to <tag>` | **só um pedido humano** (`update_requested`, vindo do botão "Atualizar agora") |
+| Rollback automático | se o app ficar fora do ar logo depois de uma atualização, roda `update.sh --to <versão anterior> --force` | o próprio agente, só depois de uma atualização |
+
+Ele nunca atualiza sozinho. O botão só é oferecido quando há release anunciada.
+
+**Por que a atualização está dormente neste fork.** O agente descobre a última release na API de Releases do GitHub do
+`origin` (`ultima_release_estavel`, em `_common.sh`). O fork tem tags, mas **nenhuma Release publicada**
+(`gh api repos/axis-digital/DeskcommCRM/releases/latest` devolve 404). Nada é anunciado, e `system_version` mostra
+`latest_version` vazio e `compare_failed=true` em produção e no staging. Isso não é defeito das imagens do CI.
+`off_release=true` em produção é esperado: as imagens construídas no host não são a release oficial.
+
+**Risco.** O `update.sh` foi escrito para instalações que seguem o upstream. Esta produção é customizada: o `.env` carrega
+`APP_IMAGE` do upstream (valor inerte) e o `docker-compose.axis.yml` força `deskcomm-app:axis` com `pull_policy: never`.
+Inferência, **não testada**: um `update.sh` em produção regravaria o `.env` e moveria checkout e banco, mas a imagem em
+execução continuaria a `:axis` local. O agente recusa execuções "incompletas ou personalizadas"; essa guarda foi lida, não
+exercitada.
+
+**Regras até a promoção por digest existir:**
+
+1. Manter o cron do `agent.sh` como heartbeat (ele alimenta a identidade de runtime).
+2. **Não publicar uma Release no GitHub do fork**: o agente passaria a anunciar a atualização e a tela a oferecer o botão.
+3. Ninguém aciona "Atualizar agora" em produção nem no staging.
+4. Depois da primeira promoção por digest, reavaliar se o `agent.sh` pode ser o executor oficial.
+
+Comandos para re-medir: `gh api repos/axis-digital/DeskcommCRM/releases/latest` (404 = sem Release) e, no banco,
+`select latest_version, compare_failed, off_release, agent_last_seen_at from public.system_version`.
