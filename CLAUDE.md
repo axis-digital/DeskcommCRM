@@ -62,6 +62,33 @@ o "próximo livre" que eles imprimem (9050 em 30/10) **não** vale para o fork: 
 Renumerar migration que já está na `main` do fork exige PR próprio, ANTES do merge da upstream que
 traz a colisão — o checador compara contra `origin/main` e reprova o renome dentro do próprio merge.
 
+### Notas exclusivas do fork Axis — `docs/axis-notas/`
+
+**Esta regra prevalece, no fork, sobre o item 17 do Definition of Done e sobre o que a skill
+genérica `deskcomm-contribuir` ensina a respeito de `.changes/`** (decisão do dono, 2026-11-06).
+
+- Mudança **própria do fork** visível ao operador traz nota em `docs/axis-notas/<slug>.md`, no
+  mesmo formato de fragmento (`impacto`, `secao`, `titulo`; `exige_acao` exige o bloco
+  `## Requer atenção`). O merge puro do upstream não exige nota do fork; uma
+  mudança própria incluída no mesmo PR de sync exige nota quando visível ao operador.
+- `.changes/` recebe **só** fragmentos vindos do upstream. O fork não corta release, e o acervo
+  ali é o que o corte do upstream consome e o que o gate `pnpm release:acervo-cabe` mede.
+- **Quem valida cada lado:** `tests/unit/axis-notas.test.ts` valida `docs/axis-notas/` (forma,
+  nomes, entradas inesperadas e nome repetido nos dois diretórios). `pnpm release:conferir`,
+  `tests/unit/fragmentos-de-release.test.ts`, o gate do acervo e a skill `deskcomm-contribuir`
+  validam **somente** `.changes/`: verde neles não diz nada sobre as notas do fork.
+- **Nenhum teste detecta sozinho** uma nota do fork deixada em `.changes/`: separar nota do fork
+  de fragmento do upstream exige a história do upstream. Quem revisa confere a origem de todo
+  fragmento novo em `.changes/`. `git log --oneline upstream/main -- .changes/<arquivo>` vazio é
+  **indício, não prova**: o arquivo pode ter sido renomeado, a história pode estar incompleta
+  (clone raso) ou a ref `upstream/main` pode estar desatualizada. Antes de classificar, faça
+  `git fetch upstream`, procure o mesmo conteúdo com outro nome (`git log --all --find-renames
+  -- .changes/` e a busca pelo título, `git log -S '<título>' upstream/main`) e confira quem
+  criou o arquivo. Na dúvida, não mova: pergunte.
+- **Não** publique GitHub Release, não rode `pnpm release:cortar` nem o workflow `release` no fork
+  sem decisão específica do dono: o corte consome todos os fragmentos de `.changes/`, e uma Release
+  faz o `agent.sh` anunciar atualização e oferecer "Atualizar agora" (`docs/axis-releases.md`).
+
 ---
 
 ## Stack canônica
@@ -815,6 +842,8 @@ Antes de declarar uma task pronta:
     presença num check obrigatório reprovaria PR de Dependabot, PR de fork, e o próprio PR
     de release, que consome os fragmentos e deixa o diretório vazio. A presença é cobrada
     aqui, e por quem revisa.
+    **No fork Axis**, mudança própria vai para `docs/axis-notas/`, não para `.changes/`: ver
+    "Notas exclusivas do fork Axis", na seção "Destino de PR", que prevalece sobre este item.
     **Toda versão publicada aparece na página de changelog da LP** (deskcomm.com.br/changelog,
     pt-BR/en/es). Ninguém escreve no site: a LP lê o `CHANGELOG.md` da `main`, e o último passo
     do corte (`release.yml`, job `cortar-tag`) reprova quando a versão não chegou. O texto do
