@@ -42,6 +42,20 @@ describe("isPublicPath", () => {
     expect(isPublicPath("/legal/privacy")).toBe(true);
   });
 
+  /**
+   * O changelog é lido por quem ainda não tem conta (e por quem recebeu o
+   * link). É um documento estático, sem dado de organização nenhuma.
+   */
+  it("libera o changelog público", () => {
+    expect(isPublicPath("/docs/changelog")).toBe(true);
+  });
+
+  it("e só ele: /docs não é um portão aberto", () => {
+    expect(isPublicPath("/docs")).toBe(false);
+    expect(isPublicPath("/docs/changelog/interno")).toBe(false);
+    expect(isPublicPath("/docs/qualquer-outra")).toBe(false);
+  });
+
   it("e só esses dois: /legal não é um portão aberto", () => {
     // Entrada larga aqui é furo de auth em toda a aplicação, não só nesta tela.
     expect(isPublicPath("/legal")).toBe(false);
