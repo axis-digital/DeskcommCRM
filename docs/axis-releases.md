@@ -215,7 +215,7 @@ elementos e captura de console/HTTP; evidência em `evidence/staging-changelog-1
 | Rolagem horizontal | não (`scrollWidth` 1440 = `clientWidth` 1440) | não (400 = 400) |
 | Erros de console / respostas ≥ 400 | 0 / 0 | 0 / 0 |
 
-Capturas: `evidence/staging-changelog-1110/changelog-desktop.png` e `changelog-celular.png`. No HTML servido, o texto visível
+Capturas: `evidence/staging-changelog-1110/changelog-desktop.png` e `evidence/staging-changelog-1110/changelog-celular.png`. No HTML servido, o texto visível
 não traz `github.com`, `digest`, `rollback`, `upstream`, `WAHA` nem número de PR (`#123`); o que casa com `#` e `staging` no
 documento bruto são cores CSS em hexadecimal e a URL pública do staging dentro de `window.__PUBLIC_ENV__`.
 
