@@ -1,0 +1,50 @@
+{
+  "desktop": {
+    "titulo": "Changelog · Axis CRM",
+    "h1": "Changelog",
+    "h2": [
+      "Novembro",
+      "Fim de outubro",
+      "Meio de outubro",
+      "Início de outubro"
+    ],
+    "itens": 25,
+    "tipos": {
+      "novo": 14,
+      "corrigido": 9,
+      "interface": 2
+    },
+    "rolagemHorizontal": false,
+    "scrollW": 1440,
+    "clientW": 1440,
+    "corDeFundo": "rgb(249, 248, 250)",
+    "status": 200,
+    "url_final": "https://staging.deskcomm.axisaceleradora.com.br/docs/changelog",
+    "erros_console": [],
+    "http_400": []
+  },
+  "celular": {
+    "titulo": "Changelog · Axis CRM",
+    "h1": "Changelog",
+    "h2": [
+      "Novembro",
+      "Fim de outubro",
+      "Meio de outubro",
+      "Início de outubro"
+    ],
+    "itens": 25,
+    "tipos": {
+      "novo": 14,
+      "corrigido": 9,
+      "interface": 2
+    },
+    "rolagemHorizontal": false,
+    "scrollW": 400,
+    "clientW": 400,
+    "corDeFundo": "rgb(249, 248, 250)",
+    "status": 200,
+    "url_final": "https://staging.deskcomm.axisaceleradora.com.br/docs/changelog",
+    "erros_console": [],
+    "http_400": []
+  }
+}
