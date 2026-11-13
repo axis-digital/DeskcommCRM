@@ -32,6 +32,7 @@ import type { ContatoRelacionado } from "@/app/api/v1/leads/[id]/contatos-relaci
 import { FormularioDeLinks } from "@/components/contacts/FormularioDeLinks";
 import { useTiposDeLink } from "@/hooks/leads/useTiposDeLink";
 import { nomeDoContato } from "@/lib/contacts/rotulo-do-contato";
+import { ORIGEM_AGENDA_DO_CELULAR, origemDoContato } from "@/lib/leads/origem-do-contato";
 import type { Contact } from "@/lib/types/contacts";
 
 interface Props {
@@ -788,6 +789,11 @@ function DadosDoContato({
   const [editando, setEditando] = useState(false);
   const nome = nomeDoContato(contato);
   const digitos = (contato.phone_number ?? "").replace(/\D/g, "");
+  // De onde a pessoa veio — a MESMA regra da ficha completa (`origemDoContato`),
+  // lida do que já está gravado no contato. A ficha ainda consulta a plataforma
+  // de anúncio para resolver a hierarquia; aqui não, de propósito: o dossiê abre
+  // a cada card, e uma chamada externa por abertura não se paga por uma linha.
+  const origem = origemDoContato(contato.source_metadata, contato.source);
 
   const telefone = (
     <>
@@ -844,6 +850,27 @@ function DadosDoContato({
             "—"
           )}
         </dd>
+
+        {origem.origem && (
+          <>
+            <dt className="text-xs text-text-muted">{t("Origem")}</dt>
+            <dd className="min-w-0 truncate" data-testid="origem-do-contato">
+              {origem.origem === ORIGEM_AGENDA_DO_CELULAR ? t("Agenda do celular") : origem.origem}
+            </dd>
+          </>
+        )}
+        {origem.campanha && (
+          <>
+            <dt className="text-xs text-text-muted">{t("Campanha")}</dt>
+            <dd
+              className="min-w-0 truncate"
+              title={origem.campanha}
+              data-testid="campanha-do-contato"
+            >
+              {origem.campanha}
+            </dd>
+          </>
+        )}
       </dl>
       <div className="flex flex-wrap items-center gap-x-4 gap-y-1">
         {podeEditar && (

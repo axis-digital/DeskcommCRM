@@ -205,6 +205,56 @@ describe("ContatoDoNegocio — as abas do dossiê", () => {
     );
   });
 
+  // A origem é do CONTATO e já aparecia na ficha completa; quem trabalha no
+  // funil precisava sair do dossiê para saber de onde a pessoa veio. A regra é
+  // a MESMA da ficha (`origemDoContato`), e não uma segunda leitura do jsonb.
+  it("⭐ aba Dados: mostra a origem e a campanha do contato, pela mesma regra da ficha", () => {
+    useContact.mockReturnValue({
+      data: {
+        data: {
+          ...CONTATO,
+          source: "webhook",
+          source_metadata: { utm_source: "google", utm_campaign: "rastreamento-veicular" },
+        },
+      },
+      isLoading: false,
+      isError: false,
+    });
+    comQuery(<ContatoDoNegocio contactId="c-1" pipelineId="p-1" />);
+
+    expect(screen.getByTestId("origem-do-contato")).toHaveTextContent("google");
+    expect(screen.getByTestId("campanha-do-contato")).toHaveTextContent("rastreamento-veicular");
+  });
+
+  it("aba Dados: sem UTM nem anúncio, a origem é a coluna source, e a campanha não aparece", () => {
+    useContact.mockReturnValue({
+      data: { data: { ...CONTATO, source: "whatsapp", source_metadata: {} } },
+      isLoading: false,
+      isError: false,
+    });
+    comQuery(<ContatoDoNegocio contactId="c-1" pipelineId="p-1" />);
+
+    expect(screen.getByTestId("origem-do-contato")).toHaveTextContent("whatsapp");
+    expect(screen.queryByTestId("campanha-do-contato")).not.toBeInTheDocument();
+  });
+
+  it("aba Dados: contato importado da agenda do celular é dito por extenso", () => {
+    useContact.mockReturnValue({
+      data: { data: { ...CONTATO, source: "whatsapp_agenda", source_metadata: {} } },
+      isLoading: false,
+      isError: false,
+    });
+    comQuery(<ContatoDoNegocio contactId="c-1" pipelineId="p-1" />);
+
+    expect(screen.getByTestId("origem-do-contato")).toHaveTextContent("Agenda do celular");
+  });
+
+  it("aba Dados: contato que chega sem origem nenhuma não ganha uma linha vazia", () => {
+    comQuery(<ContatoDoNegocio contactId="c-1" pipelineId="p-1" />);
+
+    expect(screen.queryByTestId("origem-do-contato")).not.toBeInTheDocument();
+  });
+
   function abrirAbaDeLinks() {
     fireEvent.mouseDown(screen.getByRole("tab", { name: "Links" }), { button: 0 });
     return screen.getByTestId("formulario-de-links");
