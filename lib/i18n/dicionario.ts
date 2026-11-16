@@ -11123,6 +11123,12 @@ export const DICIONARIO: Traducoes = {
 
   // ─── Auth: login, cadastro, recuperação de senha, MFA, códigos de recuperação ───
   "Entrar": { es: "Entrar" },
+  // ─── Changelog público (/docs/changelog) ───
+  "Novidades, correções e ajustes de interface desta instalação, do mais recente ao mais antigo.":
+    {
+      es: "Novedades, correcciones y ajustes de interfaz de esta instalación, del más reciente al más antiguo.",
+    },
+  "Corrigido": { es: "Corregido" },
   "Criar conta": { es: "Crear cuenta" },
   "Senha": { es: "Contraseña" },
   "Confirmar senha": { es: "Confirmar contraseña" },

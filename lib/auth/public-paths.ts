@@ -236,6 +236,11 @@ export const PUBLIC_PATHS: RegExp[] = [
   // dois nomes de propósito: `/^\/legal/` deixaria qualquer sub-path futuro
   // nascer público de carona.
   /^\/legal\/(terms|privacy)$/,
+  // Changelog público: documento estático (lib/docs/changelog.ts), sem dado de
+  // organização nenhuma, linkável para quem ainda não tem conta. Âncorado no
+  // caminho inteiro de propósito: `/^\/docs/` abriria qualquer página futura
+  // sob /docs de carona.
+  /^\/docs\/changelog$/,
 ];
 
 export function isPublicPath(pathname: string): boolean {
