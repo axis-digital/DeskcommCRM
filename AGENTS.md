@@ -577,6 +577,18 @@ upstream, que avança cerca de 7,5 por dia e colidiu duas vezes em dois dias. De
 upstream também numera em 9xxx (9016–9049), então o fork usa o **fim** da faixa: 9900 em diante
 (próximo livre: 9903). Detalhes no `CLAUDE.md`.
 
+**Notas exclusivas do fork Axis** (decisão do dono, 2026-11-06; prevalece, no fork, sobre o
+parágrafo **Release** e sobre a skill genérica `deskcomm-contribuir`): mudança própria do fork
+visível ao operador traz nota em `docs/axis-notas/<slug>.md`, no formato de fragmento; `.changes/`
+recebe só fragmentos do upstream. O merge puro do upstream não exige nota do fork; uma mudança
+própria visível ao operador no mesmo PR de sync exige. `tests/unit/axis-notas.test.ts` valida `docs/axis-notas/`;
+`pnpm release:conferir`, `tests/unit/fragmentos-de-release.test.ts`, o gate do acervo e a skill
+validam **somente** `.changes/`. Nenhum teste detecta sozinho nota do fork deixada em `.changes/`,
+e `git log upstream/main -- .changes/<arquivo>` vazio é indício, não prova (renome, história
+incompleta ou `upstream/main` desatualizada): faça `git fetch upstream`, confira história, conteúdo
+e autoria e, na dúvida, pergunte antes de classificar. Não publique GitHub Release nem rode `pnpm release:cortar` ou o workflow `release` no
+fork sem decisão específica do dono. Detalhes no `CLAUDE.md`.
+
 ## Regra final — não invente
 
 Este repositório tem PRDs, specs, regras de negócio e doutrina escritos
@@ -585,6 +597,11 @@ Este repositório tem PRDs, specs, regras de negócio e doutrina escritos
 Se a regra não está escrita, diga que não está e pergunte — não preencha a lacuna com
 suposição plausível. Ao documentar, marque o que é `CONFIRMADO` (provado por código) e o
 que é `INFERIDO`.
+
+> **Fork Axis:** o parágrafo **Release** abaixo vale só para fragmentos vindos do upstream.
+> Mudança própria do fork segue "Notas exclusivas do fork Axis", na seção "Destino de PR",
+> que prevalece sobre ele.
+
 **Release** — mudança de comportamento visível a quem opera uma VPS traz o fragmento em
 `.changes/` declarando o **efeito no operador** (`nada_mudou` / `capacidade_nova` / `exige_acao`),
 nunca o número. O número é calculado a partir do conjunto; confira com `pnpm release:conferir` e
