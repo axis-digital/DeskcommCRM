@@ -11,10 +11,12 @@ create table if not exists public.reservas_aviso_organizacao (
 );
 create index if not exists reservas_aviso_organizacao_poda_idx on public.reservas_aviso_organizacao (organization_id, criado_em);
 alter table public.reservas_aviso_organizacao enable row level security;
+-- Só leitura para a pessoa logada: quem grava é o servidor (service_role). Policy ALL
+-- só-tenancy é a dívida de RBAC que 0150 proíbe crescer; a antiga `_all` sai aqui.
 drop policy if exists tenant_isolation_reservas_aviso_organizacao_all on public.reservas_aviso_organizacao;
-create policy tenant_isolation_reservas_aviso_organizacao_all on public.reservas_aviso_organizacao
-  for all to authenticated using (organization_id in (select public.fn_user_org_ids()))
-  with check (organization_id in (select public.fn_user_org_ids()));
+drop policy if exists tenant_isolation_reservas_aviso_organizacao_read on public.reservas_aviso_organizacao;
+create policy tenant_isolation_reservas_aviso_organizacao_read on public.reservas_aviso_organizacao
+  for select to authenticated using (organization_id in (select public.fn_user_org_ids()));
 revoke all on public.reservas_aviso_organizacao from public, anon, authenticated;
 grant select on public.reservas_aviso_organizacao to authenticated;
 grant all on public.reservas_aviso_organizacao to service_role;
