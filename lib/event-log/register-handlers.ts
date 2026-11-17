@@ -45,6 +45,7 @@ import { nuvemshopProdutoHandler } from "@/lib/nuvemshop/sync/produto.handler";
 import { nuvemshopSyncHandler } from "@/lib/nuvemshop/sync/sync-page.handler";
 import { avisoDeAgendamentoNoWhatsAppHandler } from "@/lib/agenda/aviso-de-agendamento.handler";
 import { cobrancaSinalHandler } from "@/lib/cobranca/sinal.handler";
+import { reenvioDesaceleradoHandler } from "@/lib/messaging/reenvio-desacelerado.handler";
 import { registerHandler } from "@/lib/event-log/dispatcher";
 
 let _registered = false;
@@ -126,6 +127,9 @@ export function ensureHandlersRegistered(): void {
   // Mesmo critério: o aviso de agendamento ao dono sai por rede de terceiro e
   // consome os mesmos `appointment.*` das automações, que escrevem no banco.
   registerHandler(avisoDeAgendamentoNoWhatsAppHandler);
+  // A mensagem que o canal mandou desacelerar sai de novo, na mesma linha: rede
+  // de terceiro, e consome um evento só dela.
+  registerHandler(reenvioDesaceleradoHandler);
   // Por último: reportar a venda ao anúncio é o consumidor mais externo do
   // fechamento — depende de rede de terceiro e não pode atrasar quem escreve
   // no banco. Falha dele nunca segura os handlers acima.

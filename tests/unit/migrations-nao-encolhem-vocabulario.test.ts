@@ -65,6 +65,17 @@ const DIR_MIGRATIONS = path.join(process.cwd(), "supabase", "migrations");
  * dado existente faz o `update.sh` de um clone quebrar no meio.
  */
 const REMOCOES_DELIBERADAS: Record<string, { valores: string[]; porque: string }> = {
+  // As duas migrations upstream não conheciam o aviso do fork. A 9904
+  // restaura a união no estado final; ela não corrige falha anterior de ADD
+  // CHECK numa cadeia aplicada sobre linhas que já contenham esse valor.
+  "20261111024427_9327_aviso_de_modelo_no_canal_direto.sql::agent_inbox_items_kind_check": {
+    valores: ["integracao_desautorizada"],
+    porque: "A reconstrução upstream não conhecia o aviso do fork; a 9904 restaura a união. A aplicação da cadeia com dados que usam esse valor ainda precisa de solução segura.",
+  },
+  "20261111055005_9333_roteamento_espera_a_ia_por_numero.sql::agent_inbox_items_kind_check": {
+    valores: ["integracao_desautorizada"],
+    porque: "A reconstrução upstream também não conhecia o aviso do fork; a 9904 restaura a união. A aplicação da cadeia com dados que usam esse valor ainda precisa de solução segura.",
+  },
   "20261027170000_9027_assinatura_desconectada_na_central.sql::agent_inbox_items_kind_check": {
     valores: ["integracao_desautorizada"],
     porque:

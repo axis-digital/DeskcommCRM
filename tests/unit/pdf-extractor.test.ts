@@ -237,7 +237,9 @@ describe("extractPdfText — estratégia `processo-a-parte`", () => {
       // dos dois lados.
       const script = `
         const fs = require("node:fs");
-        import("@/lib/ai/rag/extractors/pdf").then(async (m) => {
+        import("@/lib/ai/rag/extractors/pdf").then(async (namespace) => {
+          // O tsx pode expor exports CommonJS sob default; ESM os expõe no namespace.
+          const m = namespace.default ?? namespace;
           const texto = await m.extractPdfText(fs.readFileSync("tests/fixtures/sample-multipagina.pdf"));
           process.stdout.write(JSON.stringify({
             estrategia: m.estrategiaPadrao(),

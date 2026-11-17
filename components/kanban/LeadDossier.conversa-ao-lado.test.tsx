@@ -1,4 +1,5 @@
 import { fireEvent, render, screen } from "@testing-library/react";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { describe, expect, it, vi } from "vitest";
 
 import type { Lead } from "@/lib/types/leads";
@@ -14,11 +15,14 @@ vi.mock("./AbrirConversaDoLead", async (original) => ({
   ...(await original<typeof AbrirConversa>()),
   AbrirConversaDoLead: ({ onAberta }: { onAberta?: (id: string) => void }) => (
     <button type="button" onClick={() => onAberta?.("conv-nova")}>
-      abrir-aqui
+      {onAberta ? "abrir-aqui" : "abrir-no-inbox"}
     </button>
   ),
 }));
 vi.mock("@/hooks/i18n/useT", () => ({ useT: () => (s: string) => s }));
+vi.mock("@/hooks/leads/useContatosRelacionados", () => ({
+  useContatosRelacionados: () => ({ data: { data: [] } }),
+}));
 vi.mock("@/hooks/i18n/useLocaleDeData", () => ({ useTagDeIdioma: () => "pt-BR" }));
 const papel = vi.hoisted(() => ({ atual: "agent" as "agent" | "manager" }));
 vi.mock("@/hooks/auth/AuthProvider", () => ({
@@ -78,7 +82,11 @@ const lead = (over: Partial<Lead> = {}): Lead =>
   }) as unknown as Lead;
 
 const montar = (l: Lead, onOpenChange = vi.fn()) =>
-  render(<LeadDossier open onOpenChange={onOpenChange} lead={l} pipelineId="p-1" stageName="Novo" />);
+  render(
+    <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
+      <LeadDossier open onOpenChange={onOpenChange} lead={l} pipelineId="p-1" stageName="Novo" />
+    </QueryClientProvider>,
+  );
 
 describe("LeadDossier com a conversa ao lado", () => {
   it("negócio com conversa: monta a conversa embutida, numa região nomeada", () => {

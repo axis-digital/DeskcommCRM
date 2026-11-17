@@ -23,6 +23,7 @@ import { criarClickRef as criarClickRefNaTabela, type ClickRefCriado } from "../
 import { normalizarIdentidadeGa4, type IdentidadeGa4 } from "../ga4/identidade";
 
 import { lerIdentificadoresGoogle, type IdentificadoresGoogle } from "./identificadores";
+import { normalizarMetadadosGoogle, type MetadadosDaCampanhaGoogle } from "./metadados-da-campanha";
 
 export type { ClickRefCriado };
 
@@ -39,11 +40,14 @@ export async function criarClickRef(
     gclid: ids.gclid ?? null,
     gbraid: ids.gbraid ?? null,
     wbraid: ids.wbraid ?? null,
-    query_raw: queryRaw,
+    query_raw: { ...normalizarMetadadosGoogle(queryRaw), ...ids },
   });
 }
 
-export type ClickRefCasado = IdentificadoresGoogle & { ga?: IdentidadeGa4 | null };
+export type ClickRefCasado = IdentificadoresGoogle & {
+  ga?: IdentidadeGa4 | null;
+  queryRaw?: MetadadosDaCampanhaGoogle;
+};
 
 /**
  * Casa um token com um contato — a UPDATE condicional que garante que um
@@ -75,14 +79,12 @@ export async function casarClickRef(
     return null;
   }
   if (!data) return null;
-  const { query_raw: queryRaw, ...ids } = data as Record<string, unknown>;
+  const { query_raw: raw, ...ids } = data as Record<string, unknown>;
   const identificadores = lerIdentificadoresGoogle(
     Object.fromEntries(Object.entries(ids).filter(([, v]) => v != null)),
   );
   if (!identificadores) return null;
-  const ga =
-    queryRaw && typeof queryRaw === "object"
-      ? normalizarIdentidadeGa4(queryRaw as Record<string, unknown>)
-      : null;
-  return { ...identificadores, ga };
+  const ga = raw && typeof raw === "object" ? normalizarIdentidadeGa4(raw as Record<string, unknown>) : null;
+  const queryRaw = normalizarMetadadosGoogle(raw);
+  return { ...identificadores, ga, ...(Object.keys(queryRaw).length ? { queryRaw } : {}) };
 }

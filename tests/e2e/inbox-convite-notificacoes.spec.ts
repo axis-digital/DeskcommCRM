@@ -28,7 +28,7 @@
 import * as fs from "node:fs";
 import * as path from "node:path";
 
-import { expect, test, type BrowserContext, type Page } from "./helpers/test";
+import { esperarARevelacaoNasCargas, expect, test, type BrowserContext, type Page } from "./helpers/test";
 
 const CREDS_PATH = path.join(process.cwd(), ".e2e-creds.json");
 const EVIDENCIA = path.join(process.cwd(), "evidence/inbox-convite-notificacoes");
@@ -90,6 +90,7 @@ test.describe("Inbox — convite para as notificações da área de trabalho", (
     browser,
   }) => {
     const context = await browser.newContext();
+    context.on("page", esperarARevelacaoNasCargas);
     await dubleDeNotification(context, "granted");
     const page = await context.newPage();
     const quem = creds.users[PAPEL_SEM_MFA]!;
@@ -118,6 +119,7 @@ test.describe("Inbox — convite para as notificações da área de trabalho", (
 
   test("'Agora não' tira a faixa e ela não volta ao recarregar", async ({ browser }) => {
     const context = await browser.newContext();
+    context.on("page", esperarARevelacaoNasCargas);
     await dubleDeNotification(context, "granted");
     const page = await context.newPage();
     const quem = creds.users[PAPEL_SEM_MFA]!;

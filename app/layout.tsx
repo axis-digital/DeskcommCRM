@@ -27,6 +27,7 @@ import { ThemeProvider } from "@/lib/theme";
 import { Providers } from "./providers";
 import { PublicEnvScript } from "./public-env-script";
 import { EstiloDoTemaDaPlataforma } from "./tema-da-plataforma";
+import { VARIAVEIS_DAS_FONTES_DA_APARENCIA } from "./fontes-da-aparencia";
 import "./globals.css";
 import "./axis-theme.css";
 
@@ -370,7 +371,7 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
       lang="pt-BR"
       data-theme="light"
       suppressHydrationWarning
-      className={`${atkinson.variable} ${plexMono.variable} ${axisDisplay.variable} ${axisBody.variable} ${axisMono.variable}`}
+      className={`${atkinson.variable} ${plexMono.variable} ${axisDisplay.variable} ${axisBody.variable} ${axisMono.variable} ${VARIAVEIS_DAS_FONTES_DA_APARENCIA}`}
     >
       <head>
         {/* Primeiro de tudo: a cor da instalação, antes do CSS e do script de tema. */}
