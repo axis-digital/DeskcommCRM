@@ -40,6 +40,8 @@ import {
   type PortasDoAviso,
 } from "@/lib/agent-engine/agent/aviso-fora-do-horario";
 
+import { processarAvisoOrganizacao } from "./aviso-organizacao-consumidor";
+
 const ORG = "11111111-1111-4111-8111-111111111111";
 const CONVERSA = "33333333-3333-4333-8333-333333333333";
 const CONTATO = "44444444-4444-4444-8444-444444444444";
@@ -67,6 +69,7 @@ const NOTICE_FERIADO =
 
 interface Cenario {
   contato?: Partial<ContatoDoAviso>;
+  avisoOrganizacaoAtivo?: boolean;
   /** O fato do dia, injetado: a porta de produção lê `organizations.country`. */
   feriadoHoje?: boolean;
   jaAvisado?: boolean;
@@ -80,6 +83,7 @@ interface Cenario {
 function cenario(opcoes: Cenario = {}) {
   const enviados: { body: string; chave: string }[] = [];
   const portas: PortasDoAviso = {
+    async avisoOrganizacaoAtivo() { return opcoes.avisoOrganizacaoAtivo ?? false; },
     async leContato() {
       return {
         isBlocked: false,
@@ -143,6 +147,29 @@ async function dispara(entrada: {
 function esperaCampo(recebido: string | undefined, campo: string, esperado: string) {
   expect({ campo, corpo: recebido }).toEqual({ campo, corpo: esperado });
 }
+
+describe("prioridade do aviso da organização", () => {
+  it("ambos ligados para a mesma mensagem resultam em apenas um envio", async () => {
+    const agente = await dispara({ agora: DIA_UTIL_20H, texto: NOTICE, cenario: { avisoOrganizacaoAtivo: true } });
+    const enviados: string[] = [];
+    const config = { enabled: true, timezone: JANELA.timezone, notice: NOTICE, windows: JANELA.weekdays.map(dow => ({ dow, start: JANELA.start, end: JANELA.end })) };
+    const resultado = await processarAvisoOrganizacao({ id: "evento", organization_id: ORG, event_type: "message.received", entity_kind: "message", entity_id: null, payload: {}, metadata: {}, consumed_by: [], attempts: 0 }, {
+      carregar: async () => ({ config, pessoal: false, contactId: CONTATO, conversationId: CONVERSA, channelSessionId: SESSAO }),
+      leContato: async () => ({ isBlocked: false, forceHuman: false, isAnonymized: false, phoneNumber: null }),
+      ehNumeroInterno: async () => false, jaAvisado: async () => false,
+      reservar: async () => "token", iniciarEnvio: async () => true, concluirEnvio: async () => {},
+      pacing: { decide: async () => ({ liberado: true }), registraEnvio: async () => {} },
+      envia: async ({ body }) => { enviados.push(body); },
+    }, DIA_UTIL_20H);
+    expect(resultado).toBe("enviado");
+    expect([...agente.enviados.map(e => e.body), ...enviados]).toEqual([NOTICE]);
+  });
+  it("suprime o aviso do agente quando o da organização está ligado", async () => {
+    const resultado = await dispara({ agora: DIA_UTIL_20H, texto: NOTICE, cenario: { avisoOrganizacaoAtivo: true } });
+    expect(resultado.decisao).toEqual({ enviar: false, motivo: "aviso_da_organizacao" });
+    expect(resultado.enviados).toHaveLength(0);
+  });
+});
 
 describe("aviso de fora do horário no feriado nacional (#3877)", () => {
   it("feriado nacional com texto próprio: envia o texto de feriado, não o notice", async () => {

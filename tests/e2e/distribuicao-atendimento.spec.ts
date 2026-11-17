@@ -103,7 +103,14 @@ test.describe("distribuição de atendimento — a tela que liga o rodízio e a 
 
     // 5. Salva e recarrega: o estado tem de vir do BANCO. Sem o reload isto
     //    provaria só que o React guardou o clique.
-    await page.getByRole("button", { name: /^Salvar$/ }).click();
+    // Escopado ao formulário: desde a #70 esta tela tem um SEGUNDO botão
+    // "Salvar" (o do aviso de fora do horário), e um locator de página inteira
+    // resolve dois elementos — o Playwright recusa clicar, e a spec reprova por
+    // um motivo que não é dela.
+    await page
+      .getByTestId("form-atendimento")
+      .getByRole("button", { name: "Salvar", exact: true })
+      .click();
     await expect(page.getByText(/Distribuição de atendimento salva/i)).toBeVisible();
 
     await page.reload();

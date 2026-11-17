@@ -47,6 +47,7 @@ import { avisoDeAgendamentoNoWhatsAppHandler } from "@/lib/agenda/aviso-de-agend
 import { cobrancaSinalHandler } from "@/lib/cobranca/sinal.handler";
 import { reenvioDesaceleradoHandler } from "@/lib/messaging/reenvio-desacelerado.handler";
 import { registerHandler } from "@/lib/event-log/dispatcher";
+import { avisoOrganizacaoHandler } from "@/lib/agent-engine/agent/aviso-organizacao.handler";
 
 let _registered = false;
 
@@ -140,5 +141,7 @@ export function ensureHandlersRegistered(): void {
   registerHandler(conversaoDeCliqueMetaHandler);
   // O GA4 é o último dos três: mesmo critério, rede de terceiro depois de quem só escreve no banco.
   registerHandler(conversaoGa4Handler);
+  // Envio externo por último: não atrasa os consumidores de roteamento.
+  registerHandler(avisoOrganizacaoHandler);
   _registered = true;
 }
