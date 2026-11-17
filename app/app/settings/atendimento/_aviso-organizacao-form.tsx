@@ -36,6 +36,26 @@ export function AvisoOrganizacaoForm({
   podeMudar: boolean;
 }) {
   const t = useT();
+  // O rótulo é literal em cada ramo: `t()` sobre dado de função não é chave de
+  // dicionário, e traduzir parâmetro livre mudaria o texto do operador na tela.
+  function nomeDoDia(dow: number) {
+    switch (dow) {
+      case 0:
+        return t("Domingo");
+      case 1:
+        return t("Segunda-feira");
+      case 2:
+        return t("Terça-feira");
+      case 3:
+        return t("Quarta-feira");
+      case 4:
+        return t("Quinta-feira");
+      case 5:
+        return t("Sexta-feira");
+      default:
+        return t("Sábado");
+    }
+  }
   const [enabled, setEnabled] = useState(inicial?.enabled ?? false);
   const [timezone, setTimezone] = useState(inicial?.timezone ?? FUSO_PADRAO);
   const [windows, setWindows] = useState(inicial?.windows ?? [JANELA_PADRAO]);
@@ -143,7 +163,7 @@ export function AvisoOrganizacaoForm({
                   >
                     {DIAS.map((dia, valor) => (
                       <option key={dia} value={valor}>
-                        {t(dia)}
+                        {nomeDoDia(valor)}
                       </option>
                     ))}
                   </select>

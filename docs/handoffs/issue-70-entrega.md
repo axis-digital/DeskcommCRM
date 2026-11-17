@@ -80,11 +80,11 @@ resultado `incerta`.
 Spec Playwright temporária (removida depois de colher a evidência) logada como
 `e2e-admin`, contra o Supabase local com o `baseline.sql`:
 
-1. `1-desligado.png` — o cartão aparece desligado, no estado do seed.
-2. `2-preenchido.png` — ligado, fuso `America/Sao_Paulo`, janela segunda 09:00–18:00, texto preenchido.
-3. `3-salvo.png` — toast de sucesso.
-4. `4-recarregado.png` — **depois do reload** (página server-rendered) o aviso continua ligado e o texto é o mesmo: o que a tela gravou é o que a tela lê.
-5. `5-desligado-preserva.png` — desligado de novo, com janelas e texto preservados.
+1. `docs/evidence/aviso-fora-do-horario/1-desligado.png` — o cartão aparece desligado, no estado do seed.
+2. `docs/evidence/aviso-fora-do-horario/2-preenchido.png` — ligado, fuso `America/Sao_Paulo`, janela segunda 09:00–18:00, texto preenchido.
+3. `docs/evidence/aviso-fora-do-horario/3-salvo.png` — toast de sucesso.
+4. `docs/evidence/aviso-fora-do-horario/4-recarregado.png` — **depois do reload** (página server-rendered) o aviso continua ligado e o texto é o mesmo: o que a tela gravou é o que a tela lê.
+5. `docs/evidence/aviso-fora-do-horario/5-desligado-preserva.png` — desligado de novo, com janelas e texto preservados.
 
 A spec também leu `organizations.settings.aviso_fora_do_horario` direto do banco
 com service role para provar que o valor gravado é o que a tela mostrou.
