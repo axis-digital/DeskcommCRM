@@ -77,6 +77,7 @@ a release trouxe migration, o retorno do schema é restaurar o dump do passo 2 (
 |---|---|---|---|---|---|
 | 2026-11-05 | release 0 (host) | `4483e76f0` | — (sem digest; ver tabela acima) | — | `axis-rollback-20261028` |
 | 2026-11-06 | `1.94.1` (CI, por digest) | `4483e76f0` | app `407966240bd2…`, worker `652f8a668f04…`, scheduler `e3daafb92159…` (completos na tabela "Release 0") | nenhuma (mesmo commit e mesmo schema) | `deskcomm-{app,worker,scheduler}:axis-rollback-20261106` e o dump `baseline-20261106-0203.dump` |
+| 2026-11-18 | `5c4f0d4a3` (CI, por digest; PR #72) | `5c4f0d4a3` | app `1135f9d51863…`, worker `7957acec3f4e…`, scheduler `725dc016cfd2…` | baseline de `5c4f0d4a3` (89 migrations desde `92ffc24`; aplicado em 28 s, 0 erro inesperado) | `deskcomm-{app,worker,scheduler}:prod-rollback-20261118` e os dumps `prod-pre-5c4f0d4a3-20261118-1503.dump` e `prod-pre-baseline-20261118-1510.dump` |
 
 ### Promoção de 2026-11-06 (produção)
 
@@ -105,6 +106,35 @@ o override os substitui).
 **Para voltar:** retirar `docker-compose.prod-ci.yml` de `COMPOSE_EXTRA_FILES` (a cópia do `.env` anterior está em
 `/root/backups/deskcomm/`) e subir `app worker scheduler` de novo com os mesmos arquivos de compose; as imagens
 `deskcomm-*:axis` e `:axis-rollback-20261106` seguem no host. Esta troca não alterou o banco.
+
+### Promoção de 2026-11-18 (produção)
+
+Produção levada de `92ffc24` (promoção de 06/11, sem registro neste arquivo) para `5c4f0d4a3` (merge do PR #72: aviso de fora do
+horário da organização, #70), **por digest**, com as imagens que o CI publicou para esse commit (label
+`org.opencontainers.image.revision` = `5c4f0d4a31ef…` nas três). A distância eram 2.220 commits e 89 migrations; **houve mudança de schema**.
+
+| Passo | Resultado medido |
+|---|---|
+| Imagens | app `sha256:1135f9d51863d2dfe87f388ef562e603c59658489d16d15d466cae5ba008e06c`, worker `sha256:7957acec3f4e66eceddb6ca6fb6822946bbb9ad6fb62c54f7caa7afd1c20ec3a`, scheduler `sha256:725dc016cfd2d2c55f947582e691bfda64713378dc8ad4ddecedca6496c7800a` |
+| CI do commit | `e2e` e `perf` verdes e imagens publicadas; o `ci` da `main` está **vermelho desde 06/11** por `pnpm release:acervo-cabe` (`.changes/` acima de 30.000 B), dívida da casa que não vem deste PR |
+| Ponto de volta | dumps lógicos do banco (304 MB e 291 MB, 276 tabelas com dados, `sha256` gravado) em `/root/backups/deskcomm/`; tags `deskcomm-{app,worker,scheduler}:prod-rollback-20261118`; cópia de `.env` e `docker-compose.prod-ci.yml` em `/root/backups/deskcomm/prod-20261118/` |
+| Ensaio do banco | restore do dump em `supabase/postgres:17.6.1.136` descartável, sem rede: 56 s; contagens centrais idênticas (`messages` 13 abaixo, deriva esperada); baseline de `5c4f0d4a3` aplicado ali: 27 s |
+| Schema | baseline aplicado na produção como a role `postgres` (a mesma do kit): 28 s, **0 linhas de erro fora dos benignos**; `financeiro` segue `ativo`; `site_events` e `catalog_feed_sources` criadas |
+| Composição | `docker-compose.prod-ci.yml` (só no host) reescrito com os três digests, somado a `prod`, `single-server` e `axis`; os compose do checkout não mudaram entre `dce5e987b` e `5c4f0d4a3` |
+| Execução | `docker compose -p deskcommcrm ... up -d --no-deps app worker scheduler` |
+| Saúde | os três `healthy`, 0 reinícios; `APP_VERSION=5c4f0d4`; `/` 200, `/app` 307, `/api/v1/health` 200 (Supabase, Redis e WAHA ok), `/docs/changelog` 200; 0 erros de log nos três em 3 min |
+
+Armadilhas do ensaio (artefatos do banco descartável, não da produção): o ensaio **precisa** restaurar e aplicar o baseline como
+`postgres` e criar o banco com dono `postgres`, senão tabelas novas ficam com outro dono e o módulo `financeiro` é suspenso
+(`must be owner`); o dump usa `--no-comments`, então os marcadores de índice somem e dão `crm_integrity_index_name_conflict`; e o
+índice `ivfflat` não recria com `maintenance_work_mem=64MB`. Os três somem na produção, onde o objeto e o marcador já existem.
+
+O que **não** foi provado: o aviso de fora do horário em tela real na produção (só no staging), as demais telas logadas, o envio de
+mensagem pelo WhatsApp e o comportamento sob tráfego.
+
+**Para voltar:** restaurar `docker-compose.prod-ci.yml` e `.env` de `/root/backups/deskcomm/prod-20261118/` e recriar `app worker
+scheduler` com os mesmos quatro arquivos de compose. Isto **não** desfaz o banco: o schema só volta restaurando
+`prod-pre-baseline-20261118-1510.dump`, o que perde o que foi escrito depois dele.
 
 ## Staging
 
