@@ -17,8 +17,8 @@
  */
 import type { SupabaseClient } from "@supabase/supabase-js";
 
-import { logger } from "@/lib/logger";
 import { estamparAtribuicaoDoContato } from "@/lib/leads/atribuicao-de-anuncio";
+import type { AtribuicaoDeAnuncio } from "@/lib/leads/atribuicao-de-anuncio";
 import { PADRAO_DO_REF } from "../captura-de-clique";
 import { casarClickRef } from "./captura-de-clique";
 
@@ -30,54 +30,45 @@ import { casarClickRef } from "./captura-de-clique";
 const PADRAO_DO_TOKEN = PADRAO_DO_REF;
 
 /**
- * Melhor esforço: nunca lança, nunca derruba o inbound. Ausência de match é o
- * caminho NORMAL — a grande maioria das mensagens não veio de um anúncio do
- * Google — e só entra warn quando HÁ um token no texto e ele não casa, porque
- * aí o sinal é nosso e uma falha de match é sinal de bug, não de tráfego
- * orgânico.
+ * O chamador trata falhas sem derrubar o inbound. Ausência de match é o
+ * caminho NORMAL: o mesmo marcador também identifica um recibo de site/Meta.
+ * Quem chama tenta o outro tipo de recibo quando este não existe.
  */
 export async function extrairEEstamparAtribuicaoGoogle(
   admin: SupabaseClient,
   organizationId: string,
   contactId: string,
   texto: string | null,
-): Promise<void> {
-  if (!texto) return;
+): Promise<AtribuicaoDeAnuncio | null> {
+  if (!texto) return null;
   const achado = PADRAO_DO_TOKEN.exec(texto);
-  if (!achado) return;
+  if (!achado) return null;
 
   const token = achado[1];
   // Inalcançável na prática: o grupo de captura é obrigatório no padrão, e
   // `achado` só existe se o padrão inteiro casou. A guarda é só para o
   // `noUncheckedIndexedAccess` do tsconfig — não para um caso real.
-  if (!token) return;
+  if (!token) return null;
   const casado = await casarClickRef(admin, organizationId, token, contactId);
-  if (!casado) {
-    logger.warn("[plataformas-de-anuncio.google.atribuicao] token não casou", {
-      organizationId,
-      contactId,
-    });
-    return;
-  }
+  if (!casado) return null;
 
-  await estamparAtribuicaoDoContato(admin, organizationId, contactId, {
+  const { queryRaw, ga, ...identificadores } = casado;
+  const atribuicao: AtribuicaoDeAnuncio = {
     plataforma: "google_ads",
     sourceId: casado.gclid ?? casado.gbraid ?? casado.wbraid ?? null,
-    // Não há id de anúncio neste caminho, e não é lacuna a preencher depois: o
-    // `gclid` é o clique, e o token de `[ref:XXXXXX]` não carrega peça criativa
-    // nenhuma. Repetir o `gclid` aqui diria "o anúncio é este clique".
+    // O ID real atravessa em google_ad_id; ad_id alimenta a hierarquia Meta.
+    // O clique continua separado: nunca tratamos gclid como anúncio ou conta.
     adId: null,
     titulo: null,
     corpo: null,
     sourceUrl: null,
+    metadadosDaCampanha: queryRaw ?? {},
     bruto: {
       token,
-      click_identifiers: { gclid: casado.gclid, gbraid: casado.gbraid, wbraid: casado.wbraid },
-      // Identidade do GA4 (9002), lida por `ga4/identidade.ts`. Só os dois ids
-      // validados — o `query_raw` inteiro não entra no contato.
-      ...(casado.ga
-        ? { ga: { ga_client_id: casado.ga.clientId, ga_session_id: casado.ga.sessionId } }
-        : {}),
+      click_identifiers: identificadores,
+      ...(ga ? { ga: { ga_client_id: ga.clientId, ga_session_id: ga.sessionId } } : {}),
     },
-  });
+  };
+  await estamparAtribuicaoDoContato(admin, organizationId, contactId, atribuicao);
+  return atribuicao;
 }

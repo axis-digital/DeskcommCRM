@@ -39,6 +39,11 @@ import {
   ChevronsRight as ChevronsRightLucide,
   ChevronUp as ChevronUpLucide,
   Circle as CircleLucide,
+  CircleStop as CircleStopLucide,
+  SquareCheck as SquareCheckLucide,
+  Hourglass as HourglassLucide,
+  Minus as MinusLucide,
+  Zap as ZapLucide,
   CircleArrowUp as CircleArrowUpLucide,
   CircleCheck as CircleCheckLucide,
   CircleHelp as CircleHelpLucide,
@@ -187,6 +192,12 @@ function axisIcon(Icon: LucideIcon, displayName: string): AxisIcon {
   return Component;
 }
 
+export const Lightning = /* @__PURE__ */ axisIcon(ZapLucide, "Lightning");
+export const StopCircle = /* @__PURE__ */ axisIcon(CircleStopLucide, "StopCircle");
+export const Minus = /* @__PURE__ */ axisIcon(MinusLucide, "Minus");
+export const CheckSquare = /* @__PURE__ */ axisIcon(SquareCheckLucide, "CheckSquare");
+export const Hourglass = /* @__PURE__ */ axisIcon(HourglassLucide, "Hourglass");
+
 // Navegação e estrutura
 export const Inbox = /* @__PURE__ */ axisIcon(InboxLucide, "Inbox");
 export const ListChecks = /* @__PURE__ */ axisIcon(ListChecksLucide, "ListChecks");
@@ -332,6 +343,8 @@ export const CalendarBlank = /* @__PURE__ */ axisIcon(CalendarLucide, "CalendarB
 export const CalendarDots = /* @__PURE__ */ axisIcon(CalendarDaysLucide, "CalendarDots");
 export const CalendarPlus = /* @__PURE__ */ axisIcon(CalendarPlusLucide, "CalendarPlus");
 export const CalendarX = /* @__PURE__ */ axisIcon(CalendarXLucide, "CalendarX");
+export const CalendarClock = /* @__PURE__ */ axisIcon(CalendarLucide, "CalendarClock");
+export const History = ClockCounterClockwise;
 export const CalendarCheck = /* @__PURE__ */ axisIcon(CalendarCheckLucide, "CalendarCheck");
 export const MapPin = /* @__PURE__ */ axisIcon(MapPinLucide, "MapPin");
 export const ArrowsOutSimple = /* @__PURE__ */ axisIcon(ExpandLucide, "ArrowsOutSimple");
@@ -356,3 +369,41 @@ export const Circle = /* @__PURE__ */ axisIcon(CircleLucide, "Circle");
 // videochamada (#2440): ícone de câmera, não logo de marca — junto do Phone
 // do DialButton, a família é a mesma.
 export const VideoCamera = /* @__PURE__ */ axisIcon(VideoLucide, "VideoCamera");
+
+// Marcas de canais mantêm a forma oficial; os demais ícones seguem o catálogo Axis.
+/*
+MIT License
+
+Copyright (c) 2020 Phosphor Icons
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+*/
+function brandIcon(path: string, name: string): AxisIcon {
+  const Component = forwardRef<SVGSVGElement, AxisIconProps>(({ size = "1em", weight: _weight, ...props }, ref) =>
+    createElement("svg", { ...props, ref, width: size, height: size, viewBox: "0 0 256 256", fill: "currentColor" }, createElement("path", { d: path })),
+  );
+  Component.displayName = name;
+  return Component;
+}
+export const WhatsappLogo = brandIcon("M152.58,145.23l23,11.48A24,24,0,0,1,152,176a72.08,72.08,0,0,1-72-72A24,24,0,0,1,99.29,80.46l11.48,23L101,118a8,8,0,0,0-.73,7.51,56.47,56.47,0,0,0,30.15,30.15A8,8,0,0,0,138,155ZM232,128A104,104,0,0,1,79.12,219.82L45.07,231.17a16,16,0,0,1-20.24-20.24l11.35-34.05A104,104,0,1,1,232,128Zm-40,24a8,8,0,0,0-4.42-7.16l-32-16a8,8,0,0,0-8,.5l-14.69,9.8a40.55,40.55,0,0,1-16-16l9.8-14.69a8,8,0,0,0,.5-8l-16-32A8,8,0,0,0,104,64a40,40,0,0,0-40,40,88.1,88.1,0,0,0,88,88A40,40,0,0,0,192,152Z", "WhatsappLogo");
+export const InstagramLogo = brandIcon("M176,24H80A56.06,56.06,0,0,0,24,80v96a56.06,56.06,0,0,0,56,56h96a56.06,56.06,0,0,0,56-56V80A56.06,56.06,0,0,0,176,24ZM128,176a48,48,0,1,1,48-48A48.05,48.05,0,0,1,128,176Zm60-96a12,12,0,1,1,12-12A12,12,0,0,1,188,80Zm-28,48a32,32,0,1,1-32-32A32,32,0,0,1,160,128Z", "InstagramLogo");
+export const MessengerLogo = brandIcon("M128,24A104,104,0,0,0,36.18,176.88L24.83,210.93a16,16,0,0,0,20.24,20.24l34.05-11.35A104,104,0,1,0,128,24Zm53.66,93.66-32,32a8,8,0,0,1-11.32,0L112,123.31,85.66,149.66a8,8,0,0,1-11.32-11.32l32-32a8,8,0,0,1,11.32,0L144,132.69l26.34-26.35a8,8,0,0,1,11.32,11.32Z", "MessengerLogo");
+export const TelegramLogo = brandIcon("M228.88,26.19a9,9,0,0,0-9.16-1.57L17.06,103.93a14.22,14.22,0,0,0,2.43,27.21L72,141.45V200a15.92,15.92,0,0,0,10,14.83,15.91,15.91,0,0,0,17.51-3.73l25.32-26.26L165,220a15.88,15.88,0,0,0,10.51,4,16.3,16.3,0,0,0,5-.79,15.85,15.85,0,0,0,10.67-11.63L231.77,35A9,9,0,0,0,228.88,26.19ZM175.53,208,92.85,135.5l119-85.29Z", "TelegramLogo");
+export const GoogleLogo = brandIcon("M128,24A104,104,0,1,0,232,128,104,104,0,0,0,128,24Zm0,184A80,80,0,1,1,181.34,68.37a8,8,0,0,1-10.67,11.92A64,64,0,1,0,191.5,136H128a8,8,0,0,1,0-16h72a8,8,0,0,1,8,8A80.09,80.09,0,0,1,128,208Z", "GoogleLogo");
+export const PaintBrush = Palette;

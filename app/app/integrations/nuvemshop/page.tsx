@@ -11,6 +11,7 @@
  */
 
 import { Storefront } from "@/lib/ui/icons";
+import Link from "next/link";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { loadAuthUser, resolveActiveOrg } from "@/lib/auth/server";
@@ -21,6 +22,7 @@ import { resumirSync } from "@/lib/nuvemshop/sync/resumo";
 import { CatalogoDaLoja } from "./_components/CatalogoDaLoja";
 import { PedidosDaLoja } from "./_components/PedidosDaLoja";
 import { ConnectButton, DisconnectButton } from "./_components/ConnectButton";
+import { EstadoDoCatalogo } from "./_components/EstadoDoCatalogo";
 import { StatusToast } from "./_components/StatusToast";
 import { Suspense } from "react";
 import { tagDeIdioma } from "@/lib/i18n/datas";
@@ -84,8 +86,7 @@ export default async function NuvemshopIntegrationPage() {
   const configured = isConfigured();
   const idioma = normalizarIdioma(user?.locale ?? null);
 
-  const integration =
-    activeOrg && configured ? await loadIntegration(activeOrg.orgId) : null;
+  const integration = activeOrg && configured ? await loadIntegration(activeOrg.orgId) : null;
 
   const resumo =
     integration && integration.status !== "disconnected" && activeOrg
@@ -98,6 +99,7 @@ export default async function NuvemshopIntegrationPage() {
       : null;
 
   const isAdmin = activeOrg?.role === "admin" || (user?.is_platform_admin === true && !user.support);
+  const podePreparar = isAdmin || activeOrg?.role === "manager";
 
   return (
     <div className="mx-auto max-w-3xl space-y-6 p-6">
@@ -112,7 +114,11 @@ export default async function NuvemshopIntegrationPage() {
         <div>
           <h1 className="text-xl font-semibold">Nuvemshop</h1>
           <p className="mt-1 text-sm text-muted-foreground">
-            {traduzir("Sincroniza os pedidos da loja e liga cada um ao contato.", idioma)}
+            {traduzir(
+              'Sincroniza pedidos e clientes via OAuth + webhooks. O catálogo de produtos vai para Agente de IA › Conhecimento, na fonte "Catálogo de produtos" — não para CRM › Produtos.',
+              idioma,
+            )}
+            {" "}<Link className="underline" href="/app/ai/knowledge/sources">{traduzir("Abrir a fonte no Conhecimento", idioma)}</Link>
           </p>
         </div>
       </header>
@@ -126,7 +132,9 @@ export default async function NuvemshopIntegrationPage() {
               <code className="rounded-md bg-muted px-1 py-0.5 text-xs">NUVEMSHOP_APP_ID</code>,{" "}
               <code className="rounded-md bg-muted px-1 py-0.5 text-xs">NUVEMSHOP_CLIENT_ID</code>{" "}
               {traduzir("e", idioma)}{" "}
-              <code className="rounded-md bg-muted px-1 py-0.5 text-xs">NUVEMSHOP_CLIENT_SECRET</code>{" "}
+              <code className="rounded-md bg-muted px-1 py-0.5 text-xs">
+                NUVEMSHOP_CLIENT_SECRET
+              </code>{" "}
               {traduzir("em", idioma)}{" "}
               <code className="rounded-md bg-muted px-1 py-0.5 text-xs">.env.local</code>{" "}
               {traduzir("para ativar a integração.", idioma)}
@@ -163,6 +171,7 @@ export default async function NuvemshopIntegrationPage() {
           </CardContent>
         </Card>
       ) : (
+        <div className="space-y-6">
         <Card>
           <CardHeader className="flex flex-row items-start justify-between gap-3">
             <div>
@@ -204,6 +213,8 @@ export default async function NuvemshopIntegrationPage() {
             {catalogo ? <CatalogoDaLoja resumo={catalogo} idioma={idioma} /> : null}
           </CardContent>
         </Card>
+          <EstadoDoCatalogo podePreparar={podePreparar} />
+        </div>
       )}
     </div>
   );

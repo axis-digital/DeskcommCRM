@@ -3,6 +3,7 @@ import { comprimirImagemParaEnvio } from "@/lib/messaging/media/comprimir-imagem
 
 export interface UploadedMedia {
   storage_path: string;
+  media_filename?: string | null;
   media_mime: string;
   media_size_bytes: number;
   kind: "image" | "video" | "audio" | "document";

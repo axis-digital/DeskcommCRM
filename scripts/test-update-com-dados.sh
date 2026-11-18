@@ -77,6 +77,7 @@ trap cleanup EXIT
 echo "==> subindo $IMAGE como $CONTAINER (porta escolhida pelo daemon)"
 docker run -d --rm --name "$CONTAINER" -p "127.0.0.1::5432" \
   --label "deskcomm.harness=update-com-dados" \
+  --label "deskcomm.worktree=$ROOT" \
   -e POSTGRES_PASSWORD=postgres -e POSTGRES_DB=postgres "$IMAGE" >/dev/null
 
 # `pg_isready` e `psql` sem `-h` mentem aqui: o initdb sobe um servidor
@@ -219,7 +220,20 @@ insert into public.ai_models
   (provider, model_id, display_name, input_price_per_million_cents, output_price_per_million_cents)
 values ('openrouter', 'openai/gpt-4o-mini', 'GPT-4o mini (OpenRouter)', 14, 60)
 on conflict (provider, model_id) do nothing;
+
+-- O aviso exclusivo do fork precisa sobreviver aos CHECKs vindos da upstream.
+insert into public.agent_inbox_items
+  (organization_id, kind, severity, title, body, ref_kind, ref_id)
+values
+  ('22222222-0000-4000-8000-00000000000a', 'integracao_desautorizada',
+   'warn', 'Aviso da integração', 'Prova de update', 'tenant_integration',
+   '77777777-0000-4000-8000-000000000070');
 SQL
+aviso_do_fork_antes=$(docker exec "$CONTAINER" psql -U postgres -d postgres -tAc "
+  select to_jsonb(i)::text from public.agent_inbox_items i
+   where organization_id = '22222222-0000-4000-8000-00000000000a'
+     and kind = 'integracao_desautorizada';")
+[ -n "$aviso_do_fork_antes" ] || { echo "FATAL: o aviso do fork não foi semeado"; exit 1; }
 linhas=$(docker exec "$CONTAINER" psql -U postgres -d postgres -tAc "
   select (select count(*) from public.organizations)
        + (select count(*) from public.contacts)
@@ -429,4 +443,12 @@ if [ "$oid_antes" != "$oid_depois" ]; then
 fi
 echo "    ✓ OID $oid_depois, estável na passada seguinte"
 
+aviso_do_fork_depois=$(docker exec "$CONTAINER" psql -U postgres -d postgres -tAc "
+  select to_jsonb(i)::text from public.agent_inbox_items i
+   where organization_id = '22222222-0000-4000-8000-00000000000a'
+     and kind = 'integracao_desautorizada';")
+[ "$aviso_do_fork_antes" = "$aviso_do_fork_depois" ] || {
+  echo "FATAL: o aviso do fork foi alterado ou perdido na reaplicação"; exit 1;
+}
+echo "    ✓ aviso integracao_desautorizada preservado, linha inteira igual antes e depois"
 echo "==> update-com-dados verde"
