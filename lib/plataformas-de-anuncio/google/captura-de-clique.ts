@@ -36,11 +36,21 @@ export async function criarClickRef(
 ): Promise<ClickRefCriado | null> {
   const ids = lerIdentificadoresGoogle(typeof clique === "string" ? { gclid: clique } : clique);
   if (!ids) return null;
+  // `normalizarMetadadosGoogle` só deixa passar as chaves de campanha. A identidade
+  // GA4 (9002) não é campanha: sem este passo ela morria aqui, e o contato casado
+  // nascia sem o bloco `ga` (e2e `conversoes-ga4`). Entra só no formato do cookie
+  // `_ga`, pelo mesmo normalizador da leitura (`casarClickRef`).
+  const ga = normalizarIdentidadeGa4(queryRaw);
   return criarClickRefNaTabela(admin, "google_ads_click_refs", organizationId, {
     gclid: ids.gclid ?? null,
     gbraid: ids.gbraid ?? null,
     wbraid: ids.wbraid ?? null,
-    query_raw: { ...normalizarMetadadosGoogle(queryRaw), ...ids },
+    query_raw: {
+      ...normalizarMetadadosGoogle(queryRaw),
+      ...(ga ? { ga_client_id: ga.clientId } : {}),
+      ...(ga?.sessionId ? { ga_session_id: ga.sessionId } : {}),
+      ...ids,
+    },
   });
 }
 
