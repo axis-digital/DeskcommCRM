@@ -90,7 +90,10 @@ test.describe("Configurações › Aparência", () => {
     // O menu de fábrica: superfície (`bg-card`) e fonte Atkinson.
     const fundoDoMenu = await estiloDe(page, '[data-casca-lugar="lateral"]', "background-color");
     expect(fundoDoMenu).toBe("rgb(255, 255, 255)");
-    expect(await page.evaluate(() => getComputedStyle(document.body).fontFamily)).toMatch(/atkinson/i);
+    // Fonte de fábrica: Atkinson na upstream; `axisBody` neste fork, que tem o tema Axis
+    // (Plus Jakarta Sans/Inter) como padrão. Em qualquer dos dois, é a fonte de FÁBRICA
+    // e NÃO a de um template, que é o que esta spec protege.
+    expect(await page.evaluate(() => getComputedStyle(document.body).fontFamily)).toMatch(/atkinson|axisBody/i);
   });
 
   test("Visualizar pinta o sistema em volta e não grava nada", async ({ page }) => {

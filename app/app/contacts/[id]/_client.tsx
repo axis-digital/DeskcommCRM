@@ -216,7 +216,11 @@ export function ContactDetailClient({
       )}
 
       <header className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between sm:gap-4">
-        <div className="min-w-0">
+        {/* O título tem piso de largura (`sm:min-w-[14rem]`) e ocupa o que sobra
+            (`sm:flex-1`). Sem isso, o grupo de ações ao lado, que não encolhia,
+            deixava o nome com 1 letra de largura numa tela de ~1280px: o `h1`
+            quebrava uma letra por linha (e2e `contato-salva-email`). */}
+        <div className="min-w-0 sm:min-w-[14rem] sm:flex-1">
           {/* Sem truncar: nome é dado que a tela existe pra mostrar, e cortar
               com reticências sem um jeito de ver o resto violaria o princípio
               de nunca esconder informação crítica. Deixa quebrar linha. */}
@@ -250,7 +254,9 @@ export function ContactDetailClient({
           </div>
         </div>
         {!contact.is_anonymized && user.support?.access_mode !== "support_readonly" && (
-          <div className="flex shrink-0 flex-wrap items-center gap-2">
+          // Sem `shrink-0`: ele anulava o `flex-wrap` (o grupo nunca era menor que o
+          // texto dos botões) e espremia o título. Agora o grupo quebra de linha.
+          <div className="flex flex-wrap items-center gap-2 sm:justify-end">
             {/* O CAMINHO DE VOLTA do descadastro. Sem ele, o contato que pediu
                 para sair — ou que caiu num falso positivo — ficava preso para
                 sempre: `before-send` recusa todo envio, o funil não cria lead,
