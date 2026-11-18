@@ -4,7 +4,8 @@ secao: adicionado
 titulo: Aviso de fora do horário sem agente de IA, configurado pela empresa
 ---
 
-Em Atendimento apareceu o cartão "Aviso de fora do horário": ligar, escolher as
+Em Configurações › Distribuição de atendimento, no fim da página, apareceu o
+cartão "Aviso de fora do horário": ligar, escolher as
 janelas de atendimento por dia da semana, o fuso e o texto do recado. Quem
 escreve fora dessas janelas recebe o aviso **uma vez por período fechado**, sem
 precisar de agente de IA nem de nenhum fluxo configurado.

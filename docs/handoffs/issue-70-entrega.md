@@ -9,7 +9,7 @@ Branch: `daviguerreiroa/atendimento-aviso-de-fora-do-hor-rio-para-organi`
 
 ## O que a entrega faz
 
-A organização liga, em **Atendimento → Aviso de fora do horário**, um texto fixo,
+A organização liga, em **Configurações › Distribuição de atendimento** (cartão "Aviso de fora do horário", no fim da página), um texto fixo,
 as janelas de atendimento por dia da semana e o fuso. Quem escreve fora dessas
 janelas recebe o aviso **uma vez por período fechado**, sem agente de IA. Quando o
 agente da conversa tem o aviso legado configurado, o aviso da organização vence e o

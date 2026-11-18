@@ -2791,8 +2791,8 @@ export const DICIONARIO: Traducoes = {
   "Quem trabalha aqui, com qual papel e quanta conversa cada um aguenta.": {
     es: "Quién trabaja aquí, con qué rol y cuántas conversaciones puede tomar cada uno.",
   },
-  "Quem recebe cada cliente novo, e o que cada atendente enxerga.": {
-    es: "Quién recibe cada cliente nuevo y qué ve cada asesor.",
+  "Quem recebe cada cliente novo, o que cada atendente enxerga e o aviso de fora do horário.": {
+    es: "Quién recibe cada cliente nuevo, qué ve cada asesor y el aviso fuera de horario.",
   },
   "Dados da empresa, retenção de dados e encarregado de LGPD.": {
     es: "Datos de la empresa, retención de datos y encargado de LGPD.",
