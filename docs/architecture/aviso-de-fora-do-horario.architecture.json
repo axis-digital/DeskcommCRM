@@ -1,0 +1,62 @@
+{
+  "schema_version": 1,
+  "diagram_type": "architecture",
+  "meta": {
+    "title": "Aviso de fora do horário por organização",
+    "subtitle": "Sem agente de IA: uma vez por período fechado, com reserva e envio observável",
+    "output": "aviso-de-fora-do-horario.html",
+    "quality_profile": "standard"
+  },
+  "lanes": [
+    { "id": "humano", "label": "Pessoa" },
+    { "id": "app", "label": "Aplicativo" },
+    { "id": "db", "label": "Banco" },
+    { "id": "canal", "label": "Canal" }
+  ],
+  "mainPath": [
+    "tela",
+    "rota",
+    "config",
+    "evento",
+    "handler",
+    "horario",
+    "reserva",
+    "envio",
+    "inbox"
+  ],
+  "nodes": [
+    { "id": "tela", "lane": "humano", "col": 0, "type": "ui", "label": "Atendimento: aviso, janelas, fuso e texto" },
+    { "id": "rota", "lane": "app", "col": 1, "type": "route", "label": "GET/PATCH /api/v1/aviso-organizacao (manager/admin)" },
+    { "id": "config", "lane": "db", "col": 2, "type": "table", "label": "organizations.settings.aviso_fora_do_horario" },
+    { "id": "schema", "lane": "app", "col": 2, "type": "lib", "label": "Mesmo schema na tela, na rota e no consumidor" },
+    { "id": "evento", "lane": "db", "col": 3, "type": "table", "label": "event_log: message.received" },
+    { "id": "handler", "lane": "app", "col": 4, "type": "service", "label": "avisoOrganizacaoHandler (org parada: pula)" },
+    { "id": "fatos", "lane": "db", "col": 4, "type": "table", "label": "messages + conversa + contato + canal ativo" },
+    { "id": "horario", "lane": "app", "col": 5, "type": "lib", "label": "periodoFechadoSemanal: união de janelas, DST e início do período" },
+    { "id": "vetos", "lane": "app", "col": 5, "type": "lib", "label": "Bloqueado, opt-out, anonimizado, grupo e número interno" },
+    { "id": "pacing", "lane": "app", "col": 6, "type": "lib", "label": "Pacing de resposta: cortesia integral, throttle mantido" },
+    { "id": "reserva", "lane": "db", "col": 6, "type": "table", "label": "reservas_aviso_organizacao: uma por contato e período" },
+    { "id": "envio", "lane": "app", "col": 7, "type": "service", "label": "sendMessageHandler: autoria de automação e idempotency_key" },
+    { "id": "legado", "lane": "app", "col": 3, "type": "service", "label": "Aviso legado do agente (cede quando o da empresa está ligado)" },
+    { "id": "canal", "lane": "canal", "col": 8, "type": "external", "label": "WAHA: envio com teto de 15 s" },
+    { "id": "inbox", "lane": "humano", "col": 8, "type": "ui", "label": "Linha do aviso no Inbox" }
+  ],
+  "edges": [
+    { "id": "tela-rota", "from": "tela", "to": "rota", "label": "Salvar configuração da empresa" },
+    { "id": "rota-config", "from": "rota", "to": "config", "label": "Merge preserva as demais chaves" },
+    { "id": "schema-rota", "from": "schema", "to": "rota", "label": "Zod valida o corpo" },
+    { "id": "schema-handler", "from": "schema", "to": "handler", "label": "Leitura tolerante: inválido é desligado" },
+    { "id": "config-handler", "from": "config", "to": "handler", "label": "Configuração lida pela mesma régua" },
+    { "id": "evento-handler", "from": "evento", "to": "handler", "label": "Só mensagem recebida entra" },
+    { "id": "handler-fatos", "from": "handler", "to": "fatos", "label": "Conversa, contato e canal em uma consulta" },
+    { "id": "fatos-horario", "from": "fatos", "to": "horario", "label": "Instante avaliado no fuso da empresa" },
+    { "id": "horario-vetos", "from": "horario", "to": "vetos", "label": "Fora do horário, ainda pode haver veto" },
+    { "id": "vetos-pacing", "from": "vetos", "to": "pacing", "label": "Aviso é resposta provocada pelo contato" },
+    { "id": "pacing-reserva", "from": "pacing", "to": "reserva", "label": "Reserva antes do efeito" },
+    { "id": "reserva-envio", "from": "reserva", "to": "envio", "label": "Só quem reservou envia" },
+    { "id": "envio-canal", "from": "envio", "to": "canal", "label": "Entrega externa" },
+    { "id": "envio-inbox", "from": "envio", "to": "inbox", "label": "A conversa mostra o aviso" },
+    { "id": "legado-config", "from": "legado", "to": "config", "label": "Cede quando o aviso da empresa está ligado" },
+    { "id": "handler-legado", "from": "handler", "to": "legado", "label": "Os dois caminhos nunca enviam juntos" }
+  ]
+}

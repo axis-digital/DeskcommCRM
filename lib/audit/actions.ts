@@ -1224,6 +1224,7 @@ export const AUDIT_ACTIONS = [
   // O arquivo de som que a organização escolheu para a etapa que avisa e para
   // o pedido de pessoa — e a volta ao bipe do produto.
   "settings.notification_sound_updated",
+  "settings.aviso_fora_do_horario_alterada",
   "settings.notification_sound_removed",
   // O interruptor do Jev (PATCH /api/v1/ai/jev). Ligar manda cada mensagem
   // recebida dos clientes, uma de cada vez e sem o histórico da conversa, para

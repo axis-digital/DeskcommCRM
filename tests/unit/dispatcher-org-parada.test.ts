@@ -24,6 +24,7 @@ import {
 } from "@/lib/event-log/dispatcher";
 import { drainEventLog } from "@/lib/event-log/drain";
 import { ensureHandlersRegistered } from "@/lib/event-log/register-handlers";
+import { avisoOrganizacaoHandler } from "@/lib/agent-engine/agent/aviso-organizacao.handler";
 import { pinoReintentoHandler } from "@/lib/channels/zernio/pino-reintento.handler";
 import { reenvioDesaceleradoHandler } from "@/lib/messaging/reenvio-desacelerado.handler";
 import { automationRulesHandler } from "@/lib/automation/engine.handler";
@@ -87,6 +88,7 @@ const RODA: EventHandler[] = [
 ];
 
 const PULA: EventHandler[] = [
+  avisoOrganizacaoHandler,
   nuvemshopCatalogoHandler,
   nuvemshopClienteHandler,
   nuvemshopPedidoHandler,

@@ -18,6 +18,7 @@ ser fonte sem ninguém decidir isso.
 
 | arquivo | escopo |
 |---|---|
+| `aviso-de-fora-do-horario.architecture.json` | aviso de fora do horário por empresa (#70) sem agente de IA — 15 peças, 16 arestas; a tela e a rota gravam em `organizations.settings`, o consumidor de `message.received` avalia a união de janelas no fuso da empresa, a reserva por contato e período impede dois envios, o pacing mantém o throttle, e o aviso legado do agente cede quando o da empresa está ligado |
 | `atendimento-alerta-humano-nome-informado.architecture.json` | aviso interno por episódio, reserva sem reenvio incerto, nome selecionado pela ferramenta com escopo inbound e ficha vazia; limites da timeline declarados |
 | `apresentacao-do-catalogo.architecture.json` | apresentação de produto pela IA, opcional por empresa: chave, seção, ferramenta no turno, snapshot, retomada e envio em ordem |
 | `catalogo-de-modelos.architecture.json` | descoberta diária de modelos nativos OpenAI/Anthropic via Models.dev, conciliação OpenRouter, seletores e auditoria |

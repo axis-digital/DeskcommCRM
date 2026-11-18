@@ -13782,6 +13782,52 @@ export type Database = {
         };
         Relationships: [];
       };
+      reservas_aviso_organizacao: {
+        Row: {
+          organization_id: string;
+          contact_id: string;
+          inicio_periodo: string;
+          token: string;
+          estado: string;
+          expira_em: string;
+          criado_em: string;
+        };
+        ComputedFields: never;
+        Insert: {
+          organization_id: string;
+          contact_id: string;
+          inicio_periodo: string;
+          token: string;
+          estado: string;
+          expira_em: string;
+          criado_em?: string;
+        };
+        Update: {
+          organization_id?: string;
+          contact_id?: string;
+          inicio_periodo?: string;
+          token?: string;
+          estado?: string;
+          expira_em?: string;
+          criado_em?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "reservas_aviso_organizacao_organization_id_fkey";
+            columns: ["organization_id"];
+            isOneToOne: false;
+            referencedRelation: "organizations";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "reservas_aviso_organizacao_contact_id_fkey";
+            columns: ["contact_id"];
+            isOneToOne: false;
+            referencedRelation: "contacts";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
       send_ledger: {
         Row: {
           body_hash: string;

@@ -262,3 +262,48 @@ export function msAteAJanelaAbrirPulandoFeriado(
   }
   return semFeriado;
 }
+
+/** Intervalos locais independentes, com fim exclusivo e sem virada de dia. */
+export interface IntervaloSemanal {
+  dow: number;
+  start: string;
+  end: string;
+}
+
+/**
+ * Avalia a união dos intervalos e identifica a última transição aberto → fechado.
+ * Percorrer instantes reais evita deslocar a chave quando o fuso muda de offset.
+ * A resolução é de um minuto, igual à precisão dos intervalos configurados.
+ */
+export function periodoFechadoSemanal(
+  timezone: string,
+  windows: readonly IntervaloSemanal[],
+  agora: Date,
+): { foraDoHorario: boolean; inicioPeriodoFechado: Date | null } | null {
+  if (!Number.isFinite(agora.getTime()) || windows.length === 0) return null;
+  const intervalos = windows.map((w) => ({ dow: w.dow, inicio: minutosDe(w.start), fim: minutosDe(w.end) }));
+  if (intervalos.some((w) => !Number.isInteger(w.dow) || w.dow < 0 || w.dow > 6 || w.inicio === null || w.fim === null || w.fim <= w.inicio)) return null;
+  let formatter: Intl.DateTimeFormat;
+  try {
+    formatter = new Intl.DateTimeFormat('en-US', { timeZone: timezone, weekday: 'short', hour: '2-digit', minute: '2-digit', hourCycle: 'h23' });
+  } catch {
+    return null;
+  }
+  const dias: Record<string, number> = { Sun: 0, Mon: 1, Tue: 2, Wed: 3, Thu: 4, Fri: 5, Sat: 6 };
+  const aberta = (instante: number): boolean => {
+    const partes = formatter.formatToParts(instante);
+    const valor = (tipo: Intl.DateTimeFormatPartTypes) => partes.find((p) => p.type === tipo)?.value ?? '';
+    const dia = dias[valor('weekday')];
+    const minuto = Number(valor('hour')) * 60 + Number(valor('minute'));
+    return intervalos.some((w) => w.dow === dia && w.inicio !== null && w.fim !== null && minuto >= w.inicio && minuto < w.fim);
+  };
+  const minutoAtual = Math.floor(agora.getTime() / 60_000) * 60_000;
+  if (aberta(minutoAtual)) return { foraDoHorario: false, inicioPeriodoFechado: null };
+  // O ciclo semanal e uma margem para a mudança de offset cobrem o último
+  // intervalo acessível, inclusive uma hora repetida ou inexistente no DST.
+  for (let minutos = 1; minutos <= 8 * 24 * 60; minutos += 1) {
+    const instante = minutoAtual - minutos * 60_000;
+    if (aberta(instante)) return { foraDoHorario: true, inicioPeriodoFechado: new Date(instante + 60_000) };
+  }
+  return null;
+}

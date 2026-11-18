@@ -73,7 +73,8 @@
  * teste unitário sem ambiente, sem `@/lib/env` e sem a cadeia de guardrails.
  */
 import type { Queryable } from '../queue/queue';
-import { decidePacing } from '../pacing/engine';
+import { decidePacingDoAviso } from '../pacing/aviso-imediato';
+import { TAMANHO_MAXIMO_DO_TEXTO } from './configuracao-aviso-organizacao';
 import {
   inicioDoPeriodoFechado,
   msAteAJanelaAbrir,
@@ -83,8 +84,12 @@ import {
 /** Marcador gravado em `messages.metadata` — é o que a consulta de dedupe lê. */
 export const MARCA_DO_AVISO = 'aviso_fora_do_horario';
 
-/** Teto do texto configurado: jsonb é livre, balão de 40KB não é. */
-export const TAMANHO_MAXIMO_DO_TEXTO = 1000;
+/**
+ * Teto do texto configurado — a fonte é a regra, em
+ * `configuracao-aviso-organizacao.ts`. Reexportado aqui porque quem envia já
+ * importa este módulo e o nome nasceu nele.
+ */
+export { TAMANHO_MAXIMO_DO_TEXTO };
 
 export interface ContatoDoAviso {
   isBlocked: boolean;
@@ -261,6 +266,8 @@ export function decideAvisoForaDoHorario(input: DecisaoCompleta): DecisaoDoAviso
 }
 
 export interface PortasDoAviso {
+  /** Quando a organização ligou seu aviso, o agente deixa a mensagem para ele. */
+  avisoOrganizacaoAtivo?(organizationId: string): Promise<boolean>;
   /** Flags do contato lidas DIRETO da fonte (`contacts`), nunca de cache. */
   leContato(organizationId: string, contactId: string): Promise<ContatoDoAviso | null>;
   /** O telefone do contato é um número de conexão ATIVA desta organização? */
@@ -337,6 +344,9 @@ export async function enviaAvisoForaDoHorario(
   deps: PortasDoAviso,
   entrada: EntradaDoAviso,
 ): Promise<DecisaoDoAviso> {
+  if (await deps.avisoOrganizacaoAtivo?.(entrada.organizationId))
+    return { enviar: false, motivo: 'aviso_da_organizacao' };
+
   // 1. Sem NENHUM dos dois textos não há aviso: as perguntas baratas respondem
   //    sem nenhuma ida ao banco. É o caminho de quem não ligou o recurso, e ele
   //    continua byte a byte o de antes — inclusive no feriado.
@@ -436,6 +446,14 @@ export function portasDeProducao(
   log?: LogDoAviso,
 ): PortasDoAviso {
   return {
+    async avisoOrganizacaoAtivo(organizationId) {
+      const { rows } = await db.query<{ settings: unknown }>('select settings from organizations where id = $1', [organizationId]);
+      if (!rows[0]) throw new Error('organizacao_inexistente');
+      const settings = rows[0].settings;
+      if (!settings || typeof settings !== 'object') return false;
+      const { lerConfiguracaoAvisoOrganizacao } = await import('./configuracao-aviso-organizacao');
+      return lerConfiguracaoAvisoOrganizacao((settings as Record<string, unknown>).aviso_fora_do_horario)?.enabled === true;
+    },
     async leContato(organizationId, contactId) {
       const sql = (colunas: string) =>
         `select ${colunas} from contacts where organization_id = $1 and id = $2`;
@@ -551,19 +569,14 @@ export function portasDeProducao(
             'select daily_message_limit from channel_sessions where organization_id = $1 and id = $2',
             [organizationId, channelSessionId],
           );
-          const decision = decidePacing({
+          const decision = decidePacingDoAviso({
             now: agora,
             knobs: cfg.knobs,
             state,
             crmDailyLimit: dailyLimit.rows[0]?.daily_message_limit ?? null,
             banRisk,
-            // RESPOSTA: é o contato que escreveu primeiro. O aviso não é
-            // disparo ativo, e a janela `resposta*` é a que protege a resposta.
-            resposta: true,
           });
-          return decision.allow
-            ? { liberado: true }
-            : { liberado: false, motivo: decision.code };
+          return decision;
         } catch (err) {
           // Sem ritmo conhecido não há envio: o anti-ban vale mais que o aviso.
           log?.warn('[aviso-fora-do-horario] pacing indisponível — aviso não enviado', {

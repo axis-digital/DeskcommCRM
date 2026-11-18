@@ -26,8 +26,10 @@ import { createClient } from "@/lib/supabase/server";
 import { loadChannelRoutingSettings } from "@/lib/routing/channel-policies";
 import { configAssinatura } from "@/lib/messaging/assinatura";
 import { podeAdministrarEmpresa } from "@/lib/auth/pode-administrar-empresa";
+import { lerConfiguracaoAvisoOrganizacao } from "@/lib/agent-engine/agent/configuracao-aviso-organizacao";
 import { regrasDeCliente, telefoneDeFichaVaziaLigado, nomeInformadoLigado, duplicadosPorNomeLigado } from "@/lib/schemas/settings";
 import { AssinaturaForm } from "./_assinatura-form";
+import { AvisoOrganizacaoForm } from "./_aviso-organizacao-form";
 import { ClientePelaVenda } from "./_clientePelaVenda";
 import { ChannelRoutingForm } from "./_channels-form";
 import { AtendimentoForm } from "./_form";
@@ -95,6 +97,11 @@ export default async function AtendimentoSettingsPage() {
   // (`lerOpcaoDaSatisfacao`), e o resultado pela MESMA função da rota
   // `/api/v1/metrics/satisfacao`, com a varredura de vencidos antes.
   const satisfacao = lerOpcaoDaSatisfacao(data?.settings);
+  // #70 — o aviso de fora do horário da organização, lido pela MESMA régua do consumidor
+  // (`lerConfiguracaoAvisoOrganizacao`): a tela não mostra ligado o que o runtime lê como desligado.
+  const avisoInicial = lerConfiguracaoAvisoOrganizacao(
+    (data?.settings as Record<string, unknown> | null)?.aviso_fora_do_horario,
+  );
   const admin = createAdminClient();
   let resumoDaPesquisa: ResumoDaSatisfacao | null = null;
   try {
@@ -150,6 +157,7 @@ export default async function AtendimentoSettingsPage() {
         idioma={idioma}
         podeMudar={podeAdministrarEmpresa(user, activeOrg)}
       />
+      <AvisoOrganizacaoForm inicial={avisoInicial} podeMudar={podeAdministrarEmpresa(user, activeOrg)} />
     </div>
   );
 }

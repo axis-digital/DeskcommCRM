@@ -383,6 +383,11 @@ const DECISOES: Record<string, Decisao> = {
     decidida: "manter",
     razao: "body_hash é IRREVERSÍVEL (a própria doutrina do invariante irmão manda `_hash` ficar de fora) e last_error/status são código; é a prova de que a mensagem saiu, sem guardar o que ela dizia.",
   },
+  reservas_aviso_organizacao: {
+    decidida: "manter",
+    razao:
+      "Trava do aviso de fora do horário (#70): guarda só identificadores (organização, contato), o início do período, um token e o estado de envio — nenhum texto e nenhum dado pessoal. O dado da pessoa mora em `contacts`, que a cascata anonimiza, e o texto do aviso mora em `messages`, que a cascata já redige. Apagar a linha na anonimização reabriria o período e o contato receberia o aviso de novo; no expurgo do contato a linha some sozinha (`on delete cascade`).",
+  },
 };
 
 /** As 11 tabelas da issue #1504 — nenhuma tem FK DIRETA, por isso medida à parte. */

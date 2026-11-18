@@ -2791,8 +2791,8 @@ export const DICIONARIO: Traducoes = {
   "Quem trabalha aqui, com qual papel e quanta conversa cada um aguenta.": {
     es: "Quién trabaja aquí, con qué rol y cuántas conversaciones puede tomar cada uno.",
   },
-  "Quem recebe cada cliente novo, e o que cada atendente enxerga.": {
-    es: "Quién recibe cada cliente nuevo y qué ve cada asesor.",
+  "Quem recebe cada cliente novo, o que cada atendente enxerga e o aviso de fora do horário.": {
+    es: "Quién recibe cada cliente nuevo, qué ve cada asesor y el aviso fuera de horario.",
   },
   "Dados da empresa, retenção de dados e encarregado de LGPD.": {
     es: "Datos de la empresa, retención de datos y encargado de LGPD.",
@@ -8709,6 +8709,26 @@ export const DICIONARIO: Traducoes = {
     es: "La integración puede enviar en nombre de un asesor",
   },
   "Ler o log de auditoria": { es: "Leer el registro de auditoría" },
+  // ─── Configurações: Aviso de fora do horário ───
+  "Aviso de fora do horário": { es: "Aviso fuera del horario" },
+  "Quando um cliente escreve fora das janelas abaixo, ele recebe este aviso uma vez por período fechado. Não precisa de agente de IA.": {
+    es: "Cuando un cliente escribe fuera de las ventanas de abajo, recibe este aviso una vez por cada período cerrado. No hace falta un agente de IA.",
+  },
+  "Avisar clientes fora do horário de atendimento": { es: "Avisar a los clientes fuera del horario de atención" },
+  "Desligado, nada é enviado e as janelas e o texto ficam guardados.": {
+    es: "Desactivado, no se envía nada y las ventanas y el texto quedan guardados.",
+  },
+  "Janelas de atendimento": { es: "Ventanas de atención" },
+  "Texto do aviso": { es: "Texto del aviso" },
+  "Informe ao menos uma janela, com o fim depois do início.": {
+    es: "Indica al menos una ventana, con el fin después del inicio.",
+  },
+  "Fuso horário inválido.": { es: "Zona horaria no válida." },
+  "Escreva o texto do aviso.": { es: "Escribe el texto del aviso." },
+  "Corrija os campos destacados.": { es: "Corrige los campos marcados." },
+  "Aviso de fora do horário salvo.": { es: "Aviso fuera del horario guardado." },
+  "Aviso de fora do horário desligado.": { es: "Aviso fuera del horario desactivado." },
+  "Só quem administra a empresa pode alterar.": { es: "Solo quien administra la empresa puede cambiarlo." },
   // ─── Configurações: Distribuição de atendimento ───
   "Distribuição de atendimento salva.": { es: "Distribución de atención guardada." },
   "Não consegui salvar.": { es: "No pude guardar." },
