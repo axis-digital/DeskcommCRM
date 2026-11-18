@@ -18,10 +18,10 @@ issue #70; **o aviso da organização sem IA ainda não foi implementado**.
 
 Capturas desta execução, separadas das evidências históricas:
 
-- [Contato editado no dossiê](../evidence/sync-upstream-2026-11-16/dossie-respiro.png)
-- [Pedidos, catálogo e destino da fonte](../evidence/sync-upstream-2026-11-16/nuvemshop-catalogo.png)
-- [Convite de notificações](../evidence/sync-upstream-2026-11-16/inbox-convite-notificacoes.png)
-- [Moeda persistida](../evidence/sync-upstream-2026-11-16/moeda-persistida.png)
+- [Contato editado no dossiê](docs/evidence/sync-upstream-2026-11-16/dossie-respiro.png)
+- [Pedidos, catálogo e destino da fonte](docs/evidence/sync-upstream-2026-11-16/nuvemshop-catalogo.png)
+- [Convite de notificações](docs/evidence/sync-upstream-2026-11-16/inbox-convite-notificacoes.png)
+- [Moeda persistida](docs/evidence/sync-upstream-2026-11-16/moeda-persistida.png)
 
 Os serviços da bancada Supabase foram encerrados por projeto exato, sem tocar
 staging ou produção. O receptor da Nuvemshop é um dublê HTTP; não foram provados
