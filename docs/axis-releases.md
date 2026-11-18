@@ -231,6 +231,28 @@ O que **não** foi provado:
 override para as imagens `deskcomm-*:staging-pre-changelog-1110` (ou restaurar `docker-compose.staging-ci.yml.bak-20261110`).
 Como não há schema novo, o dump só é necessário se algo fora desta release tiver escrito no banco.
 
+### Staging com o PR #72 (build no host) — aviso fora do horário (#70) + sync de 16/11 (2026-11-18)
+
+Staging promovido para o commit `d9c2b9044` (PR #72, branch `daviguerreiroa/atendimento-aviso-de-fora-do-hor-rio-para-organi`,
+empilhado no #71 = branch merge/upstream-2026-11-16). **A produção não foi tocada** e continua na release anterior.
+
+| Passo | Resultado medido |
+|---|---|
+| Imagens | deskcomm-app:staging-pr72, deskcomm-worker:staging-pr72, deskcomm-scheduler:staging-pr72 com APP_VERSION=d9c2b90 nos três; build no host via docker-compose.staging-ci.yml reescrito com pull_policy never; cópia de backup em docker-compose.staging-ci.yml.bak-20261118; somado a prod, single-server e staging. Checkout `/root/projects/deskcomm-staging` movido de `877d31613` para `d9c2b9044` (detached). Execução: `up -d --no-deps app worker scheduler` com `-p deskcomm-staging` |
+| Schema | `reaplicar_baseline` do kit com o `supabase/baseline.sql` de `d9c2b9044`: 1 passada, 0 linhas de erro (log em /root/backups/deskcomm/staging/baseline-apply-1118.log). Confirmado no banco: tabela `public.reservas_aviso_organizacao` existe; policy `tenant_isolation_reservas_aviso_organizacao_read` (SELECT) |
+| Saúde | os três `healthy`, 0 reinícios; `/` 200, `/app` 307, `/api/v1/health` 200, `/docs/changelog` 200 em https://staging.deskcomm.axisaceleradora.com.br |
+
+Prova pela tela (Chromium via Playwright, 1440x900, 0 erros de console, 0 respostas HTTP >= 400): login do dono; a org do staging NÃO tinha onboarding concluído e foi concluída com o mínimo (nome "Staging Prova 1118", termos aceitos, objetivo "Vender produtos", WhatsApp/agente/funil/teste/convites pulados). Ficha de um contato criado pela API: h1 visível. Configurações > Atendimento: cartão "Aviso de fora do horário" presente e desligado por padrão; ao ligar aparecem fuso (America/Sao_Paulo), janela (09:00-18:00) e texto; salvar e recarregar persiste (GET /api/v1/aviso-organizacao devolve enabled:true); auditoria no banco: duas linhas `settings.aviso_fora_do_horario_alterada`; depois o aviso foi DESLIGADO (enabled:false).
+
+Dados gravados no staging por esta prova: 1 contato "Contato Prova Staging 1118"; org renomeada; onboarding concluído.
+
+O que **não** foi provado:
+
+- envio real do aviso (o staging não tem canal de WhatsApp)
+- o e2e do #71 estava vermelho em 6 partes quando o staging subiu (conserto 3e08e4d42 enviado depois, CI ainda em curso); o staging roda d9c2b9044 SEM esse conserto
+
+**Para voltar o staging:** restaurar `docker-compose.staging-ci.yml.bak-20261118` e subir app worker scheduler; tags `deskcomm-{app,worker,scheduler}:staging-pre-sync1116`; checkout de volta a `877d31613`; banco: `pg_restore` do dump `/root/backups/deskcomm/staging/staging-pre-sync1116-20261118-1118.dump`.
+
 ## O `agent.sh` do host (classificação medida em 2026-11-05)
 
 `hostgator-setup-kit/agent.sh` roda por cron a cada 5 minutos, em produção e no staging. Ele **não** é só um verificador
