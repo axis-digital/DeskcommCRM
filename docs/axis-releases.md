@@ -249,7 +249,10 @@ Dados gravados no staging por esta prova: 1 contato "Contato Prova Staging 1118"
 O que **não** foi provado:
 
 - envio real do aviso (o staging não tem canal de WhatsApp)
-- o e2e do #71 estava vermelho em 6 partes quando o staging subiu (conserto 3e08e4d42 enviado depois, CI ainda em curso); o staging roda d9c2b9044 SEM esse conserto
+- o e2e completo no staging: o staging não roda a suíte; o e2e do #71 estava vermelho em 6 partes quando ele subiu em `d9c2b9044` e ficou verde no CI com o conserto `3e08e4d42`
+- ficha do contato em mais de uma largura **antes** do conserto: a prova inicial foi só a 1440 px; o título espremido aparece a ~1280 px
+
+**Atualização no mesmo dia (`fe51e9745`):** o staging foi reconstruído no host com o conserto do e2e do #71 (`3e08e4d42`, via merge no #72): imagens `deskcomm-{app,worker,scheduler}:staging-pr72b`, `APP_VERSION=fe51e97` nos três, sem mudança de `supabase/` (baseline não reaplicado), os três `healthy` e 0 reinícios, `/` 200, `/app` 307, `/api/v1/health` 200. Ficha do contato medida em 800, 1024, 1280 e 1440 px: o título fica com 224 px (2 linhas para um nome de 26 caracteres), `h1` visível nas quatro, e o grupo de botões quebra em 5, 3, 2 e 2 linhas. O ponto de volta para o build anterior (`d9c2b9044`) é `docker-compose.staging-ci.yml.bak-20261118b` com as tags `staging-pr72`.
 
 **Para voltar o staging:** restaurar `docker-compose.staging-ci.yml.bak-20261118` e subir app worker scheduler; tags `deskcomm-{app,worker,scheduler}:staging-pre-sync1116`; checkout de volta a `877d31613`; banco: `pg_restore` do dump `/root/backups/deskcomm/staging/staging-pre-sync1116-20261118-1118.dump`.
 
