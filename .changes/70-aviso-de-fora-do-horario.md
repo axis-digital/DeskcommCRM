@@ -10,6 +10,10 @@ janelas de atendimento por dia da semana, o fuso e o texto do recado. Quem
 escreve fora dessas janelas recebe o aviso **uma vez por período fechado**, sem
 precisar de agente de IA nem de nenhum fluxo configurado.
 
+O aviso é independente da IA: o modo de teste do canal ("Configurar acesso da
+IA", com lista de números autorizados) segura os envios da IA, mas **não** barra
+este aviso.
+
 Vem **desligado**. Desligado, nada é enviado e as janelas e o texto continuam
 guardados para quando vocês ligarem de novo.
 

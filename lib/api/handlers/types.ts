@@ -99,6 +99,16 @@ export interface HandlerCtx {
   amigoAgentToolIds?: readonly string[];
   /** O papel autenticado do MCP, para o domínio do Amigo quando o ator não traz papel. */
   amigoRole?: string;
+  /**
+   * O aviso de fora do horário da ORGANIZAÇÃO não é envio de IA: é uma configuração
+   * do atendimento, sem agente nem modelo no caminho. Por isso o modo de teste do
+   * canal (`ai_gate_mode = pre_go_live`), que existe para segurar a IA, não o barra.
+   *
+   * Vive no CTX, nunca no input: quem preenche é o consumidor do aviso, no servidor.
+   * Uma marca no `metadata` do corpo não isenta ninguém — senão qualquer token de
+   * IA atravessaria o modo de teste dizendo que é um aviso.
+   */
+  avisoDaOrganizacao?: boolean;
   prospectingDelivery?: ProspectingDelivery;
   agentOperation?: AgentOperationContext;
   meetingDelivery?: MeetingDeliveryContext;

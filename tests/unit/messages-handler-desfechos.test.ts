@@ -134,6 +134,26 @@ describe('sendMessageHandler — os 6 desfechos do envio', () => {
     }
     expect(fetchMock).not.toHaveBeenCalled();
   });
+  it("o aviso de fora do horário da organização ignora o modo de teste do canal", async () => {
+    wahaConfigured(false);
+    const channelMetadata = { ai_gate: "allowlist", ai_gate_mode: "pre_go_live", ai_test_phone_numbers: [] };
+    const aviso = await sendMessageHandler(dubleDo(conversationRow(), null, { channelMetadata }),
+      { ...ctx, actor: { type: "webhook_source", id: "agent-engine" }, avisoDaOrganizacao: true },
+      textInput({ metadata: { aviso_fora_do_horario: true } }));
+    expect(aviso, "o aviso não depende de IA: o modo de teste do canal não pode barrá-lo").toMatchObject({ status: "queued", error_code: null });
+  });
+  it("só o contexto do servidor isenta: a marca no metadata do corpo não abre o modo de teste", async () => {
+    wahaConfigured(true);
+    const fetchMock = vi.fn();
+    vi.stubGlobal("fetch", fetchMock);
+    const channelMetadata = { ai_gate: "allowlist", ai_gate_mode: "pre_go_live", ai_test_phone_numbers: [] };
+    for (const actor of [{ type: "ai_agent", id: USER, role: "agent" }, { type: "webhook_source", id: USER }] as const) {
+      const message = await sendMessageHandler(dubleDo(conversationRow(), null, { channelMetadata }),
+        { ...ctx, actor }, textInput({ metadata: { aviso_fora_do_horario: true } }));
+      expect(message).toMatchObject({ status: "failed", error_code: "pre_go_live" });
+    }
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
   it("número autorizado passa pelo gate; resposta humana não depende da lista", async () => {
     wahaConfigured(false);
     const channelMetadata = { ai_gate: "allowlist", ai_gate_mode: "pre_go_live", ai_test_phone_numbers: ["+5531999998888"] };

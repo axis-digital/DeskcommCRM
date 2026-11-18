@@ -73,7 +73,9 @@ function portas(): PortasAvisoOrganizacao {
     async envia(entrada) {
       const { sendMessageHandler } = await import('@/app/api/v1/messages/_handler');
       const mensagem = await sendMessageHandler(createAdminClient(),
-        { organization_id: entrada.organizationId, actor: { type: 'webhook_source', id: 'agent-engine' }, requestId: entrada.chave },
+        { organization_id: entrada.organizationId, actor: { type: 'webhook_source', id: 'agent-engine' }, requestId: entrada.chave,
+          // Aviso da organização não é IA: o modo de teste do canal não o barra.
+          avisoDaOrganizacao: true },
         { conversation_id: entrada.conversationId, type: 'text', body: entrada.body,
           metadata: { idempotency_key: entrada.chave, [MARCA_DO_AVISO]: true } });
       if (!['sent', 'delivered', 'read'].includes(mensagem.status)) throw new Error('resultado_do_aviso_incerto');

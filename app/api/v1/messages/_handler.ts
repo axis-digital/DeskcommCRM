@@ -1179,8 +1179,9 @@ export async function sendMessageHandler(
   });
 
   // Releitura no sink: o operador pode ter fechado o canal enquanto o modelo
-  // gerava a resposta. Envio humano não passa por esta restrição da IA.
-  const acessoAtual = ctx.actor.type === "user" ? null : await decidirPreGoLiveDoCanalViaSupabase(supabase, {
+  // gerava a resposta. Envio humano não passa por esta restrição da IA, e o aviso de
+  // fora do horário da organização também não: não há IA no caminho dele.
+  const acessoAtual = ctx.actor.type === "user" || ctx.avisoDaOrganizacao === true ? null : await decidirPreGoLiveDoCanalViaSupabase(supabase, {
     organizationId: ctx.organization_id,
     channelSessionId: c.channel_session_id,
     contactPhoneNumber: c.contacts?.phone_number ?? "",
