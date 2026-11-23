@@ -569,8 +569,10 @@ aberto somente no fork `axis-digital/DeskcommCRM` (remoto `origin`), base `main`
 `gh pr create -R axis-digital/DeskcommCRM`. O `upstream` serve apenas para `fetch`/merge para dentro
 do fork. Espelha a seção de mesmo nome do `CLAUDE.md`.
 
-**Feature nova (regra do dono):** antes de codar, (1) atualizar o fork com a upstream (merge numa
-branch `merge/upstream-<data>` + PR no fork, se `origin/main` estiver atrás); (2) verificar se a
+**Feature nova (regra do dono):** antes de codar, (1) atualizar o fork com a upstream **só quando há
+versão nova** (tag da upstream fora de `origin/main`:
+`git tag --no-merged origin/main --merged upstream/main`; lista vazia = não mesclar; havendo, mesclar
+a tag mais recente, nunca a ponta da `upstream/main`, numa branch `merge/upstream-<data>` + PR no fork); (2) verificar se a
 feature já existe no código, nas issues ou nos PRs da upstream; e, se existir, avisar antes de seguir;
 (3) só então criar a branch a partir de `origin/main` atualizada.
 
