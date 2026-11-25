@@ -23,6 +23,9 @@ import type { Lead } from "@/lib/types/leads";
  * `href`, que é o que o `<Link>` do Next entrega ao navegador.
  */
 
+// A seção de vendas tem consulta própria (TanStack Query); aqui ela não é o assunto.
+vi.mock("@/components/vendas/VendasDoNegocio", () => ({ VendasDoNegocio: () => null }));
+vi.mock("./ClassificacaoComercial", () => ({ ClassificacaoComercial: () => null }));
 vi.mock("@/hooks/i18n/useT", () => ({ useT: () => (chave: string) => chave }));
 vi.mock("next/navigation", () => ({ useRouter: () => ({ push: vi.fn() }) }));
 vi.mock("@/hooks/i18n/useLocaleDeData", () => ({ useTagDeIdioma: () => "pt-BR" }));

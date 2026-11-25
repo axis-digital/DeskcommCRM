@@ -95,6 +95,15 @@ export const ApiErrorCodes = {
    */
   data_de_calendario_invalida: "data_de_calendario_invalida",
 
+  // 422 — FATURAMENTO EM LOTE (#4845): o lote trazia atendimento (ou cliente)
+  // que não é da empresa ativa. Código próprio, e não `validation_failed`,
+  // porque a tela precisa dizer o MOTIVO: o corpo está bem formado, os ids só
+  // não são desta empresa — e o lote inteiro foi recusado, sem gravar nada.
+  // A mensagem diz quantos ficaram de fora e nada sobre eles (nem nome, nem
+  // valor, nem a empresa de origem).
+  financeiro_agendamento_fora_da_empresa: "financeiro_agendamento_fora_da_empresa",
+  financeiro_contato_fora_da_empresa: "financeiro_contato_fora_da_empresa",
+
   // 409 — conflito
   idempotency_conflict: "idempotency_conflict",
   // Mesma chave, MESMO corpo, e a primeira execução ainda está em curso: o
@@ -190,6 +199,11 @@ export const ApiErrorCodes = {
   // "recusa parcial" — recebe a porta fechada, e a recebe ANTES de o e-mail
   // sair, de o `due_at` ser tocado e de a auditoria registrar o aviso.
   lgpd_art12_so_fora_do_brasil: "lgpd_art12_so_fora_do_brasil",
+  // PATCH /channel-sessions/:id/ai-access: identidade social que a tela não
+  // oferece para ESTE canal (outra conta conectada, contato sem conversa aqui)
+  // ou lista social num canal que não é de rede social. A forma está certa;
+  // quem não serve é o vínculo com o canal.
+  testador_social_recusado: "testador_social_recusado",
   plano_invalido: "plano_invalido", // plano inexistente, arquivado, de outro intervalo, ou cobrança desligada
   // #2846: cobrança ligada, planos oferecidos e nenhum plano padrão — a empresa
   // não nasce sem plano (doc 146). Quem administra define um padrão.

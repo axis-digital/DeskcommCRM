@@ -40,6 +40,10 @@ export type DonoDoCampo =
   | "compromisso"
   /** `cron_jobs.contact_id` (retorno: `kind='at'`, `job_kind='followup_turn'`). */
   | "retorno"
+  /** `demandas.contact_id`. */
+  | "demanda"
+  /** `crm_tasks.contact_id`. Tarefa sem contato não é do cliente do turno. */
+  | "tarefa"
   /** `agent_cases.conversation_id` → `conversations.contact_id`. */
   | "chamado"
   /** `target_id` cujo dono depende de `target_kind` (conversation|contact|lead). */
@@ -80,6 +84,9 @@ export const ESCOPO_DAS_ESCRITAS: Readonly<Record<string, Readonly<Record<string
 
   // ---- contato e conversa ----
   crm_propose_contact_field: { contact_id: "contato" },
+  // Diagnóstico da empresa na ficha (decisão D7): grava direto, então a cerca
+  // é a mesma da proposta — só a ficha do contato desta conversa.
+  crm_save_lead_diagnosis: { contact_id: "contato" },
   crm_create_conversation_draft: { conversation_id: "conversa" },
   crm_assign_conversation: { conversation_id: "conversa", to_user_id: "configuracao" },
   // #3881: a conversa vem do TURNO (o modelo não escolhe em qual conversa
@@ -95,6 +102,15 @@ export const ESCOPO_DAS_ESCRITAS: Readonly<Record<string, Readonly<Record<string
   crm_send_material: { conversation_id: "conversa", material_id: "configuracao" },
   crm_request_human_handoff: { conversation_id: "conversa", target_user_id: "configuracao" },
   crm_resume_ai_attendance: { conversation_id: "conversa" },
+  // #4517 — os quatro comandos de conversa. A conversa é o único identificador
+  // que trazem, e cada um é uma transição de atendimento (`fn_service_status` ou
+  // o silêncio do bot), nunca escrita no cadastro nem no negócio.
+  crm_pause_ai: { conversation_id: "conversa" },
+  crm_resume_ai: { conversation_id: "conversa" },
+  crm_close_conversation: { conversation_id: "conversa" },
+  crm_reopen_conversation: { conversation_id: "conversa" },
+  // #4517 — a ficha editada. `contact_id` é o próprio alvo da escrita.
+  crm_update_contact: { contact_id: "contato" },
 
   // ---- casos humanos ----
   crm_add_case_note: { case_id: "chamado" },
@@ -131,6 +147,17 @@ export const ESCOPO_DAS_ESCRITAS: Readonly<Record<string, Readonly<Record<string
   crm_schedule_followup: { lead_id: "negocio", contact_id: "contato" },
   crm_cancel_followup: { followup_id: "retorno" },
   crm_enroll_followup_flow: { contact_id: "contato", flow_id: "configuracao" },
+  // #4838 — a tarefa da equipe, no turno, só se prende ao cliente da conversa:
+  // o contato, o negócio dele (guardado por `negocioDaEscritaDoTurno`) e a
+  // demanda dele. Editar exige que a TAREFA seja desse contato.
+  crm_create_task: { contact_id: "contato", lead_id: "negocio", demanda_id: "demanda", assigned_to: "configuracao" },
+  crm_update_task: {
+    task_id: "tarefa",
+    contact_id: "contato",
+    lead_id: "negocio",
+    demanda_id: "demanda",
+    assigned_to: "configuracao",
+  },
 
   // ---- sem registro de cliente ----
   crm_save_org_memory: {},
@@ -194,6 +221,10 @@ async function campoEhDoContato(
       return existeDoContato(supabase, "conversations", organizationId, contato, id);
     case "compromisso":
       return existeDoContato(supabase, "calendar_appointments", organizationId, contato, id);
+    case "demanda":
+      return existeDoContato(supabase, "demandas", organizationId, contato, id);
+    case "tarefa":
+      return existeDoContato(supabase, "crm_tasks", organizationId, contato, id);
     case "retorno":
       return existeDoContato(supabase, "cron_jobs", organizationId, contato, id, {
         kind: "at",

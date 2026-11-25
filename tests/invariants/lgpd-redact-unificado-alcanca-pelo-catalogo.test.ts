@@ -152,6 +152,16 @@ const DECISOES: Record<string, Decisao> = {
     caminho: "cascata",
     razao: "Passo 1 da própria cascata: nome/rótulo, email, telefone, CPF, data de nascimento, consent, source_metadata e tags; is_anonymized/anonymized_at viram o que responde ao titular.",
   },
+  contact_identities: {
+    decidida: "redigir",
+    caminho: "gatilho",
+    razao:
+      "PR da fatia 1 da #3764 (migration 9419): perfil de rede social não tem versão " +
+      "anonimizada que ainda sirva — o mesmo critério do passo 1b de `contact_phones`. Quem apaga é " +
+      "`trg_identidades_do_contato_anonimizado`, em `contacts` AFTER UPDATE OF is_anonymized: a " +
+      "anonimização continua sendo uma porta só, e a ficha deixa de carregar para onde a pessoa " +
+      "podia ser alcançada.",
+  },
   conversations: {
     decidida: "redigir",
     caminho: "cascata",
@@ -241,6 +251,14 @@ const DECISOES: Record<string, Decisao> = {
     decidida: "redigir",
     caminho: "gatilho",
     razao: "fn_site_events_apaga_ao_anonimizar (9902): o que a pessoa fez na loja (cadastro, carrinho abandonado) é comportamento ligado a ela — apaga na virada, não redige, porque o evento sem o contato não diz nada a ninguém. O titular recebe esses registros na cópia dos dados (secao `site_events` do data.json) enquanto a pessoa não é anonimizada.",
+  },
+  vendas_registradas: {
+    decidida: "redigir",
+    caminho: "gatilho",
+    razao:
+      "9449 (#5087): `observacao` é texto livre sobre o cliente e as tags podem nomeá-lo — " +
+      "`trg_vendas_do_contato_anonimizado`, em `contacts` AFTER UPDATE OF is_anonymized, zera as duas. " +
+      "Valor, moeda e dia FICAM: são o registro do dinheiro, e o painel de vendas continua somando.",
   },
   mensagens_agendadas: {
     decidida: "redigir",

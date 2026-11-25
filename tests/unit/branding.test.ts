@@ -1014,6 +1014,11 @@ const HOSTS_DECLARADOS: Record<string, EntradaDeHost> = {
     motivo:
       "endpoint da API Gemini (visão e tradução). Domínio do fornecedor, sem alternativa que não seja proxy nosso.",
   },
+  "connect.facebook.net": {
+    categoria: "FORNECEDOR",
+    motivo:
+      "SDK JavaScript do Facebook que abre a janela do Embedded Signup em Conexões › API Oficial (`components/connections/ConectarPeloFacebook.tsx`, #4074). É o único jeito que a Meta oferece de abrir essa janela — contrato do fornecedor, não escolha nossa.",
+  },
   "graph.facebook.com": {
     categoria: "FORNECEDOR",
     motivo:
@@ -1067,6 +1072,16 @@ const HOSTS_DECLARADOS: Record<string, EntradaDeHost> = {
     categoria: "FORNECEDOR",
     motivo:
       "endpoint do SANDBOX do Asaas (`lib/cobranca/provedores/asaas.ts`): a chave `$aact_hmlg_` do dono só funciona aqui, e é com ela que ele testa antes de publicar.",
+  },
+  "cobrancas.api.efipay.com.br": {
+    categoria: "FORNECEDOR",
+    motivo:
+      "endpoint de PRODUÇÃO da API de cobranças do Efi Bank (`lib/cobranca/provedores/efi.ts`): Pix e boleto recorrentes com que o DONO da instalação cobra as empresas dele, com a credencial Efi DELE. Destino do request, não marca.",
+  },
+  "cobrancas-h.api.efipay.com.br": {
+    categoria: "FORNECEDOR",
+    motivo:
+      "endpoint de HOMOLOGAÇÃO da API de cobranças do Efi Bank (`lib/cobranca/provedores/efi.ts`): o par de credenciais de teste do dono só funciona aqui, e é com ele que ele testa antes de publicar.",
   },
   "www.tiendanube.com": {
     categoria: "FORNECEDOR",

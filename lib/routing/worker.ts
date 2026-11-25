@@ -16,6 +16,8 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { z } from "zod";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { filtrarCandidatosExcluidos } from "@/lib/escalacao/devolucao-ao-rodizio";
+import { traduzir } from "@/lib/i18n/dicionario";
+import { idiomaDoAviso, preencher } from "@/lib/i18n/idioma-do-aviso";
 import { logger } from "@/lib/logger";
 import { moduloLigado } from "@/lib/instalacao/modulos";
 import {
@@ -25,6 +27,7 @@ import {
 } from "@/lib/routing/decide";
 import { motivoParaNaoRotear, type MotivoDoCaso } from "@/lib/routing/caso-da-conversa";
 import { lerEsperaPelaIA, lerQualificacaoDaIA, prazoDaEspera } from "@/lib/routing/qualificacao-da-ia";
+import { esperaPelaRetomada, lerMarcaDeRetomada } from "@/lib/routing/retomada-da-ia";
 import { loadEligibleAttendants, InvalidRoutingChannel, InvalidRoutingSector } from "@/lib/routing/eligibles";
 import { routingConfigSchema } from "@/lib/schemas/routing";
 
@@ -346,6 +349,43 @@ async function processEvent(event: EventRow, now: Date): Promise<RoutingOutcome>
     }
   }
 
+  // A CONVERSA QUE ALGUÉM JÁ DEVOLVEU AO AUTOMÁTICO (`lib/routing/retomada-da-ia.ts`).
+  // Sem prazo e sem opção do número: a marca `ia_retomada` que a devolução grava
+  // guarda o pedido enquanto a IA atende e a conversa não passou para humano de
+  // novo. Vem DEPOIS da espera da #3966 e só age quando ela não segurou o pedido
+  // (desligada ou vencida) — a devolução explícita vale mais que o prazo do número.
+  // Mesmas portas: só rodízio/carga, nunca o destino padrão do número nem caso
+  // que barra a fila; conversa com dono já saiu acima.
+  let motivoDaEspera: "ia_qualificando" | "ia_retomada" = "ia_qualificando";
+  if (
+    esperaPelaIAAte === null &&
+    !alreadyAssigned &&
+    !motivoDoCaso &&
+    !viaDestinoPadrao &&
+    (efetivo.mode === "round_robin" || efetivo.mode === "load") &&
+    lerMarcaDeRetomada((conv as { metadata?: unknown }).metadata) !== null
+  ) {
+    const iaAtendendo = await lerQualificacaoDaIA(admin, orgId, {
+      channel_session_id: conv.channel_session_id,
+      active_ai_agent_id:
+        (conv as { active_ai_agent_id?: string | null }).active_ai_agent_id ?? null,
+      bot_silenced_until:
+        (conv as { bot_silenced_until?: string | null }).bot_silenced_until ?? null,
+      last_handoff_at: (conv as { last_handoff_at?: string | null }).last_handoff_at ?? null,
+      assigned_to_user_id: conv.assigned_to_user_id ?? null,
+    }, now);
+    const ate = esperaPelaRetomada({
+      metadata: (conv as { metadata?: unknown }).metadata,
+      lastHandoffAt: (conv as { last_handoff_at?: string | null }).last_handoff_at ?? null,
+      iaAtendendo,
+      agora: now,
+    });
+    if (ate !== null) {
+      esperaPelaIAAte = ate;
+      motivoDaEspera = "ia_retomada";
+    }
+  }
+
   let eligibles: Awaited<ReturnType<typeof loadEligibleAttendants>> = [];
   if (
     !alreadyAssigned &&
@@ -496,16 +536,13 @@ async function processEvent(event: EventRow, now: Date): Promise<RoutingOutcome>
         event,
         now,
         event.attempts,
-        { reason: "ia_qualificando" },
+        { reason: motivoDaEspera },
         action.nextAttemptAt,
       );
       return "waiting_ia_qualificando";
     }
   }
 }
-
-/** Título fixo: é por ele que quem lê a Central reconhece o aviso. */
-const TITULO_DA_ESPERA_VENCIDA = "A IA não passou a conversa no prazo";
 
 /**
  * O aviso do prazo vencido (#3966). Insere direto, sem `on conflict`: quem
@@ -518,15 +555,23 @@ async function avisarEsperaVencida(
   conversationId: string,
   minutos: number,
 ): Promise<boolean> {
-  const { error } = await createAdminClient().from("agent_inbox_items").insert({
+  const admin = createAdminClient();
+  // A Central mostra o texto como foi gravado: o aviso nasce no idioma da
+  // organização. O título é fixo (por organização): é por ele que quem lê a
+  // Central reconhece o aviso.
+  const idioma = await idiomaDoAviso(admin, orgId);
+  const { error } = await admin.from("agent_inbox_items").insert({
     organization_id: orgId,
     kind: "routing_ia_wait_expired",
     severity: "warn",
-    title: TITULO_DA_ESPERA_VENCIDA,
-    body:
-      `A IA atendeu esta conversa por ${minutos} minutos, o prazo definido para este número, ` +
-      `e não a passou para a equipe. A conversa entrou na distribuição. ` +
-      `Se isso se repetir, confira o agente de IA deste número e o prazo em Configurações → Atendimento.`,
+    title: traduzir("A IA não passou a conversa no prazo", idioma),
+    body: preencher(
+      traduzir(
+        "A IA atendeu esta conversa por {minutos} minutos, o prazo definido para este número, e não a passou para a equipe. A conversa entrou na distribuição. Se isso se repetir, confira o agente de IA deste número e o prazo em Configurações → Atendimento.",
+        idioma,
+      ),
+      { minutos },
+    ),
     ref_kind: "conversation",
     ref_id: conversationId,
   });

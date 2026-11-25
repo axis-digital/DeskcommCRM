@@ -38,6 +38,7 @@ export interface ConexaoEmprestada {
   query(sql: string): Promise<unknown>;
   execute(sql: string, values: unknown[]): Promise<[unknown, Array<{ name: string }>]>;
   release(): void;
+  destroy(): void;
 }
 
 export interface PoolMysql {
@@ -136,9 +137,9 @@ export interface ResultadoMysql<T> {
 
 /**
  * Roda um SELECT dentro de `START TRANSACTION READ ONLY`, com as travas de tempo
- * refeitas neste empréstimo. A garantia final para tabela MyISAM é NÃO MEDIDA
- * (C1a, Fatia 4a-2b): por isso há outras camadas (só geramos `SELECT`, usuário
- * só-leitura, aviso no teste).
+ * refeitas neste empréstimo. Um prazo no cliente também cobre a preparação,
+ * execução e finalização: o limite do servidor sozinho não garante resposta.
+ * Ao vencer, a sessão é descartada; nunca volta ao pool com comando pendente.
  */
 export async function consultarMysql<T = Record<string, unknown>>(
   pool: PoolMysql,
@@ -146,19 +147,39 @@ export async function consultarMysql<T = Record<string, unknown>>(
   values: unknown[] = [],
 ): Promise<ResultadoMysql<T>> {
   const conexao = await pool.getConnection();
+  let expirou = false;
+  let prazo: ReturnType<typeof setTimeout> | undefined;
+  const executar = async (): Promise<ResultadoMysql<T>> => {
+    try {
+      await conexao.query(`SET SESSION max_execution_time = ${MAX_EXECUTION_TIME_MS}`);
+      await conexao.query(`SET SESSION lock_wait_timeout = ${LOCK_WAIT_TIMEOUT_S}`);
+      await conexao.query("START TRANSACTION READ ONLY");
+      // `execute` não aceita `undefined`.
+      const [rows, fields] = await conexao.execute(sql, values.map((v) => (v === undefined ? null : v)));
+      await conexao.query("COMMIT");
+      return { rows: rows as T[], fields };
+    } catch (err) {
+      // Depois do prazo, ROLLBACK ficaria na fila atrás do comando pendurado.
+      if (!expirou) await conexao.query("ROLLBACK").catch(() => undefined);
+      throw err;
+    }
+  };
   try {
-    await conexao.query(`SET SESSION max_execution_time = ${MAX_EXECUTION_TIME_MS}`);
-    await conexao.query(`SET SESSION lock_wait_timeout = ${LOCK_WAIT_TIMEOUT_S}`);
-    await conexao.query("START TRANSACTION READ ONLY");
-    // `execute` não aceita `undefined`.
-    const [rows, fields] = await conexao.execute(sql, values.map((v) => (v === undefined ? null : v)));
-    await conexao.query("COMMIT");
-    return { rows: rows as T[], fields };
-  } catch (err) {
-    await conexao.query("ROLLBACK").catch(() => undefined);
-    throw err;
+    return await Promise.race([
+      executar(),
+      new Promise<never>((_, reject) => {
+        prazo = setTimeout(() => {
+          expirou = true;
+          reject(Object.assign(new Error("A consulta MySQL excedeu o tempo limite de 10 segundos."), {
+            code: "PROTOCOL_SEQUENCE_TIMEOUT",
+          }));
+          conexao.destroy();
+        }, MAX_EXECUTION_TIME_MS);
+      }),
+    ]);
   } finally {
-    conexao.release();
+    clearTimeout(prazo);
+    if (!expirou) conexao.release();
   }
 }
 

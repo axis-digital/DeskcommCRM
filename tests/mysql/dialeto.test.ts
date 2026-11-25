@@ -170,6 +170,20 @@ describe("somente leitura e travas, contra um MySQL de verdade", () => {
     registrar("C-tempo", `select sleep(25) com max_execution_time=10000 → ${desfecho} em ${duracao} ms`);
     expect(duracao).toBeLessThan(20_000);
   }, 40_000);
+
+  it("o prazo do cliente encerra uma consulta que o servidor deixa correr e o pool segue usável", async () => {
+    const pool = obterPoolMysql(conexaoDe(banco));
+    const inicio = Date.now();
+    await expect(
+      consultarMysql(pool, "select /*+ MAX_EXECUTION_TIME(60000) */ sleep(25) as dormiu"),
+    ).rejects.toMatchObject({ code: "PROTOCOL_SEQUENCE_TIMEOUT" });
+    const duracao = Date.now() - inicio;
+    expect(duracao).toBeLessThan(20_000);
+    const depois = await consultarMysql<{ n: number | string }>(pool, "select 1 as n");
+    expect(depois.rows).toHaveLength(1);
+    expect(Number(depois.rows[0]!.n)).toBe(1);
+    registrar("C-tempo-cliente", `servidor com teto de 60 s: cliente encerrou em ${duracao} ms; pool respondeu à próxima leitura`);
+  }, 40_000);
 });
 
 describe("teste de conexão e aviso de privilégio, contra um MySQL de verdade", () => {

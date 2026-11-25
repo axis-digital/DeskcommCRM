@@ -30,10 +30,16 @@
 import { randomUUID } from "node:crypto";
 import { type NextRequest } from "next/server";
 
+import { resolveAuthDual, tetoDeEscritaDoToken } from "@/lib/api/auth-dual";
 import { ok, fail } from "@/lib/api/wrappers";
 import { loadAuthUser } from "@/lib/auth/server";
+import { orgAtivaDaApi } from "@/lib/auth/require-role";
+import { extractBearer } from "@/lib/mcp/auth";
 import { traduzir } from "@/lib/i18n/dicionario";
+import { IDIOMA_PADRAO } from "@/lib/i18n/idiomas";
+import type { Idioma } from "@/lib/i18n/idiomas";
 import { createClient } from "@/lib/supabase/server";
+import type { SupabaseClient } from "@supabase/supabase-js";
 import type { TimelineItem, TimelineItemDoContato } from "@/lib/types/contacts";
 import {
   EVENTO_COLS,
@@ -64,6 +70,19 @@ export async function GET(
   const requestId = randomUUID();
   const { id: contactId } = await ctx.params;
 
+  if (extractBearer(req.headers.get("authorization"))) {
+    const authz = await resolveAuthDual(req, {
+      requestId,
+      resource: "contacts",
+      role: "viewer",
+      scope: "mcp:read",
+    });
+    if (!authz.ok) return authz.response;
+    const teto = await tetoDeEscritaDoToken(authz, "contacts", requestId);
+    if (teto) return teto;
+    return responderTimeline(authz.supabase, authz.organizationId, authz.idioma, contactId, new URL(req.url), requestId);
+  }
+
   const supabase = await createClient();
   const {
     data: { user },
@@ -74,8 +93,26 @@ export async function GET(
   }
   const authUser = await loadAuthUser();
   const t = (texto: string) => traduzir(texto, authUser?.idioma ?? "pt-BR");
+  const ativa = await orgAtivaDaApi(authUser, requestId);
+  if (!ativa.ok) return ativa.response;
+  const activeOrg = ativa.org;
+  if (!activeOrg) {
+    return fail("no_active_org", t("No active organization."), 403, { requestId });
+  }
 
-  const url = new URL(req.url);
+  return responderTimeline(supabase, activeOrg.orgId, authUser?.idioma, contactId, new URL(req.url), requestId);
+}
+
+async function responderTimeline(
+  supabase: SupabaseClient,
+  organizationId: string,
+  idioma: Idioma | undefined,
+  contactId: string,
+  url: URL,
+  requestId: string,
+): Promise<Response> {
+  const t = (texto: string) => traduzir(texto, idioma ?? IDIOMA_PADRAO);
+
   const types = url.searchParams.getAll("type").filter(Boolean);
   const cursorRaw = url.searchParams.get("cursor");
   const limitRaw = url.searchParams.get("limit");
@@ -94,6 +131,7 @@ export async function GET(
     .from("contacts")
     .select("id, organization_id")
     .eq("id", contactId)
+    .eq("organization_id", organizationId)
     .maybeSingle();
   if (cErr) return fail("internal_error", cErr.message, 500, { requestId });
   if (!contactRow) return fail("not_found", t("Contato não encontrado."), 404, { requestId });
@@ -102,6 +140,7 @@ export async function GET(
   const { data: leadRows, error: lErr } = await supabase
     .from("crm_leads")
     .select("id")
+    .eq("organization_id", organizationId)
     .eq("contact_id", contactId);
   if (lErr) return fail("internal_error", lErr.message, 500, { requestId });
 

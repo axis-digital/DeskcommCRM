@@ -65,6 +65,26 @@ const DIR_MIGRATIONS = path.join(process.cwd(), "supabase", "migrations");
  * dado existente faz o `update.sh` de um clone quebrar no meio.
  */
 const REMOCOES_DELIBERADAS: Record<string, { valores: string[]; porque: string }> = {
+  // Sync da upstream v1.125.0 (2026-11-25): duas reconstruções que só se encontram na árvore do fork.
+  "20261115215200_9397_aviso_do_retorno_que_nao_sai.sql::agent_inbox_items_kind_check": {
+    valores: ["integracao_desautorizada"],
+    porque:
+      "O ENCONTRO de duas linhas de trabalho, igual ao da 9327/9333: a 9397 (upstream) " +
+      "reconstruiu a constraint a partir da lista que ENXERGAVA, sem o aviso do fork " +
+      "(`integracao_desautorizada`, 9005). Na `main` da upstream ela não remove nada; o buraco " +
+      "só existe na árvore do fork. A forward-fix é a 9906 " +
+      "(`uniao_inbox_kind_apos_upstream_v1125`), que repete a lista canônica do baseline — o " +
+      "estado FINAL da cadeia tem o valor de volta. Migration aplicada não se edita.",
+  },
+  "20261116190000_9904_uniao_inbox_kind_apos_upstream.sql::agent_inbox_items_kind_check": {
+    valores: ["followup_descartado"],
+    porque:
+      "A 9904 (fork, 2026-11-16) restaurou a união vista NAQUELE sync, e `followup_descartado` " +
+      "só chegou com a 9397 (upstream, 2026-11-15), que o sync de 2026-11-25 trouxe para a " +
+      "árvore com timestamp ANTERIOR ao da 9904. Nenhum dos dois errou: a 9904 foi escrita sem " +
+      "conhecer o valor. A forward-fix é a 9906, que repete a lista canônica do baseline com " +
+      "os dois valores. Migration aplicada não se edita.",
+  },
   // As duas migrations upstream não conheciam o aviso do fork. A 9904
   // restaura a união no estado final; ela não corrige falha anterior de ADD
   // CHECK numa cadeia aplicada sobre linhas que já contenham esse valor.
