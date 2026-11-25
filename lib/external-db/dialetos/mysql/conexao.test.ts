@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const { criarPool, criarConexao } = vi.hoisted(() => ({
   criarPool: vi.fn(),
@@ -45,6 +45,7 @@ function conexaoEmprestada(falhaEm?: string) {
   const emprestada = {
     chamadas,
     release: vi.fn(),
+    destroy: vi.fn(),
     query: vi.fn(async (sql: string) => {
       chamadas.push(sql);
       if (falhaEm && sql.startsWith(falhaEm)) throw new Error("falhou");
@@ -133,6 +134,52 @@ describe("consultarMysql — somente leitura, a cada empréstimo", () => {
     expect(emprestada.chamadas).toContain("ROLLBACK");
     expect(emprestada.chamadas).not.toContain("COMMIT");
     expect(emprestada.release).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe("consultarMysql — prazo do cliente", () => {
+  afterEach(() => vi.useRealTimers());
+
+  it.each(["SET SESSION", "EXECUTE", "COMMIT", "ROLLBACK"])(
+    "encerra em 10 segundos quando %s não responde, sem devolver a sessão ao pool",
+    async (etapa) => {
+      vi.useFakeTimers();
+      const emprestada = conexaoEmprestada(etapa === "ROLLBACK" ? "EXECUTE" : undefined);
+      const pendente = () => new Promise<never>(() => undefined);
+      if (etapa === "EXECUTE") emprestada.execute.mockImplementation(pendente);
+      else {
+        const consultar = emprestada.query.getMockImplementation()!;
+        emprestada.query.mockImplementation((sql) => sql.startsWith(etapa) ? pendente() : consultar(sql));
+      }
+      const pool: PoolMysql = { getConnection: async () => emprestada as never, end: async () => undefined };
+      let desfecho: unknown = "pendente";
+      void consultarMysql(pool, "select 1").then(
+        (r) => { desfecho = r; },
+        (err: unknown) => { desfecho = err; },
+      );
+
+      await vi.advanceTimersByTimeAsync(9_999);
+      expect(desfecho).toBe("pendente");
+      await vi.advanceTimersByTimeAsync(1);
+      expect(desfecho).toMatchObject({ code: "PROTOCOL_SEQUENCE_TIMEOUT" });
+      expect(emprestada.destroy).toHaveBeenCalledTimes(1);
+      expect(emprestada.release).not.toHaveBeenCalled();
+      if (etapa !== "ROLLBACK") expect(emprestada.chamadas).not.toContain("ROLLBACK");
+      expect(vi.getTimerCount()).toBe(0);
+    },
+  );
+
+  it.each([undefined, "EXECUTE"])("cancela o relógio depois de terminar (falha: %s)", async (falhaEm) => {
+    vi.useFakeTimers();
+    const emprestada = conexaoEmprestada(falhaEm);
+    const pool: PoolMysql = { getConnection: async () => emprestada as never, end: async () => undefined };
+    if (falhaEm) await expect(consultarMysql(pool, "select 1")).rejects.toThrow("falhou");
+    else await expect(consultarMysql(pool, "select 1")).resolves.toMatchObject({ rows: [{ id: 1 }] });
+
+    await vi.advanceTimersByTimeAsync(20_000);
+    expect(emprestada.destroy).not.toHaveBeenCalled();
+    expect(emprestada.release).toHaveBeenCalledTimes(1);
+    expect(vi.getTimerCount()).toBe(0);
   });
 });
 
