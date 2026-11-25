@@ -83264,11 +83264,7 @@ comment on table public.vendas_registradas is
 alter table public.vendas_registradas enable row level security;
 
 drop policy if exists tenant_isolation_vendas_registradas_select on public.vendas_registradas;
-create policy tenant_isolation_vendas_registradas_select
-  on public.vendas_registradas
-  for select to authenticated using (
-    (organization_id in (select public.fn_user_org_ids())) or public.fn_is_platform_admin()
-  );
+-- A política SELECT é instalada somente na sua definição final (9907).
 
 revoke all on public.vendas_registradas from public, anon, authenticated;
 grant select on public.vendas_registradas to authenticated;

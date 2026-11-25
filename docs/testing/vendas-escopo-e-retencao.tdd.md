@@ -15,3 +15,9 @@ Os testes unitários de `app/api/v1/vendas/route`, `lib/relatorios/painel-de-ven
 ## Checklist do sistema vivo
 
 Entrada: cadastro existente em `/api/v1/vendas`, que exige um destino. Saídas: painel de vendas e leitura no dossiê, agora limitados pela RLS do negócio. A exclusão do pai conserva valor e data no registro financeiro. Auditoria e apresentação permanecem nos consumidores existentes. Laço de retorno: os invariantes novos reproduzem vazamento e exclusão bloqueada antes da correção e impedem sua regressão. Não há peça nova que exija arestas adicionais no mapa de arquitetura.
+
+## Guarda estrutural e ensaio de atualização
+
+A CI identificou a definição SELECT antiga sendo recriada antes da final. Ela foi removida do baseline, mantendo a migration aplicada intacta. `pnpm cercas` passou **4.716 testes em 397 arquivos**, com 11 testes ignorados. O baseline final também passou sobre uma restauração isolada do banco de produção: contagens das seis tabelas centrais preservadas, RLS ativa nas tabelas tenant-aware, zero inconsistência de funil/etapa e zero índice inválido. Conferidas a ausência do CHECK de destino e a política que consulta os negócios visíveis.
+
+Depois de remover a política intermediária, o reteste de banco com vendas e LGPD passou **36/36**, novamente com INSTALL e UPDATE estritos.
