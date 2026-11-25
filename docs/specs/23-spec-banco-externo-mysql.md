@@ -40,7 +40,17 @@ integração; nada disso entra em código antes disso.
 - `LOAD DATA LOCAL`: recusado com a flag `-LOCAL_FILES` e também sem ela (o `mysql2` exige `streamFactory`).
 - TLS: `disable` conecta sem TLS; `prefer` e `require` conectam com TLS_AES_256_GCM_SHA384; `verify-ca` falha com certificado autoassinado, como esperado.
 - Trava de metadados: atrás de um `ALTER TABLE`, o SELECT falhou após cerca de 5 s (erro 1205) em vez de ficar pendurado.
-- Tempo limite: com `max_execution_time=10000`, `select sleep(25)` terminou em cerca de 10 s, sem erro.
+- Tempo limite: a medição original de `select sleep(25)` com `max_execution_time=10000`
+  terminou em cerca de 10 s, sem erro. Isso não garante o prazo em todos os servidores:
+  no PR #75 do fork, a mesma consulta levou 25 s na CI. O cliente agora também impõe
+  10 s a partir do empréstimo da conexão, cobrindo configuração, execução e finalização
+  (inclusive rollback). Ao vencer, rejeita com `PROTOCOL_SEQUENCE_TIMEOUT` e descarta
+  a sessão, sem devolvê-la ao pool ou aguardar rollback atrás da consulta pendente.
+  Esse prazo não inclui a espera por empréstimo do pool e não confirma cancelamento
+  imediato da consulta no servidor; as travas de sessão continuam sendo aplicadas.
+  Regressão executável: `pnpm test:mysql tests/mysql/dialeto.test.ts`; o caso
+  "o prazo do cliente" eleva o limite do servidor para 60 s e confere que uma nova
+  leitura no mesmo pool funciona após o timeout.
 - Catálogo: 300 tabelas e 9.300 colunas em 71 ms; um usuário só com SELECT numa view enxerga só essa view.
 - Aviso de privilégio: view só-SELECT = sem aviso; `banco.*` = "lê o banco inteiro"; SELECT+INSERT = "pode escrever"; `root` = os dois avisos.
 - Acento: `'joao'` contém `'João Silva'` (a collation padrão ignora acento e maiúscula, como a spec previa).

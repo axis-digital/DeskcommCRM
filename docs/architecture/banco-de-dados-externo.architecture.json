@@ -80,7 +80,7 @@
       "id": "pool",
       "lane": "nucleo",
       "label": "conexao.ts",
-      "sublabel": "pool por conexão, invalidado por updated_at; BEGIN READ ONLY + timeouts",
+      "sublabel": "pool por conexão; transação READ ONLY + timeouts; MySQL descarta a sessão se o prazo do cliente de 10 s vencer",
       "type": "lib",
       "dot": "blue"
     },
