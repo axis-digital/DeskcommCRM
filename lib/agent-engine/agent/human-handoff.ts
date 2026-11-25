@@ -49,6 +49,7 @@ import {
   type OrigemDaPassagem,
 } from '@/lib/escalacao/passagem';
 import { traduzir } from '@/lib/i18n/dicionario';
+import { donoHumanoVetaIA, lerModoIaComDono } from '@/lib/ai/elegibilidade/ia-com-dono';
 import { normalizarIdioma, type Idioma } from '@/lib/i18n/idiomas';
 import { sqlContatoInterno } from '@/lib/contacts/tags-internas';
 import { CONVERSATION_TERMINAL_STATUSES } from '@/lib/schemas';
@@ -408,6 +409,50 @@ export async function isLeadInHandoff(
   return rows[0]?.handoff === true;
 }
 
+/**
+ * A IA ainda pode ENTREGAR esta mensagem, agora?
+ *
+ * A pergunta é a do instante do envio, não a do começo do turno. O turno decide
+ * falar pelo gate completo (`isLeadInHandoff` + elegibilidade, que inclui o veto
+ * do dono humano), mas entre essa decisão e a entrega há o modelo, as tools e o
+ * ritmo de digitação — segundos a minutos. Uma pessoa que assume nesse meio-tempo
+ * não pode receber uma bolha da IA por cima da sua primeira frase.
+ *
+ * Por isso a reconferência lê as DUAS travas da conversa:
+ *   1. `isLeadInHandoff` — contato travado, sempre-humano, silêncio em vigor;
+ *   2. o dono humano (`assignee_kind = 'user'`), que é veto absoluto do gate
+ *      (`donoHumanoVetaIA`, `lib/ai/elegibilidade/ia-com-dono.ts`) e que o item 1
+ *      NÃO enxerga: o rodízio atribui sem gravar silêncio, e "Assumir" pode
+ *      chegar por um caminho que ainda não gravou o `'infinity'`.
+ * O modo "IA com o dono" (#3967) continua liberando o item 2 pela MESMA função do
+ * gate (`donoHumanoVetaIA` + `lerModoIaComDono`), lida sobre a linha da conversa:
+ * uma segunda escrita da regra, em SQL, divergiria dela na primeira mudança.
+ *
+ * `organization_id` entra nas duas leituras: o pool é de serviço e não passa
+ * pela RLS. Falha de leitura propaga — o envio não acontece com o estado
+ * desconhecido (a fila re-tenta o job pela MESMA chave de idempotência).
+ */
+export async function iaVetadaNoEnvio(
+  db: pg.Pool,
+  tenantId: string,
+  leadId: string,
+  conversationId: string,
+): Promise<boolean> {
+  if (await isLeadInHandoff(db, tenantId, leadId, { conversationId })) return true;
+  const { rows } = await db.query<{ assignee_kind: string | null; metadata: unknown }>(
+    `select v.assignee_kind, v.metadata
+       from conversations v
+      where v.organization_id = $1 and v.id = $2`,
+    [tenantId, conversationId],
+  );
+  const conversa = rows[0];
+  if (!conversa) return false;
+  return donoHumanoVetaIA({
+    assigneeKind: conversa.assignee_kind,
+    iaComDono: lerModoIaComDono(conversa.metadata),
+  });
+}
+
 export interface HandoffIds {
   tenantId: string;
   leadId: string;
@@ -590,6 +635,7 @@ export async function performHumanHandoff(
       checkpoint: null,
       camposColetados: opts.camposColetados,
       motivo: { codigo: 'verificacao_manual' },
+      idioma: await idiomaDaOrganizacao(db, ids.tenantId, opts.log),
     });
     const gravou = await registrarPassagem(db, {
       organizationId: ids.tenantId,
@@ -925,6 +971,7 @@ export async function applyRequestHumanHandoff(
       : {}),
     ...(Object.keys(camposDoCard).length > 0 ? { camposColetados: camposDoCard } : {}),
     motivo: { codigo: motivoCodigo, texto: porQue },
+    idioma: await idiomaDaOrganizacao(db, ids.tenantId, opts.log),
   });
 
   // #2210: o handoff só carrega a marca quando a causa é a falta de texto —
@@ -1002,6 +1049,7 @@ export function buildHandoffSummary(
      */
     declaracao?: DeclaracaoDoTurno | null;
   } | null,
+  idioma: Idioma = 'pt-BR',
 ): string {
-  return montarBriefingDaPassagem({ checkpoint: previous }).body;
+  return montarBriefingDaPassagem({ checkpoint: previous, idioma }).body;
 }

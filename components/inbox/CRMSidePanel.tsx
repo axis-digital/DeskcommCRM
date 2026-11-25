@@ -37,6 +37,7 @@ import { lerCampoDeMoeda, valorDoCampoDeMoeda } from "@/lib/leads/campo-de-moeda
 import { MOEDA_PADRAO, formatValorDoNegocio, simboloDaMoeda } from "@/lib/money";
 import { ConversationTagsEditor } from "./ConversationTagsEditor";
 import { ContactTagsEditor } from "./ContactTagsEditor";
+import { ChecklistDoCard } from "./ChecklistDoCard";
 import { TarefasDaDemanda } from "./TarefasDaDemanda";
 import { NovaTarefaDaConversa } from "./NovaTarefaDaConversa";
 import { FollowupDoContato } from "./FollowupDoContato";
@@ -48,6 +49,7 @@ import {
 } from "@/lib/inbox/modulos-da-lateral";
 import { useDefaultPipeline } from "@/hooks/pipelines/useDefaultPipeline";
 import { LoseLeadDialog } from "@/components/kanban/LoseLeadDialog";
+import { diasNaEtapa } from "@/lib/kanban/barra-de-etapas";
 import { NewLeadDialog } from "@/components/kanban/NewLeadDialog";
 import { MoveToOtherPipelineDialog } from "@/components/kanban/MoveToOtherPipelineDialog";
 import { CustomFieldsEditor, type CustomFieldDef } from "@/components/contacts/CustomFieldsEditor";
@@ -60,6 +62,10 @@ import { rotuloParaAEquipe } from "@/lib/contacts/rotulo-do-contato";
 import { phoneForDisplay } from "@/lib/channels/phone-variants";
 import { AtalhosDoNegocio } from "@/components/kanban/AtalhosDoCard";
 import type { AtalhoDoCard } from "@/lib/leads/atalhos-do-card";
+import { AnotacoesDoCliente } from "@/components/inbox/AnotacoesDoCliente";
+import { VendasDoNegocio } from "@/components/vendas/VendasDoNegocio";
+import { BotaoRegistrarVenda } from "@/components/vendas/BotaoRegistrarVenda";
+import { useVendasDoNegocio } from "@/hooks/vendas/useVendasRegistradas";
 
 interface Props {
   conversation: ConversationWithContact | null;
@@ -97,6 +103,9 @@ interface LeadRow {
   recurring_months?: number | null;
   currency: string | null;
   updated_at: string;
+  /** Entrada na etapa atual e nascimento do negócio: os dias da barra de etapas (`diasNaEtapa`). */
+  stage_changed_at?: string | null;
+  created_at?: string | null;
   pipeline_id: string;
   custom_fields: Record<string, unknown> | null;
   field_defs: CustomFieldDef[];
@@ -525,13 +534,10 @@ function InboxLeadEditor({
           <EtiquetasDoNegocio tags={ativo.tags} />
         </div>
       )}
-      <EtapaDoNegocio key={`etapa-${ativo.id}`} lead={ativo} onMovido={onSalvo} />
-      <ValorDoNegocio
-        key={`valor-${ativo.id}`}
+      <EtapaDoNegocio
+        key={`etapa-${ativo.id}`}
         lead={ativo}
-        moeda={ativo.currency ?? moedaDaOrg}
-        podeEditar={podeEditarValor}
-        onSalvo={onSalvo}
+        onMovido={onSalvo}
       />
       {/*
         ABRIR O NEGÓCIO NO QUADRO DO FUNIL (issue #3004).
@@ -567,6 +573,18 @@ function InboxLeadEditor({
         valores={ativo.custom_fields ?? {}}
         onSalvo={onSalvo}
       />
+      {/* Tudo que é FUNIL fica acima (etapa, abrir, levar, campos); o VALOR do
+          negócio fica aqui embaixo, separado por uma linha. Antes ele ficava
+          no meio dos botões do funil. */}
+      <div className="border-t border-border pt-3">
+        <ValorDoNegocio
+          key={`valor-${ativo.id}`}
+          lead={ativo}
+          moeda={ativo.currency ?? moedaDaOrg}
+          podeEditar={podeEditarValor}
+          onSalvo={onSalvo}
+        />
+      </div>
     </div>
   );
 }
@@ -610,9 +628,25 @@ function ValorDoNegocio({
 }) {
   const t = useT();
   const edit = useEditLead(lead.pipeline_id);
-  const [texto, setTexto] = useState(() =>
-    lead.value_cents == null ? "" : valorDoCampoDeMoeda(lead.value_cents / 100, moeda),
+  // Com venda registrada, o valor é a SOMA das vendas (o banco grava em
+  // `value_cents`, migration 9450): o campo vira leitura e o "+" registra mais.
+  const { data: vendas } = useVendasDoNegocio(lead.id);
+  const vendasDoNegocio = Array.isArray(vendas) ? vendas : [];
+  const valorPelasVendas = vendasDoNegocio.length > 0;
+  const somaDasVendas = vendasDoNegocio.reduce(
+    (soma, v) => soma + (v.currency.toUpperCase() === moeda.toUpperCase() ? v.valor_cents : 0),
+    0,
   );
+  const textoDoBanco = lead.value_cents == null ? "" : valorDoCampoDeMoeda(lead.value_cents / 100, moeda);
+  const [texto, setTexto] = useState(textoDoBanco);
+  // O valor relido entra no campo quando a pessoa não o mexeu: apagar a última
+  // venda devolve o valor digitado (decisão 2B do doc 396), e o campo volta com
+  // ELE, não com a soma que estava em memória.
+  const [textoCarregado, setTextoCarregado] = useState(textoDoBanco);
+  if (textoCarregado !== textoDoBanco) {
+    setTextoCarregado(textoDoBanco);
+    if (texto === textoCarregado) setTexto(textoDoBanco);
+  }
   const [erro, setErro] = useState<string | null>(null);
   // O eco do quadro: dinheiro nunca é interpretado em silêncio.
   const entendido = texto.trim() === "" ? null : lerCampoDeMoeda(texto, moeda);
@@ -645,6 +679,39 @@ function ValorDoNegocio({
         <span className="block text-xs font-medium text-text">{t("Valor do negócio")}</span>
         <p className="text-xs text-muted-foreground" data-testid="inbox-valor-somente-leitura">
           {formatMoney(lead.value_cents, lead.currency)}
+        </p>
+      </div>
+    );
+  }
+
+  const maisVenda = (
+    <BotaoRegistrarVenda
+      leadId={lead.id}
+      titulo={lead.title}
+      moeda={moeda.toUpperCase()}
+      className="size-8 border border-border"
+      testId="inbox-valor-registrar-venda"
+      aoRegistrar={onSalvo}
+    />
+  );
+
+  if (valorPelasVendas) {
+    return (
+      <div className="space-y-1" data-testid="inbox-valor-do-negocio">
+        <span className="block text-xs font-medium text-text">
+          {t("Valor do negócio")} ({simboloDaMoeda(moeda)})
+        </span>
+        <div className="flex items-center gap-1">
+          <p
+            className="flex h-8 flex-1 items-center rounded-md border border-border bg-surface-elevated px-3 text-xs"
+            data-testid="inbox-valor-pelas-vendas"
+          >
+            {formatValorDoNegocio(somaDasVendas, moeda)}
+          </p>
+          {maisVenda}
+        </div>
+        <p className="text-[10px] text-muted-foreground">
+          {t("Soma de")} {vendasDoNegocio.length} {t("venda(s) registrada(s)")}
         </p>
       </div>
     );
@@ -686,6 +753,7 @@ function ValorDoNegocio({
         >
           {t("Salvar")}
         </Button>
+        {maisVenda}
       </div>
       {entendido !== null && (
         <p className="text-[10px] text-muted-foreground">= {formatValorDoNegocio(entendido, moeda)}</p>
@@ -706,11 +774,18 @@ function ValorDoNegocio({
  * não move direto: ela pede o motivo, então abre o mesmo `LoseLeadDialog` do
  * quadro (issue #2871).
  */
-function EtapaDoNegocio({ lead, onMovido }: { lead: LeadRow; onMovido: () => void }) {
+function EtapaDoNegocio({
+  lead,
+  onMovido,
+}: {
+  lead: LeadRow;
+  onMovido: () => void;
+}) {
   const t = useT();
   const mover = useBulkAction(lead.pipeline_id);
   const [perdendo, setPerdendo] = useState(false);
   const etapas = lead.etapas_do_funil ?? [];
+  const dias = diasNaEtapa(lead);
   if (!lead.stage_id || etapas.length === 0) return null;
 
   async function escolher(stageId: string) {
@@ -730,9 +805,21 @@ function EtapaDoNegocio({ lead, onMovido }: { lead: LeadRow; onMovido: () => voi
 
   return (
     <div className="space-y-1" data-testid="inbox-etapa-do-negocio">
-      <label className="block text-xs font-medium text-text" htmlFor={`etapa-${lead.id}`}>
-        {t("Etapa do funil")}
-      </label>
+      {/* Só o seletor de etapa: a barra rolável de etapas que
+          ficava aqui em cima repetia a mesma escolha e poluía a coluna estreita
+          do Inbox. No dossiê do quadro a barra continua. O que só a barra
+          mostrava — os dias na etapa atual — fica aqui, ao lado do rótulo (é
+          para isso que a rota `crm-summary` manda `stage_changed_at`). */}
+      <div className="flex items-baseline justify-between gap-2">
+        <label className="block text-xs font-medium text-text" htmlFor={`etapa-${lead.id}`}>
+          {t("Etapa do funil")}
+        </label>
+        {dias !== null && (
+          <span className="text-[11px] text-text-muted" title={t("Dias na etapa atual")} data-testid="inbox-dias-na-etapa">
+            {dias === 1 ? t("1 dia") : t("{n} dias").replace("{n}", String(dias))}
+          </span>
+        )}
+      </div>
       <Select value={lead.stage_id} onValueChange={(v) => void escolher(v)} disabled={mover.isPending}>
         <SelectTrigger id={`etapa-${lead.id}`} className="h-8 w-full text-xs" data-testid="inbox-etapa-select">
           <SelectValue />
@@ -1317,6 +1404,20 @@ export function CRMSidePanel({
       editor continuam os mesmos (`ChipDeEtiqueta`, `ContactTagsEditor`), na
       mesma posição do fluxo: logo abaixo do contato.
     */
+    /* O bloco de notas da equipe sobre o cliente — o mesmo campo
+       "Observações da equipe" da aba Diagnóstico da ficha. */
+    anotacoes: contactId && !contact?.is_anonymized ? (
+      <>
+        <AnotacoesDoCliente
+          key={contactId}
+          contactId={contactId}
+          usuarioId={user.id}
+          podeEditar={podeEditarValor && !readonly}
+        />
+        <Separator />
+      </>
+    ) : null,
+
     "tags-do-contato": (
       <section data-testid="inbox-tags-do-contato" className="space-y-2">
         {tags.length > 0 && (
@@ -1456,12 +1557,19 @@ export function CRMSidePanel({
        a seção mostra as tarefas abertas do contato (#4630). Só a demanda vigente AINDA ABERTA
        (`current_demanda_id` continua apontando depois de "Encerrar demanda"). */
     tarefas: (
-      <TarefasDaDemanda
-        demandaId={demandas?.find((d) => d.id === conversation.current_demanda_id)?.id ?? null}
-        contactId={contactId}
-        leadId={negocioAtivoId}
-        podeEditar={podeCriarTarefa}
-      />
+      <>
+        {/* O CHECKLIST DO CARD (#4717, FASE 1): o plano aplicado como lista
+            única do negócio, com estado, autor e progresso. Vem ANTES da lista
+            de tarefas porque é a visão do atendimento inteiro — a tarefa é o
+            item dela. A seção se auto-oculta quando nenhum plano foi aplicado. */}
+        <ChecklistDoCard leadId={negocioAtivoId} podeEditar={podeCriarTarefa} />
+        <TarefasDaDemanda
+          demandaId={demandas?.find((d) => d.id === conversation.current_demanda_id)?.id ?? null}
+          contactId={contactId}
+          leadId={negocioAtivoId}
+          podeEditar={podeCriarTarefa}
+        />
+      </>
     ),
 
     /* O FOLLOW-UP NA CONVERSA (#3178): a seção se AUTO-OCULTA quando não há
@@ -1516,7 +1624,12 @@ export function CRMSidePanel({
         {sectionsLoading ? (
           <Skeleton className="mt-2 h-14 w-full" />
         ) : leads && leads.length > 0 ? (
-          <fieldset disabled={readonly}><InboxLeadEditor
+          /* `min-w-0`: o `fieldset` nasce com `min-width: min-content` (padrão
+             do navegador) e repassaria para a `aside` a largura de qualquer
+             conteúdo que não quebra linha (um título longo, um valor), e a
+             coluna inteira rolaria de lado. */
+          <>
+          <fieldset disabled={readonly} className="min-w-0"><InboxLeadEditor
             leads={leads}
             selecionadoId={leadAtivoId}
             onSelecionar={setLeadAtivoId}
@@ -1526,6 +1639,29 @@ export function CRMSidePanel({
             moedaDaOrg={activeOrg?.currency ?? MOEDA_PADRAO}
             onTrocouDeNegocio={aoTrocarDeNegocio}
           /></fieldset>
+          {/* As VENDAS do negócio ativo (Orken CRM): registrar a compra daqui,
+              sem sair da conversa. Mesma seção do negócio aberto no funil. */}
+          {negocioAtivoId && (
+            <div className="mt-3" data-testid="inbox-vendas">
+              <h4 className="mb-1 text-xs font-semibold text-text">{t("Vendas")}</h4>
+              <VendasDoNegocio
+                leadId={negocioAtivoId}
+                titulo={leads.find((l) => l.id === negocioAtivoId)?.title ?? null}
+                moeda={(
+                  leads.find((l) => l.id === negocioAtivoId)?.currency ??
+                  activeOrg?.currency ??
+                  MOEDA_PADRAO
+                ).toUpperCase()}
+                // Apagar venda é `agent`+, o mesmo piso do campo Valor ao lado
+                // (`podeEditarValor`): com `readonly` sozinho, o viewer via a lixeira
+                // e levava 403 ao clicar (prova pela tela do #5087).
+                somenteLeitura={readonly || !podeEditarValor}
+                semRegistrar
+                aoMudar={recarregar}
+              />
+            </div>
+          )}
+          </>
         ) : (
           <SemLista
             vazio={t("Sem negócios.")}

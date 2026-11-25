@@ -23,7 +23,12 @@ const mocks = vi.hoisted(() => ({
   tabelasConsultadas: [] as string[],
 }));
 
-vi.mock("@/lib/auth/server", () => ({ loadAuthUser: async () => ({ idioma: "pt-BR" }) }));
+// A rota resolve a org ativa por `orgAtivaDaApi` (org suspensa → 403); o literal é o `ORG`
+// abaixo — a fábrica do `vi.mock` sobe para o topo do arquivo e não enxerga a constante.
+vi.mock("@/lib/auth/server", () => ({
+  loadAuthUser: async () => ({ idioma: "pt-BR" }),
+  orgAtivaSemPortao: async () => ({ orgId: "bc1e396c-9917-4381-8f43-ad99fba137c2", org_status: "active" }),
+}));
 vi.mock("@/lib/supabase/server", () => ({
   createClient: async () => ({
     auth: { getUser: async () => ({ data: { user: { id: "u1" } }, error: null }) },
