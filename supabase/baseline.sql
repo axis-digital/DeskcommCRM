@@ -84455,6 +84455,32 @@ revoke all on public.reservas_aviso_organizacao from public, anon, authenticated
 grant select on public.reservas_aviso_organizacao to authenticated;
 grant all on public.reservas_aviso_organizacao to service_role;
 
+-- ---- vendas herdam o escopo do negócio e sobrevivem à exclusão dos vínculos (fork 9907) ----
+-- Espelho de 20261125193300_9907_vendas_herdam_escopo_e_preservam_registro.sql.
+-- O destino é obrigatório na API ao criar; SET NULL das FKs deve poder
+-- preservar o histórico financeiro quando o último vínculo é apagado.
+alter table public.vendas_registradas
+  drop constraint if exists vendas_registradas_dono;
+
+drop policy if exists tenant_isolation_vendas_registradas_select on public.vendas_registradas;
+create policy tenant_isolation_vendas_registradas_select
+  on public.vendas_registradas
+  for select to authenticated using (
+    (select public.fn_is_platform_admin())
+    or (
+      organization_id in (select public.fn_user_org_ids())
+      and (
+        lead_id is null
+        or exists (
+          select 1 from public.crm_leads l
+          where l.id = vendas_registradas.lead_id
+            and l.organization_id = vendas_registradas.organization_id
+        )
+      )
+    )
+  );
+notify pgrst, 'reload schema';
+
 -- ---- anonimizar alcança as fichas fundidas: a cascata (migration 9243) ----
 -- Espelho de supabase/migrations/20261107120001_9243_anonimizar_alcanca_fichas_fundidas.sql.
 -- O bloco de dados está no fim do arquivo: precisa de todos os gatilhos de anonimização criados.
