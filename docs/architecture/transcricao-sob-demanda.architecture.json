@@ -46,7 +46,7 @@
     {
       "id": "persist",
       "lane": "servidor",
-      "label": "media-persist-worker: guarda áudio; deriva sem clique quando comando_da_conversa=automatico"
+      "label": "media-persist-worker: guarda áudio; deriva com comando automatico ou IA externa em ninguem/aguardando; preserva pedido manual concorrente"
     }
   ],
   "edges": [
@@ -77,7 +77,7 @@
       "id": "g",
       "from": "persist",
       "to": "evento",
-      "label": "automático somente com agente no comando"
+      "label": "automático nativo ou externo; humano, trava e fim exigem clique"
     },
     {
       "id": "h",

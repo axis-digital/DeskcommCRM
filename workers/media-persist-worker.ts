@@ -282,7 +282,8 @@ export async function persistMessageMedia(row: EventRow): Promise<HandlerResult>
   // O campo calculado só conhece agentes nativos. Em modo externo, `ninguem`
   // ou aguardando pode representar uma IA externa; humano/trava/fim seguem
   // soberanos e nunca liberam uma transcrição sem clique.
-  const modoExterno = aiDispatchModeSchema.parse(conv?.organizacao?.settings?.ai_dispatch_mode) === "external";
+  const organizacao = Array.isArray(conv?.organizacao) ? conv.organizacao[0] : conv?.organizacao;
+  const modoExterno = aiDispatchModeSchema.parse(organizacao?.settings?.ai_dispatch_mode) === "external";
   const automatico = conv?.comando_da_conversa === "automatico" ||
     (modoExterno && ["ninguem", "aguardando"].includes(conv?.comando_da_conversa ?? ""));
 
