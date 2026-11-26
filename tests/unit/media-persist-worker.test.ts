@@ -210,6 +210,15 @@ describe("persistMessageMedia", () => {
     }));
   });
 
+  it("áudio do histórico importado não é marcado para leitura automática futura", async () => {
+    messageRow.type = "audio";
+    messageRow.metadata = { historico_importado: "true" };
+    conversationRow.comando_da_conversa = "humano";
+    await persistMessageMedia(eventRow());
+    expect(rpcMock).not.toHaveBeenCalled();
+    expect(updateEqMock.mock.calls.every(([patch]) => patch.metadata?.transcricao_sob_demanda !== true)).toBe(true);
+  });
+
   it("1:1 (controle): persiste E pede derivação", async () => {
     conversationRow.is_group = false;
     const result = await persistMessageMedia(eventRow());

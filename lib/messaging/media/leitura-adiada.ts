@@ -31,6 +31,7 @@ import type pg from "pg";
 
 import { vendaPeloCanalLigada } from "@/lib/conversoes/venda-pelo-canal";
 import { aiDispatchModeSchema } from "@/lib/schemas/settings";
+import { CHAVE_TRANSCRICAO_SOLICITADA_EM, CHAVE_TRANSCRICAO_SOB_DEMANDA } from "@/lib/messaging/media/derivable";
 
 /**
  * A chave em `messages.metadata`. ⚠️ O nome está no predicado do índice parcial
@@ -51,7 +52,29 @@ export const CHAVE_PEDIDA_EM = "derivacao_pedida_em";
  * `derivacao_pedida_em` derrubava a consulta de espera do dreno (cast) e calava
  * a IA da própria empresa, e um `derivacao_adiada` forjado pedia visão paga.
  */
-export const CHAVES_DA_DERIVACAO = [CHAVE_ADIADA, CHAVE_PEDIDA_EM, "media_derived_motivo"] as const;
+export const CHAVES_DA_DERIVACAO = [CHAVE_ADIADA, CHAVE_PEDIDA_EM, "media_derived_motivo", CHAVE_TRANSCRICAO_SOLICITADA_EM, CHAVE_TRANSCRICAO_SOB_DEMANDA] as const;
+
+/** Só o dreno elegível da IA chama: ao devolver o atendimento, ela ouve os áudios guardados pelo humano. */
+export async function reabrirAudiosParaIA(db: Pick<pg.Pool, "query">, organizationId: string, conversationId: string, limite: number): Promise<number> {
+  const { rows } = await db.query(
+    `with alvo as (
+       select id from messages where organization_id = $1 and conversation_id = $2
+         and type = 'audio' and metadata->>'${CHAVE_TRANSCRICAO_SOB_DEMANDA}' = 'true'
+         and media_storage_path is not null and revoked_at is null
+       order by created_at desc limit $3
+     ), reabertas as (
+       update messages m set media_derived_status = null,
+         metadata = (m.metadata - '${CHAVE_TRANSCRICAO_SOB_DEMANDA}' - 'media_derived_motivo')
+                    || jsonb_build_object('${CHAVE_PEDIDA_EM}', now())
+       from alvo where m.id = alvo.id and m.organization_id = $1
+         and m.metadata->>'${CHAVE_TRANSCRICAO_SOB_DEMANDA}' = 'true'
+       returning m.id
+     ) select public.emit_event('media.derive_requested', 'message', r.id,
+         jsonb_build_object('message_id', r.id), jsonb_build_object('source', 'retomada_audio'), $1)
+       from reabertas r`, [organizationId, conversationId, limite],
+  );
+  return rows.length;
+}
 
 /** Cópia do `metadata` do cliente sem as chaves que o servidor decide. */
 export function semChavesDaDerivacao(metadata: Record<string, unknown> | undefined): Record<string, unknown> {
@@ -136,6 +159,7 @@ export const LEITORES_DA_DESCRICAO: Record<string, string> = {
   "app/api/v1/messages/_handler.ts": "token vivo | humano: só áudio",
   "lib/conversoes/valor-da-conversa.ts": "conexão de anúncio | venda pelo canal",
   "components/inbox/media/MediaRenderer.tsx": "humano: só áudio",
+  "app/api/v1/messages/[id]/transcription/route.ts": "humano: só áudio, pedido explícito",
   "lib/lgpd/export-collector.ts": "minimização",
   "lib/lgpd/pdf-renderer.tsx": "minimização",
   "app/api/v1/lgpd/requests/[id]/preview/route.ts": "minimização",

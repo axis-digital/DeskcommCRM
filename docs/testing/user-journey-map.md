@@ -4872,3 +4872,6 @@ Spec: `tests/e2e/sidebar-scroll-lock.spec.ts`, incluída na parte 8 do CI.
 - Conferir também a largura da página no Inbox e na lista de funis.
 - Evidências a partir da raiz do repositório: `evidence/sidebar-scroll-lock/desktop-perfil.png`, `evidence/sidebar-scroll-lock/celular-navegacao.png` e `evidence/sidebar-scroll-lock/medidas-desktop.json`.
 - Resultado: PASS (2 testes, Chromium; 17,6 s) — ambiente isolado com baseline, bootstrap, Supabase, Redis e WAHA locais; sem dados reais do contribuidor.
+## Transcrição por clique no atendimento humano
+
+Áudio recebido em conversa humana: persistir sem derivação automática, clicar em Transcrever, acompanhar a fila, ler o texto e repetir sem outro gasto. Conversa automática mantém a transcrição necessária ao agente. Diagnóstico e aceite: [transcricao-sob-demanda.md](transcricao-sob-demanda.md). Prova de concorrência e isolamento: `tests/invariants/transcricao-sob-demanda.test.ts`. Evidência de tela: `evidence/transcricao-sob-demanda/`.

@@ -1,0 +1,7 @@
+{
+  "workerReal": true,
+  "storageReal": true,
+  "fornecedor": "HTTP local sintético",
+  "chamadas": 1,
+  "modo": "402"
+}

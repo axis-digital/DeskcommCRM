@@ -1,0 +1,89 @@
+{
+  "schema_version": 1,
+  "diagram_type": "architecture",
+  "meta": {
+    "title": "Transcrição por clique",
+    "subtitle": "O humano pede; o agente automático continua ouvindo sem clique"
+  },
+  "lanes": [
+    { "id": "inbox", "label": "Inbox" },
+    { "id": "servidor", "label": "Servidor" },
+    { "id": "banco", "label": "Banco e mídia" }
+  ],
+  "mainPath": ["audio", "pedido", "evento", "worker", "texto"],
+  "nodes": [
+    {
+      "id": "retomada",
+      "lane": "servidor",
+      "label": "drain elegível da IA: reabre áudios guardados no atendimento humano, uma vez, antes de esperar mídia"
+    },
+    { "id": "audio", "lane": "inbox", "label": "MediaRenderer: Transcrever, somente ao clicar" },
+    {
+      "id": "pedido",
+      "lane": "servidor",
+      "label": "POST messages/[id]/transcription: RBAC, suporte, tenant, LGPD e lock da mensagem"
+    },
+    {
+      "id": "evento",
+      "lane": "banco",
+      "label": "event_log: um pedido pendente por áudio; transcricao_manual=true"
+    },
+    {
+      "id": "audit",
+      "lane": "banco",
+      "label": "api_audit_log: message.transcription_requested sem conteúdo"
+    },
+    {
+      "id": "worker",
+      "lane": "servidor",
+      "label": "media-derive-worker: Storage → escada de transcrição → status; pedido manual não retoma IA"
+    },
+    {
+      "id": "texto",
+      "lane": "inbox",
+      "label": "GET transcription + realtime: texto ou motivo visível e Tentar novamente; espera limitada"
+    },
+    {
+      "id": "persist",
+      "lane": "servidor",
+      "label": "media-persist-worker: guarda áudio; deriva sem clique quando comando_da_conversa=automatico"
+    }
+  ],
+  "edges": [
+    {
+      "id": "retoma1",
+      "from": "persist",
+      "to": "retomada",
+      "label": "marca transcricao_sob_demanda protegida do cliente"
+    },
+    {
+      "id": "retoma2",
+      "from": "retomada",
+      "to": "evento",
+      "label": "somente quando o atendimento volta para a IA"
+    },
+    { "id": "a", "from": "audio", "to": "pedido", "label": "clique explícito" },
+    { "id": "b", "from": "pedido", "to": "evento", "label": "marca e evento na mesma transação" },
+    { "id": "c", "from": "pedido", "to": "audit", "label": "audita novo pedido" },
+    { "id": "d", "from": "evento", "to": "worker", "label": "fila com retry e backoff existentes" },
+    { "id": "e", "from": "worker", "to": "texto", "label": "ready ou failed com motivo" },
+    {
+      "id": "f",
+      "from": "texto",
+      "to": "pedido",
+      "label": "erro leva à configuração e a novo pedido humano"
+    },
+    {
+      "id": "g",
+      "from": "persist",
+      "to": "evento",
+      "label": "automático somente com agente no comando"
+    },
+    {
+      "id": "h",
+      "from": "persist",
+      "to": "audio",
+      "label": "humano recebe áudio stored/skipped, sem gasto"
+    }
+  ]
+}

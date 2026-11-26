@@ -509,6 +509,9 @@ export async function deriveMessageMedia(row: EventRow): Promise<HandlerResult> 
     if (!gravados || gravados.length === 0) {
       return { consumer_key, status: "skipped", detail: "message_redacted" };
     }
+    // Ler um áudio por clique não devolve a conversa à IA nem responde ao
+    // cliente. O atendimento permanece com a pessoa que pediu a transcrição.
+    if (row.payload.transcricao_manual === true) return { consumer_key, status: "ok" };
     // #2210 — o texto chegou. Se o turno já tiver rodado SEM ele e tiver
     // passado a conversa para humano por "não há transcrição de texto", é aqui
     // que a falha transitória deixa de ser permanente: a reação corrige o

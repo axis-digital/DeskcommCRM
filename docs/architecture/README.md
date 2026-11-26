@@ -1,5 +1,7 @@
 # Mapas de arquitetura
 
+- `transcricao-sob-demanda.architecture.json`: clique no áudio → pedido autorizado e único → worker existente → texto ou falha com nova tentativa; o atendimento automático mantém a transcrição sem clique.
+
 - `continuidade-primeiro-pagamento.architecture.json`: cadastro com intenção assinada → Auth → primeiro pagamento → checkout nativo → confirmação financeira → onboarding; ajuda e LGPD preservadas.
 
 ## Regra única deste diretório: o JSON é a FONTE; o HTML é DERIVADO

@@ -161,6 +161,19 @@ async function main(): Promise<void> {
   assert(Buffer.from(await objeto.data.arrayBuffer()).equals(ogg));
 
   etapa = "derivacao";
+  // Sem agente no comando, o inbox agora pede a transcrição por clique.
+  // Este caso mede o transporte do fornecedor; o gesto pela tela é coberto
+  // por inbox-transcricao-por-clique.spec.ts. Emite o mesmo pedido explícito.
+  const { count: jaPedida } = await admin.from("event_log").select("id", { count: "exact", head: true })
+    .eq("organization_id", orgId).eq("entity_id", msg.id).eq("event_type", "media.derive_requested");
+  if (jaPedida === 0) {
+    const { error: ePedido } = await admin.rpc("emit_event", {
+      p_event_type: "media.derive_requested", p_entity_kind: "message", p_entity_id: msg.id,
+      p_payload: { message_id: msg.id, transcricao_manual: true },
+      p_metadata: { source: "e2e_transport_contract" }, p_organization_id: orgId,
+    });
+    assert(!ePedido);
+  }
   assert.equal((await deriveMessageMedia(await evento("media.derive_requested"))).status, "ok");
   const { data: derivada, error: eDerivada } = await admin.from("messages")
     .select("media_derived_status, media_derived_text").eq("id", msg.id).eq("organization_id", orgId).single();

@@ -35,6 +35,7 @@ import {
   haLeitorDaDescricao,
   LOTE_DE_REABERTURA,
   reabrirLeituraAdiada,
+  reabrirAudiosParaIA,
 } from '@/lib/messaging/media/leitura-adiada';
 import { midiaDerivavelPendente } from './midia-derivavel';
 import { haQuemAtendaASessao } from '@/lib/ai/agents/quem-atende-a-sessao';
@@ -483,6 +484,11 @@ async function processEvent(
 
   // O agente da conversa: a janela de rajada (lá embaixo) e a foto (aqui).
   const agentConfig = await agenteDoEvento(pool, event, p, log);
+  try {
+    await reabrirAudiosParaIA(pool, event.organization_id, p.conversation_id, agentConfig?.historyMessageWindow ?? LOTE_DE_REABERTURA);
+  } catch {
+    log.warn('drain: não consegui pedir a transcrição dos áudios guardados pelo humano', { event_id: event.id });
+  }
   // Ele vê as fotos (9108)? Só decide sozinho quando a resposta é SIM: quem
   // responde o turno é escolhido depois, por `resolveTurnAgent` (roteador,
   // campanha), e pode ser outro agente, que vê.

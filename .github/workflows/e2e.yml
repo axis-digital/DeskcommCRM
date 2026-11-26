@@ -1186,6 +1186,7 @@ jobs:
         designer-de-automacoes.spec.ts
         historico-de-captacao.spec.ts
         inbox-quem-manda.spec.ts
+        inbox-transcricao-por-clique.spec.ts
         inbox-tempo-real.spec.ts
         inbox-rotulo-de-origem.spec.ts
         troca-de-organizacao-tem-volta.spec.ts

@@ -51,6 +51,17 @@ import { TEXTOS_AVISOS_DA_CENTRAL } from "./avisos-da-central";
 type Traducoes = Record<string, Partial<Record<Exclude<Idioma, "pt-BR">, string>>>;
 
 export const DICIONARIO: Traducoes = {
+  "Transcrever": { es: "Transcribir" },
+  "Não foi possível pedir a transcrição agora. Tente novamente.": { es: "No fue posible solicitar la transcripción ahora. Inténtalo de nuevo." },
+  "Não foi possível transcrever este áudio.": { es: "No fue posible transcribir este audio." },
+  "A transcrição está demorando. Tente novamente para verificar o resultado.": { es: "La transcripción está tardando. Inténtalo de nuevo para consultar el resultado." },
+  "Mensagem inválida.": { es: "Mensaje no válido." },
+  "Aguarde um minuto antes de pedir outra transcrição.": { es: "Espera un minuto antes de solicitar otra transcripción." },
+  "Este áudio não está disponível para transcrição.": { es: "Este audio no está disponible para transcripción." },
+  "O serviço de transcrição recusou a cobrança. Confira o saldo e o limite de uso da chave na conta do provedor.": { es: "El servicio de transcripción rechazó el cobro. Revisa el saldo y el límite de uso de la clave en la cuenta del proveedor." },
+  "Cadastre uma chave de API válida para transcrição em Agente de IA → Credenciais.": { es: "Registra una clave de API válida para transcripción en Agente de IA → Credenciales." },
+  "O serviço de transcrição está ocupado. Aguarde um minuto e tente novamente.": { es: "El servicio de transcripción está ocupado. Espera un minuto e inténtalo de nuevo." },
+  "Não foi possível transcrever este áudio. Confira a configuração em Provedores de IA e tente novamente.": { es: "No fue posible transcribir este audio. Revisa la configuración en Proveedores de IA e inténtalo de nuevo." },
   // Falha de PROXY no cartão de Conexões (modo de pool gerenciado). Os quatro valores
   // vêm de MENSAGEM_DO_PROXY (lib/channels/motivo-de-proxy.ts), a mesma fonte da API.
   "Não há proxy livre para este número agora. A conexão foi guardada e nada foi iniciado; peça a quem administra a instalação para liberar proxies e tente de novo em Conexões.": { es: "No hay un proxy libre para este número ahora. La conexión quedó guardada y no se inició nada; pide a quien administra la instalación que libere proxies y vuelve a intentarlo en Conexiones." },
