@@ -41,6 +41,25 @@ export const DERIVACAO_TERMINADA: ReadonlySet<string> = new Set(["ready", "faile
  */
 export const MARCADOR_NAO_LIDA = "[o cliente enviou uma mídia que não consegui interpretar]";
 
+/** Marca escrita pelo servidor somente depois de um pedido explícito. */
+export const CHAVE_TRANSCRICAO_SOLICITADA_EM = "transcricao_solicitada_em";
+export const CHAVE_TRANSCRICAO_SOB_DEMANDA = "transcricao_sob_demanda";
+
+/** Diagnóstico para o atendente; nunca expõe a resposta bruta do fornecedor. */
+export function falhaDeTranscricaoParaPessoa(motivo: unknown): string {
+  const codigo = typeof motivo === "string" ? motivo : "";
+  if (/\b402\b|transcription_402|insufficient_quota|credit|billing/i.test(codigo)) {
+    return "O serviço de transcrição recusou a cobrança. Confira o saldo e o limite de uso da chave na conta do provedor.";
+  }
+  if (/\b401\b|transcription_401|api.?key|credencial|sem.*chave|não há chave/i.test(codigo)) {
+    return "Cadastre uma chave de API válida para transcrição em Agente de IA → Credenciais.";
+  }
+  if (/429|rate.?limit/i.test(codigo)) {
+    return "O serviço de transcrição está ocupado. Aguarde um minuto e tente novamente.";
+  }
+  return "Não foi possível transcrever este áudio. Confira a configuração em Provedores de IA e tente novamente.";
+}
+
 /**
  * Teto de quanto uma resposta pode ESPERAR a derivação terminar.
  *

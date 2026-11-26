@@ -1,5 +1,8 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+const retomada = vi.hoisted(() => vi.fn());
+vi.mock("@/lib/escalacao/handoff-tecnico", () => ({ reagirAConclusaoDeDerivacao: retomada }));
+
 const downloadMock = vi.fn();
 const storageFromMock = vi.fn(() => ({ download: downloadMock }));
 const updateEqMock = vi.fn();
@@ -157,6 +160,7 @@ function eventRow(attempts = 0) {
 
 describe("deriveMessageMedia", () => {
   beforeEach(() => {
+    retomada.mockReset();
     downloadMock.mockReset().mockResolvedValue({ data: new Blob([new Uint8Array([1, 2, 3])]), error: null });
     storageFromMock.mockClear();
     updateEqMock.mockReset();
@@ -210,6 +214,18 @@ describe("deriveMessageMedia", () => {
     expect(updateEqMock).toHaveBeenCalledWith(
       expect.objectContaining({ media_derived_text: "transcrição do áudio real", media_derived_status: "ready" }),
     );
+  });
+
+  it("a transcrição por clique grava o texto sem devolver o atendimento ao automático", async () => {
+    const evento = { ...eventRow(), payload: { message_id: "msg1", transcricao_manual: true } };
+    expect((await deriveMessageMedia(evento)).status).toBe("ok");
+    expect(updateEqMock).toHaveBeenCalledWith(expect.objectContaining({ media_derived_status: "ready" }));
+    expect(retomada).not.toHaveBeenCalled();
+  });
+
+  it("a derivação automática preserva a reação que recupera um handoff técnico", async () => {
+    await deriveMessageMedia(eventRow());
+    expect(retomada).toHaveBeenCalledTimes(1);
   });
 
   it.each(["audio", "image", "document", "video"])(

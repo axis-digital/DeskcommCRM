@@ -28,6 +28,11 @@ import {
   MOTIVO_SEM_LEITOR,
 } from "@/lib/messaging/media/leitura-adiada";
 import { storagePathFor } from "@/lib/messaging/media/types";
+import {
+  CHAVE_TRANSCRICAO_SOLICITADA_EM,
+  CHAVE_TRANSCRICAO_SOB_DEMANDA,
+} from "@/lib/messaging/media/derivable";
+import { aiDispatchModeSchema } from "@/lib/schemas/settings";
 import { MENSAGEM_REDIGIDA } from "@/lib/lgpd/cascata";
 import { logger } from "@/lib/logger";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -98,15 +103,16 @@ export async function persistMessageMedia(row: EventRow): Promise<HandlerResult>
   const markStatus = async (
     media_status: "stored" | "failed",
     patch: Record<string, unknown> = {},
-    derivacao: { status: "failed" | "skipped"; motivo: string; adiada?: true } | null = null,
+    derivacao: { status: "failed" | "skipped"; motivo: string; adiada?: true; sobDemanda?: boolean; preservarPedido?: true } | null = null,
   ): Promise<boolean> => {
     const metadata = {
       ...(msg.metadata ?? {}),
       media_status,
       ...(derivacao ? { media_derived_motivo: derivacao.motivo } : {}),
       ...(derivacao?.adiada ? { [CHAVE_ADIADA]: "sem_leitor" } : {}),
+      ...(derivacao?.sobDemanda ? { [CHAVE_TRANSCRICAO_SOB_DEMANDA]: true } : {}),
     };
-    const { data: gravadas, error: updErr } = await admin
+    let atualizacao = admin
       .from("messages")
       .update({
         metadata,
@@ -115,8 +121,15 @@ export async function persistMessageMedia(row: EventRow): Promise<HandlerResult>
       })
       .eq("id", msg.id)
       .eq("organization_id", msg.organization_id)
-      .filter("body", "isdistinct", MENSAGEM_REDIGIDA)
-      .select("id");
+      .filter("body", "isdistinct", MENSAGEM_REDIGIDA);
+    // O arquivo já ficou disponível na primeira gravação. Se o atendente
+    // pediu a leitura desde então, esta atualização não pode rebaixar ready
+    // nem apagar o pedido pendente. O predicado é revalidado pelo Postgres
+    // na própria escrita, inclusive depois de esperar um lock concorrente.
+    if (derivacao?.preservarPedido) {
+      atualizacao = atualizacao.is(`metadata->>${CHAVE_TRANSCRICAO_SOLICITADA_EM}`, null);
+    }
+    const { data: gravadas, error: updErr } = await atualizacao.select("id");
     if (updErr) throw new Error(`message update failed: ${updErr.message}`);
     return (gravadas?.length ?? 0) > 0;
   };
@@ -238,7 +251,7 @@ export async function persistMessageMedia(row: EventRow): Promise<HandlerResult>
   // conversa na tela); só a derivação é pulada.
   const { data: conv, error: convErr } = await admin
     .from("conversations")
-    .select("is_group")
+    .select("is_group, comando_da_conversa, organizacao:organizations!conversations_organization_id_fkey(settings)")
     .eq("id", msg.conversation_id)
     .eq("organization_id", msg.organization_id)
     .maybeSingle();
@@ -265,6 +278,27 @@ export async function persistMessageMedia(row: EventRow): Promise<HandlerResult>
   // sem transcrição nem visão automática, que são pagas e responderiam a conversa
   // de meses atrás. A chave é texto 'true' (contrato da 0760).
   const historicoImportado = msg.metadata?.historico_importado === "true";
+
+  // O campo calculado só conhece agentes nativos. Em modo externo, `ninguem`
+  // ou aguardando pode representar uma IA externa; humano/trava/fim seguem
+  // soberanos e nunca liberam uma transcrição sem clique.
+  const organizacao = Array.isArray(conv?.organizacao) ? conv.organizacao[0] : conv?.organizacao;
+  const modoExterno = aiDispatchModeSchema.parse(organizacao?.settings?.ai_dispatch_mode) === "external";
+  const automatico = conv?.comando_da_conversa === "automatico" ||
+    (modoExterno && ["ninguem", "aguardando"].includes(conv?.comando_da_conversa ?? ""));
+
+  // O humano decide quando precisa ler o áudio. Só a conversa sob comando
+  // automático precisa da transcrição sem clique, para o agente responder.
+  // `skipped` é terminal: o dreno não espera por uma ação humana futura.
+  if (msg.type === "audio" && !automatico) {
+    await markStatus("stored", {}, {
+      status: "skipped",
+      motivo: "áudio guardado: use Transcrever na conversa para ler o conteúdo",
+      sobDemanda: !isGroup && !historicoImportado,
+      preservarPedido: true,
+    });
+    return { consumer_key, status: "ok", detail: "transcricao_sob_demanda" };
+  }
 
   // FOTO SÓ PASSA PELA VISÃO QUANDO ALGUÉM DA EMPRESA VAI LER A DESCRIÇÃO
   // (`MEDIA_VISION_WITHOUT_READER=defer`, o padrão; a válvula `always` nem chega

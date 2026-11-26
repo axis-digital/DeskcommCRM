@@ -229,6 +229,7 @@ export const AUDIT_ACTIONS = [
   "lead.tags_changed",
   "message.sent",
   "message.received",
+  "message.transcription_requested",
   "message.edited",
   "message.revoked",
   // A revogação chegou pelo CANAL — o autor apagou no aplicativo, e não pela
