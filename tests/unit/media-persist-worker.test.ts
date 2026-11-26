@@ -48,7 +48,7 @@ vi.mock("@/lib/agent-engine/db/request-pool", () => ({ getRequestPool: () => lei
 
 // Grupo nunca deriva (Task 8, controller A): a IA não serve grupos, e a
 // derivação (visão/transcrição paga) não pode ser pedida para eles.
-const conversationRow = { is_group: false };
+const conversationRow = { is_group: false, comando_da_conversa: "automatico" };
 // Fixture de erro (fix round 1, ruling do controller): leitura de
 // `conversations.is_group` que falha — o worker precisa fechar FECHADO
 // (não deriva) em vez de assumir `is_group: false` por omissão.
@@ -161,6 +161,7 @@ describe("persistMessageMedia", () => {
     leitor.haLeitorMock.mockReset().mockResolvedValue(true);
     leitor.falhaNaTrava = false;
     conversationRow.is_group = false;
+    conversationRow.comando_da_conversa = "automatico";
     conversationReadError = null;
     sessionReadError = null;
     sessionExists = true;
@@ -190,6 +191,23 @@ describe("persistMessageMedia", () => {
       "emit_event",
       expect.objectContaining({ p_event_type: "media.derive_requested", p_entity_id: "msg1" }),
     );
+  });
+
+  it("áudio em atendimento humano é guardado sem transcrição automática", async () => {
+    messageRow.type = "audio";
+    conversationRow.comando_da_conversa = "humano";
+    await persistMessageMedia(eventRow());
+    expect(uploadMock).toHaveBeenCalled();
+    expect(rpcMock).not.toHaveBeenCalled();
+    expect(updateEqMock).toHaveBeenCalledWith(expect.objectContaining({ media_derived_status: "skipped" }));
+  });
+
+  it("áudio com agente no comando mantém a transcrição necessária à resposta", async () => {
+    messageRow.type = "audio";
+    await persistMessageMedia(eventRow());
+    expect(rpcMock).toHaveBeenCalledWith("emit_event", expect.objectContaining({
+      p_event_type: "media.derive_requested",
+    }));
   });
 
   it("1:1 (controle): persiste E pede derivação", async () => {

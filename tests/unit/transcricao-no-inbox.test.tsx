@@ -1,5 +1,5 @@
-import { render, screen } from "@testing-library/react";
-import { describe, expect, it } from "vitest";
+import { fireEvent, render, screen } from "@testing-library/react";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { MediaRenderer } from "@/components/inbox/media/MediaRenderer";
 import { MessageBubble } from "@/components/inbox/MessageBubble";
@@ -52,6 +52,8 @@ const CHEGADA = Date.parse("2026-10-02T20:00:00.000Z");
 const audio = (over: Partial<Message>, agora = CHEGADA + 30_000) =>
   render(<MediaRenderer message={msg({ type: "audio", ...over })} agora={agora} />);
 
+afterEach(() => vi.unstubAllGlobals());
+
 describe("Transcrição do áudio no balão do Inbox (#2133)", () => {
   it("derived pronto mostra a transcrição, identificada, abaixo do player", () => {
     audio({ media_derived_status: "ready", media_derived_text: "  quero agendar amanhã  " });
@@ -63,10 +65,51 @@ describe("Transcrição do áudio no balão do Inbox (#2133)", () => {
     expect(player.compareDocumentPosition(texto) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
   });
 
-  it("enquanto processando, mostra o carregamento discreto e NÃO o texto da transcrição", () => {
+  it("áudio sem pedido mostra Transcrever e não chama o serviço ao abrir a conversa", () => {
+    const fetch = vi.fn();
+    vi.stubGlobal("fetch", fetch);
     audio({ media_derived_status: null, media_derived_text: null });
-    expect(screen.getByTestId("transcricao-de-audio-pendente")).toHaveTextContent("Transcrevendo…");
+    expect(screen.getByRole("button", { name: "Transcrever", exact: true })).toBeEnabled();
+    expect(screen.queryByTestId("transcricao-de-audio-pendente")).not.toBeInTheDocument();
     expect(screen.queryByTestId("transcricao-de-audio")).not.toBeInTheDocument();
+    expect(fetch).not.toHaveBeenCalled();
+  });
+
+  it("só o clique pede a transcrição; clique repetido não duplica o pedido", async () => {
+    const fetch = vi.fn(() => new Promise(() => {}));
+    vi.stubGlobal("fetch", fetch);
+    audio({ media_derived_status: null });
+    const botao = screen.getByRole("button", { name: "Transcrever", exact: true });
+    fireEvent.click(botao);
+    fireEvent.click(botao);
+    expect(fetch).toHaveBeenCalledTimes(1);
+    expect(fetch.mock.calls[0]?.[0]).toBe("/api/v1/messages/m1/transcription");
+    expect(screen.getByTestId("transcricao-de-audio-pendente")).toHaveTextContent("Transcrevendo…");
+  });
+
+  it("a recusa do servidor aparece e permite tentar novamente", async () => {
+    vi.stubGlobal("fetch", vi.fn(async () => new Response(JSON.stringify({
+      error: { message: "Confira o saldo do serviço de transcrição." },
+    }), { status: 402 })));
+    audio({ media_derived_status: null });
+    fireEvent.click(screen.getByRole("button", { name: "Transcrever", exact: true }));
+    expect(await screen.findByRole("alert")).toHaveTextContent("Confira o saldo");
+    expect(screen.getByRole("button", { name: "Tentar novamente", exact: true })).toBeEnabled();
+  });
+
+  it("o texto retornado pelo pedido aparece sem precisar reabrir a conversa", async () => {
+    vi.stubGlobal("fetch", vi.fn(async () => new Response(JSON.stringify({
+      data: { status: "ready", text: "Quero marcar uma reunião." },
+    }))));
+    audio({ media_derived_status: null });
+    fireEvent.click(screen.getByRole("button", { name: "Transcrever", exact: true }));
+    expect(await screen.findByTestId("transcricao-de-audio")).toHaveTextContent("Quero marcar uma reunião.");
+  });
+
+  it("áudio que já falhou mostra o motivo em linguagem de atendimento", () => {
+    audio({ media_derived_status: "failed", metadata: { media_derived_motivo: "transcription_402" } });
+    expect(screen.getByRole("alert")).toHaveTextContent(/saldo|crédito|cobrança/i);
+    expect(screen.getByRole("button", { name: "Tentar novamente", exact: true })).toBeEnabled();
   });
 
   it("áudio do composer (outbound, sent_via crm) não promete transcrição: a ingestão nunca a pede", () => {
