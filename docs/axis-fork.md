@@ -31,13 +31,24 @@ git diff --name-only --diff-filter=A <sha7> origin/main -- supabase/migrations |
 
 ## Receber atualização do upstream
 
-**Antes de mesclar, leia o que mudou** no changelog público do produto:
-<https://www.deskcomm.com.br/changelog> (uma entrada por versão; o script mostra qual é a mais
-nova no upstream). Procure migrations, variáveis novas e mudanças no WAHA.
+**Só quando a upstream publica uma versão nova** (regra do dono, `CLAUDE.md`). Versão nova é uma tag
+`vX.Y.Z` do upstream que ainda não está em `origin/main`. Commits soltos da ponta do `upstream/main`
+**não** justificam merge, e o merge é sempre da **tag mais recente**, nunca da ponta. Para saber se há
+versão nova (lista vazia = não faça nada):
 
 ```bash
-scripts/axis-sync-upstream.sh              # fetch, conta atrás/à frente, cria merge/upstream-AAAA-MM-DD
-                                           # a partir de origin/main, mescla upstream/main, roda typecheck + test:unit
+git fetch upstream origin --tags
+git tag --no-merged origin/main --merged upstream/main | sort -V
+```
+
+**Antes de mesclar, leia o que mudou** no changelog público do produto:
+<https://www.deskcomm.com.br/changelog> (uma entrada por versão; o script mostra quais são novas).
+Procure migrations, variáveis novas e mudanças no WAHA.
+
+```bash
+scripts/axis-sync-upstream.sh              # fetch, lista as versões novas, cria merge/upstream-AAAA-MM-DD
+                                           # a partir de origin/main, mescla a TAG mais recente, roda typecheck + test:unit
+                                           # sem versão nova: avisa "nada a trazer" e sai sem criar branch
 ```
 
 O script exige árvore limpa, nunca faz rebase/reset/force e **não** mescla em `main`, não dá push

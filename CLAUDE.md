@@ -30,9 +30,14 @@ skill `deskcomm-contribuir` ou a triagem sugiram o contrário — a decisão é 
 
 Toda vez que uma feature nova for pedida, **antes de escrever qualquer código**, nesta ordem:
 
-1. **Atualizar o fork com a upstream.** `git fetch upstream origin`; se `origin/main` estiver atrás de
-   `upstream/main` (`git rev-list --count origin/main..upstream/main`), fazer o merge da upstream
-   numa branch `merge/upstream-<data>` e abrir PR **no fork**. Push direto na `main` está bloqueado.
+1. **Atualizar o fork com a upstream — SÓ quando há versão nova.** `git fetch upstream origin --tags`;
+   versão nova = tag da upstream que ainda não está em `origin/main`:
+   `git tag --no-merged origin/main --merged upstream/main | sort -V`. Lista vazia = **não mescle**,
+   mesmo que `origin/main` esteja atrás de `upstream/main` em commits soltos (nem a contagem de
+   `git rev-list --count origin/main..upstream/main` justifica um merge). Havendo tag nova, mescle a
+   **tag mais recente** (`git merge --no-ff vX.Y.Z`), nunca a ponta da `upstream/main`, numa branch
+   `merge/upstream-<data>`, e abra PR **no fork**. Push direto na `main` está bloqueado.
+   Regra do dono (23/11/2026): o fork só absorve a upstream quando ela publica uma versão.
 2. **Verificar se a feature já existe**: no código da `upstream/main` (`git grep`), e nas issues e
    PRs da upstream (`gh pr list -R melgarafael/DeskcommCRM --search ...`, `gh issue list ...`).
    Se já existe ou está em voo, informar o dono antes de seguir. Não duplicar.
