@@ -12,6 +12,8 @@ Correção local na branch `fix/inbox-transcricao-por-clique`, baseada em `origi
 
 O Playwright usou Supabase local exclusivo (`transcricao-clique`, API 55421 / banco 55422), banco sem dados reais aplicado a partir do baseline, conta criada pela própria spec, Storage e worker reais, áudio OGG/Opus válido e fornecedor HTTP sintético. O pedido partiu do botão do inbox; a spec aguardou a resposta HTTP 202 antes de executar o worker. Foram provados: nenhum evento ao abrir a conversa; erro 402 do fornecedor local exibido no balão; nova tentativa; texto concluído; recarga sem outro pedido; layout móvel sem transbordamento horizontal. O worker sintético recebeu exatamente uma chamada por tentativa. Não houve chamada paga nem uso de áudio de cliente. Os recibos `worker-402.json` e `worker-ok.json` identificam o limite desta prova.
 
+Controle causal após o commit do conserto: a guarda que impede transcrição automática no atendimento humano foi desativada temporariamente. Previsão: **um** caso vermelho, o do áudio humano guardado sem pedido. Resultado: **1 falhou, 32 passaram**. A guarda foi restaurada integralmente e a mesma suíte voltou a **33 passaram**. Nenhuma sabotagem foi commitada. As contas sintéticas foram removidas (consulta confirmou zero organizações de teste restantes); servidor e stack exclusivos foram encerrados após a prova.
+
 Capturas: `01-transcrever.png`, `02-falha-de-credito.png`, `03-transcricao-pronta.png`, `04-celular.png`. São dados de teste, não a instalação da Axis.
 
 ## Limites que impedem aprovar produção
