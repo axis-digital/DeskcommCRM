@@ -104,6 +104,7 @@ vi.mock("@/lib/supabase/admin", () => ({
         const cadeia: any = {
           eq: () => cadeia,
           filter: () => cadeia,
+          is: () => cadeia,
           select: async () =>
             falha ? { data: null, error: { message: "conexão caiu" } } : { data: linhas, error: null },
         };

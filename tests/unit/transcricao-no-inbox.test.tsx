@@ -72,7 +72,7 @@ describe("Transcrição do áudio no balão do Inbox (#2133)", () => {
     const fetch = vi.fn();
     vi.stubGlobal("fetch", fetch);
     audio({ media_derived_status: null, media_derived_text: null });
-    expect(screen.getByRole("button", { name: "Transcrever", exact: true })).toBeEnabled();
+    expect(screen.getByRole("button", { name: "Transcrever" })).toBeEnabled();
     expect(screen.queryByTestId("transcricao-de-audio-pendente")).not.toBeInTheDocument();
     expect(screen.queryByTestId("transcricao-de-audio")).not.toBeInTheDocument();
     expect(fetch).not.toHaveBeenCalled();
@@ -82,7 +82,7 @@ describe("Transcrição do áudio no balão do Inbox (#2133)", () => {
     const fetch = vi.fn((_input: string, _init?: RequestInit) => new Promise(() => {}));
     vi.stubGlobal("fetch", fetch);
     audio({ media_derived_status: null });
-    const botao = screen.getByRole("button", { name: "Transcrever", exact: true });
+    const botao = screen.getByRole("button", { name: "Transcrever" });
     fireEvent.click(botao);
     fireEvent.click(botao);
     expect(fetch).toHaveBeenCalledTimes(1);
@@ -104,9 +104,9 @@ describe("Transcrição do áudio no balão do Inbox (#2133)", () => {
       ),
     );
     audio({ media_derived_status: null });
-    fireEvent.click(screen.getByRole("button", { name: "Transcrever", exact: true }));
+    fireEvent.click(screen.getByRole("button", { name: "Transcrever" }));
     expect(await screen.findByRole("alert")).toHaveTextContent("Confira o saldo");
-    expect(screen.getByRole("button", { name: "Tentar novamente", exact: true })).toBeEnabled();
+    expect(screen.getByRole("button", { name: "Tentar novamente" })).toBeEnabled();
   });
 
   it("o texto retornado pelo pedido aparece sem precisar reabrir a conversa", async () => {
@@ -122,7 +122,7 @@ describe("Transcrição do áudio no balão do Inbox (#2133)", () => {
       ),
     );
     audio({ media_derived_status: null });
-    fireEvent.click(screen.getByRole("button", { name: "Transcrever", exact: true }));
+    fireEvent.click(screen.getByRole("button", { name: "Transcrever" }));
     expect(await screen.findByTestId("transcricao-de-audio")).toHaveTextContent(
       "Quero marcar uma reunião.",
     );
@@ -139,7 +139,7 @@ describe("Transcrição do áudio no balão do Inbox (#2133)", () => {
       ),
     );
     const view = audio({ media_derived_status: null });
-    fireEvent.click(screen.getByRole("button", { name: "Transcrever", exact: true }));
+    fireEvent.click(screen.getByRole("button", { name: "Transcrever" }));
     expect(await screen.findByTestId("transcricao-de-audio")).toBeVisible();
     view.rerender(
       <MediaRenderer
@@ -170,7 +170,7 @@ describe("Transcrição do áudio no balão do Inbox (#2133)", () => {
     vi.stubGlobal("fetch", fetch);
     audio({ media_derived_status: null });
     await act(async () => {
-      fireEvent.click(screen.getByRole("button", { name: "Transcrever", exact: true }));
+      fireEvent.click(screen.getByRole("button", { name: "Transcrever" }));
     });
     expect(screen.getByRole("status")).toHaveTextContent("Transcrevendo…");
     await act(async () => {
@@ -188,7 +188,7 @@ describe("Transcrição do áudio no balão do Inbox (#2133)", () => {
       metadata: { media_derived_motivo: "transcription_402" },
     });
     expect(screen.getByRole("alert")).toHaveTextContent(/saldo|crédito|cobrança/i);
-    expect(screen.getByRole("button", { name: "Tentar novamente", exact: true })).toBeEnabled();
+    expect(screen.getByRole("button", { name: "Tentar novamente" })).toBeEnabled();
   });
 
   it("áudio do composer (outbound, sent_via crm) não promete transcrição: a ingestão nunca a pede", () => {

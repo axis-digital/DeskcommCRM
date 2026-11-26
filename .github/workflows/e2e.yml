@@ -1186,7 +1186,6 @@ jobs:
         designer-de-automacoes.spec.ts
         historico-de-captacao.spec.ts
         inbox-quem-manda.spec.ts
-        inbox-transcricao-por-clique.spec.ts
         inbox-tempo-real.spec.ts
         inbox-rotulo-de-origem.spec.ts
         troca-de-organizacao-tem-volta.spec.ts
@@ -1476,6 +1475,7 @@ jobs:
         fonte-de-captacao-assina-os-envios.spec.ts
         funil-conversa-no-dossie.spec.ts
         inbox-busca-e-filtros-dizem-a-verdade.spec.ts
+        inbox-transcricao-por-clique.spec.ts
         mapas-em-provedores.spec.ts
         modulo-de-dados-na-ficha-do-contato.spec.ts
         nuvemshop-sincroniza-pedidos.spec.ts
