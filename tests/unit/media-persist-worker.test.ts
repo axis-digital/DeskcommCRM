@@ -48,7 +48,11 @@ vi.mock("@/lib/agent-engine/db/request-pool", () => ({ getRequestPool: () => lei
 
 // Grupo nunca deriva (Task 8, controller A): a IA não serve grupos, e a
 // derivação (visão/transcrição paga) não pode ser pedida para eles.
-const conversationRow = { is_group: false, comando_da_conversa: "automatico" };
+const conversationRow = {
+  is_group: false,
+  comando_da_conversa: "automatico",
+  organizacao: { settings: { ai_dispatch_mode: "native" } },
+};
 // Fixture de erro (fix round 1, ruling do controller): leitura de
 // `conversations.is_group` que falha — o worker precisa fechar FECHADO
 // (não deriva) em vez de assumir `is_group: false` por omissão.
@@ -162,6 +166,7 @@ describe("persistMessageMedia", () => {
     leitor.falhaNaTrava = false;
     conversationRow.is_group = false;
     conversationRow.comando_da_conversa = "automatico";
+    conversationRow.organizacao.settings.ai_dispatch_mode = "native";
     conversationReadError = null;
     sessionReadError = null;
     sessionExists = true;
@@ -208,6 +213,29 @@ describe("persistMessageMedia", () => {
     expect(rpcMock).toHaveBeenCalledWith("emit_event", expect.objectContaining({
       p_event_type: "media.derive_requested",
     }));
+  });
+
+  it.each(["ninguem", "aguardando"])("agente externo mantém leitura automática quando o comando nativo é %s", async (comando) => {
+    messageRow.type = "audio";
+    conversationRow.comando_da_conversa = comando;
+    conversationRow.organizacao.settings.ai_dispatch_mode = "external";
+    await persistMessageMedia(eventRow());
+    expect(rpcMock).toHaveBeenCalledWith("emit_event", expect.objectContaining({ p_event_type: "media.derive_requested" }));
+  });
+
+  it.each(["humano", "travada", "fechada"])("modo externo preserva clique obrigatório quando a conversa está %s", async (comando) => {
+    messageRow.type = "audio";
+    conversationRow.comando_da_conversa = comando;
+    conversationRow.organizacao.settings.ai_dispatch_mode = "external";
+    await persistMessageMedia(eventRow());
+    expect(rpcMock).not.toHaveBeenCalled();
+  });
+
+  it("empresa nativa sem agente continua aguardando clique", async () => {
+    messageRow.type = "audio";
+    conversationRow.comando_da_conversa = "ninguem";
+    await persistMessageMedia(eventRow());
+    expect(rpcMock).not.toHaveBeenCalled();
   });
 
   it("áudio do histórico importado não é marcado para leitura automática futura", async () => {
