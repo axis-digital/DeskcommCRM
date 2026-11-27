@@ -1471,6 +1471,7 @@ jobs:
         cobranca-link-pelo-dono.spec.ts
         cobranca-suspensao-e-limites.spec.ts
         contatos-em-cartao-no-celular.spec.ts
+        dossie-origem-do-contato.spec.ts
         filtro-por-marcador-pela-tela.spec.ts
         fonte-de-captacao-assina-os-envios.spec.ts
         funil-conversa-no-dossie.spec.ts
