@@ -256,6 +256,54 @@ O que **não** foi provado:
 
 **Para voltar o staging:** restaurar `docker-compose.staging-ci.yml.bak-20261118` e subir app worker scheduler; tags `deskcomm-{app,worker,scheduler}:staging-pre-sync1116`; checkout de volta a `877d31613`; banco: `pg_restore` do dump `/root/backups/deskcomm/staging/staging-pre-sync1116-20261118-1118.dump`.
 
+### Promoção do staging para `31ff5f3db` — transcrição por clique, PR #78 (2026-11-26)
+
+Staging promovido para o merge `31ff5f3db` (PR #78, transcrição de áudio sob demanda no atendimento humano) **por digest**,
+com as imagens que o CI publicou para esse commit. **A produção não foi tocada.** Antes desta promoção o staging rodava o
+último build local do #72 (`94bed1bb8`, imagens `staging-pr72c`); com ela, saiu do build local e passou ao artefato do CI.
+
+| Passo | Resultado medido |
+|---|---|
+| Imagens (labels `org.opencontainers.image.revision` = `31ff5f3db` nas três) | app `sha256:c14f218a47285e0903cd0aaf2e9e2905d7aa7f8acf9d6fb28b4025afbecc4635`, worker `sha256:8315b640c79a2bb164f6f97a8149df13a86da83879f33f7d256b9f80b088addd`, scheduler `sha256:18c83110120669438047009bbd22227d54694d25827e3c8aa0577f57f26992db` (tag `main` no GHCR; `docker pull` por digest) |
+| Ponto de volta | dump lógico do banco do staging (289 entradas `TABLE DATA`; 55 MB no banco) em `/root/backups/deskcomm/staging/staging-pre-pr78-20261126-1700.dump`, com `.sha256` conferido; tags `deskcomm-{app,worker,scheduler}:staging-pre-pr78-1126` (imagens `staging-pr72c`); override anterior em `docker-compose.staging-ci.yml.bak-20261126` |
+| Schema | o PR #78 não traz migration, mas o staging estava 47 migrations atrás da `main` (sync da upstream, de `20261112190600_9360` a `20261125193300_9907`). `supabase/baseline.sql` de `31ff5f3db` aplicado com `psql -q -f` (sem `ON_ERROR_STOP`, o método do `reaplicar_baseline`), 1 passada, 0 linhas de erro (log em `/root/backups/deskcomm/staging/baseline-apply-1126.log`). Confirmado no banco: tabelas em `public` de 241 para 253; as 12 tabelas criadas pelas migrations novas existem, nenhuma ausente |
+| Composição | `docker-compose.staging-ci.yml` (só no host) reescrito com os três digests, somado a `prod`, `single-server` e `staging`; `config -q` OK |
+| Checkout | `/root/projects/deskcomm-staging` movido de `94bed1bb8` para `31ff5f3db` (detached) |
+| Execução | `up -d --no-deps app worker scheduler` com `-p deskcomm-staging` |
+| Saúde | os três `healthy`, 0 reinícios; `APP_VERSION=31ff5f3` nos três; `/` 200, `/app` 307, `/api/v1/health` 200, `/docs/changelog` 200 em `https://staging.deskcomm.axisaceleradora.com.br`; 0 linhas de erro nos logs de app e worker nos 2 primeiros minutos |
+
+O que **não** foi provado:
+
+- Nenhum fornecedor real: o 402 da OpenRouter em produção não se resolve com este código; falta saldo/limite da chave, ou uma chave
+  OpenAI cadastrada em IA › Credenciais.
+- A checagem de `401` sem login nas rotas novas não prova nada: o controle (rota inexistente) também devolve `401`, porque o proxy
+  responde antes do roteamento.
+
+Prova pela tela (2026-11-27, Chromium via Playwright, 1440×900 e 390×844, com a conta do dono do staging, admin da organização
+`minha-empresa`; evidência em `evidence/transcricao-sob-demanda/staging-1127/`, dados brutos em `resultado-2.json`). O staging não tem
+canal de WhatsApp: a prova usou uma conversa de teste com um áudio sintético de 1 s (OGG/Opus, tom de 440 Hz) criada direto no banco e no
+Storage, atribuída à conta e com o atendimento humano no comando.
+
+| Passo | Resultado medido |
+|---|---|
+| Antes do clique | o botão "Transcrever" aparece; 0 elementos "Transcrevendo…"; 0 eventos `media.derive_requested` para a mensagem (`evidence/transcricao-sob-demanda/staging-1127/01-transcrever.png`) |
+| Clique | `POST /api/v1/messages/<id>/transcription` responde 202; a bolha passa a "Transcrevendo…"; nasce 1 evento `media.derive_requested` com `transcricao_manual=true` (`evidence/transcricao-sob-demanda/staging-1127/02a-transcrevendo-apos-clique.png`) |
+| Worker real do staging | em ~20 s o evento vai a `done`; o log do worker diz `transcrição resolvida` com `origem: nada` (o modelo de conversa da organização, Anthropic, não declara capacidade de transcrição) e a mensagem fica `failed` |
+| Falha na tela | a bolha mostra "Cadastre uma chave de API válida para transcrição em Agente de IA → Credenciais." e o botão "Tentar novamente" (`evidence/transcricao-sob-demanda/staging-1127/02-falha-com-motivo.png`) |
+| Nova tentativa | clique em "Tentar novamente": `POST` responde 202, a bolha volta a "Transcrevendo…" (`evidence/transcricao-sob-demanda/staging-1127/03-nova-tentativa-pendente.png`) e, depois do worker, mostra a mesma falha (`evidence/transcricao-sob-demanda/staging-1127/04-segunda-falha.png`); 2 eventos `media.derive_requested`, os dois `done` |
+| Celular (390×844) | sem rolagem horizontal (`evidence/transcricao-sob-demanda/staging-1127/05-celular.png`) |
+| Erros | 0 erros de console, 0 respostas HTTP ≥ 400 |
+
+Esta prova cobre o caminho **sem credencial de transcrição**, não o de sucesso: a organização `minha-empresa` não tem chave OpenAI nem
+OpenRouter, e eu não cadastrei nenhuma. O texto transcrito pronto na tela continua provado só no ambiente local com fornecedor sintético.
+Os dados de teste (mensagem, conversa, contato, arquivo no Storage e o canal sintético) foram removidos ao fim; ficam no staging só as
+linhas de `event_log` e de auditoria dos pedidos.
+
+**Para voltar o staging:** restaurar `docker-compose.staging-ci.yml.bak-20261126` (imagens locais `staging-pr72c`) e subir
+`app worker scheduler`; checkout de volta a `94bed1bb8`; banco: `pg_restore` do dump
+`/root/backups/deskcomm/staging/staging-pre-pr78-20261126-1700.dump`. Como a release trouxe 47 migrations, voltar o código sem
+restaurar o dump deixa o banco à frente da imagem.
+
 ## O `agent.sh` do host (classificação medida em 2026-11-05)
 
 `hostgator-setup-kit/agent.sh` roda por cron a cada 5 minutos, em produção e no staging. Ele **não** é só um verificador
