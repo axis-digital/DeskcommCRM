@@ -1,0 +1,44 @@
+{
+  "passos": [
+    {
+      "nome": "falha com motivo e botão Tentar novamente",
+      "ok": true
+    },
+    {
+      "nome": "nova tentativa por clique",
+      "ok": true,
+      "status": 202
+    },
+    {
+      "nome": "volta ao estado 'Transcrevendo…'",
+      "ok": true
+    },
+    {
+      "nome": "segunda falha exibida após o worker",
+      "ok": true
+    }
+  ],
+  "primeiraFalha": {
+    "motivoVisivel": "Cadastre uma chave de API válida para transcrição em Agente de IA → Credenciais.",
+    "tentarNovamenteVisivel": true,
+    "estadoNoBanco": "failed"
+  },
+  "segundaFalha": {
+    "motivoVisivel": "Cadastre uma chave de API válida para transcrição em Agente de IA → Credenciais.",
+    "estadoNoBanco": "failed"
+  },
+  "eventosDePedido": [
+    "done",
+    "done"
+  ],
+  "celularSemRolagemHorizontal": true,
+  "errosDeConsole": [],
+  "respostasHttp4xx5xx": [],
+  "limpeza": {
+    "storage": true,
+    "mensagem": true,
+    "conversa": true,
+    "contato": true,
+    "canalSintetico": true
+  }
+}

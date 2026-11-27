@@ -274,14 +274,30 @@ com as imagens que o CI publicou para esse commit. **A produção não foi tocad
 
 O que **não** foi provado:
 
-- A transcrição pela tela no staging: não houve login nem clique no botão Transcrever. Medido só que a rota
-  `messages/[id]/transcription` está no build do app (`.next/server/app/api/v1/messages/[id]/transcription/route.js`) e que o worker
-  traz `transcricao_manual`. A prova em tela do PR #78 foi feita num ambiente fresco local, com fornecedor de transcrição sintético
-  (`evidence/transcricao-sob-demanda/`).
 - Nenhum fornecedor real: o 402 da OpenRouter em produção não se resolve com este código; falta saldo/limite da chave, ou uma chave
   OpenAI cadastrada em IA › Credenciais.
 - A checagem de `401` sem login nas rotas novas não prova nada: o controle (rota inexistente) também devolve `401`, porque o proxy
   responde antes do roteamento.
+
+Prova pela tela (2026-11-27, Chromium via Playwright, 1440×900 e 390×844, com a conta do dono do staging, admin da organização
+`minha-empresa`; evidência em `evidence/transcricao-sob-demanda/staging-1127/`, dados brutos em `resultado-2.json`). O staging não tem
+canal de WhatsApp: a prova usou uma conversa de teste com um áudio sintético de 1 s (OGG/Opus, tom de 440 Hz) criada direto no banco e no
+Storage, atribuída à conta e com o atendimento humano no comando.
+
+| Passo | Resultado medido |
+|---|---|
+| Antes do clique | o botão "Transcrever" aparece; 0 elementos "Transcrevendo…"; 0 eventos `media.derive_requested` para a mensagem (`evidence/transcricao-sob-demanda/staging-1127/01-transcrever.png`) |
+| Clique | `POST /api/v1/messages/<id>/transcription` responde 202; a bolha passa a "Transcrevendo…"; nasce 1 evento `media.derive_requested` com `transcricao_manual=true` (`evidence/transcricao-sob-demanda/staging-1127/02a-transcrevendo-apos-clique.png`) |
+| Worker real do staging | em ~20 s o evento vai a `done`; o log do worker diz `transcrição resolvida` com `origem: nada` (o modelo de conversa da organização, Anthropic, não declara capacidade de transcrição) e a mensagem fica `failed` |
+| Falha na tela | a bolha mostra "Cadastre uma chave de API válida para transcrição em Agente de IA → Credenciais." e o botão "Tentar novamente" (`evidence/transcricao-sob-demanda/staging-1127/02-falha-com-motivo.png`) |
+| Nova tentativa | clique em "Tentar novamente": `POST` responde 202, a bolha volta a "Transcrevendo…" (`evidence/transcricao-sob-demanda/staging-1127/03-nova-tentativa-pendente.png`) e, depois do worker, mostra a mesma falha (`evidence/transcricao-sob-demanda/staging-1127/04-segunda-falha.png`); 2 eventos `media.derive_requested`, os dois `done` |
+| Celular (390×844) | sem rolagem horizontal (`evidence/transcricao-sob-demanda/staging-1127/05-celular.png`) |
+| Erros | 0 erros de console, 0 respostas HTTP ≥ 400 |
+
+Esta prova cobre o caminho **sem credencial de transcrição**, não o de sucesso: a organização `minha-empresa` não tem chave OpenAI nem
+OpenRouter, e eu não cadastrei nenhuma. O texto transcrito pronto na tela continua provado só no ambiente local com fornecedor sintético.
+Os dados de teste (mensagem, conversa, contato, arquivo no Storage e o canal sintético) foram removidos ao fim; ficam no staging só as
+linhas de `event_log` e de auditoria dos pedidos.
 
 **Para voltar o staging:** restaurar `docker-compose.staging-ci.yml.bak-20261126` (imagens locais `staging-pr72c`) e subir
 `app worker scheduler`; checkout de volta a `94bed1bb8`; banco: `pg_restore` do dump
